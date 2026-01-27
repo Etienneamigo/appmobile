@@ -119,7 +119,7 @@ export default async function SubscriptionPage() {
           <SubscriptionActions
             hasSubscription={!!establishment.stripeSubscriptionId}
             hasCustomer={!!establishment.stripeCustomerId}
-            isActive={isActive}
+            isActive={!!isActive}
           />
         </CardContent>
       </Card>

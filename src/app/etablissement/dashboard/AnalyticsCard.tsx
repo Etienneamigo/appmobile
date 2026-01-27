@@ -26,7 +26,7 @@ export function AnalyticsCard({ activityId }: AnalyticsCardProps) {
       const result = await getActivityStats(activityId)
 
       if ("error" in result) {
-        setError(result.error)
+        setError(result.error ?? "Erreur inconnue")
       } else {
         setStats(result as Stats)
       }
