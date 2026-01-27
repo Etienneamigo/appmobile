@@ -1,0 +1,37 @@
+services:
+  activites-db:
+    image: postgres:16-alpine
+    container_name: activites-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: activite_user
+      POSTGRES_PASSWORD: activite_password
+      POSTGRES_DB: activite_db
+    volumes:
+      - activites_pg:/var/lib/postgresql/data
+    networks:
+      - web
+
+  activites-web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: activites-web
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://activite_user:activite_password@activites-db:5432/activite_db?schema=public"
+      AUTH_URL: "https://activites.tanoswebservice.fr"
+      AUTH_TRUST_HOST: "true"
+      AUTH_SECRET: "6fc1da57fdd423ff25990bfeadf0bbf0d861e0078e898e6a6294eae7d4a3ff33"
+    depends_on:
+      - activites-db
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
+    name: infra_default
+
+volumes:
+  activites_pg:
