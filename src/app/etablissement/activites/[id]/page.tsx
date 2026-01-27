@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db"
 import { notFound, redirect } from "next/navigation"
 import { ActivityForm } from "@/components/forms/ActivityForm"
 import { MediaManager } from "./MediaManager"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EventManager } from "./EventManager"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface EditActivityPageProps {
   params: Promise<{ id: string }>
@@ -24,6 +25,9 @@ export default async function EditActivityPage({ params }: EditActivityPageProps
     },
     include: {
       medias: true,
+      events: {
+        orderBy: { startAt: "asc" },
+      },
     },
   })
 
@@ -41,10 +45,23 @@ export default async function EditActivityPage({ params }: EditActivityPageProps
       {/* Gestionnaire de médias */}
       <Card>
         <CardHeader>
-          <CardTitle>Médias</CardTitle>
+          <CardTitle>Medias</CardTitle>
         </CardHeader>
         <CardContent>
           <MediaManager activityId={activity.id} medias={activity.medias} />
+        </CardContent>
+      </Card>
+
+      {/* Calendrier d'événements */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendrier</CardTitle>
+          <CardDescription>
+            Gerez vos evenements, soirees speciales et animations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EventManager activityId={activity.id} events={activity.events} />
         </CardContent>
       </Card>
 

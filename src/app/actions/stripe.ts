@@ -55,7 +55,28 @@ export async function createCheckoutSession() {
       }
     }
 
+    // Determine trial settings for checkout
+    // IMPORTANT: Never give a new trial at checkout - use existing trialEndsAt or start billing immediately
+    // Trial/promo is only applied at registration, not at checkout
+    const now = new Date()
+    const hasActiveTrialOrPromo = establishment.trialEndsAt && establishment.trialEndsAt > now
+
+    // Build subscription_data based on trial status
+    let trialEnd: number | "now" | undefined
+
+    if (hasActiveTrialOrPromo) {
+      // Use trial_end (Unix timestamp) to sync with existing trial end date
+      // This does NOT give extra trial - it just aligns Stripe with our DB
+      trialEnd = Math.floor(establishment.trialEndsAt!.getTime() / 1000)
+      console.log(`[Stripe Checkout] Establishment ${establishment.id}: syncing trial_end to ${establishment.trialEndsAt?.toISOString()}`)
+    } else {
+      // No active trial/promo - billing starts immediately (no trial)
+      trialEnd = "now"
+      console.log(`[Stripe Checkout] Establishment ${establishment.id}: no active trial, billing starts immediately`)
+    }
+
     // Create checkout session
+    // Note: trial_end is a valid Stripe API parameter but may not be typed in all SDK versions
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
@@ -66,14 +87,15 @@ export async function createCheckoutSession() {
           quantity: 1,
         },
       ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       subscription_data: {
-        trial_period_days: establishment.trialEndsAt
-          ? Math.max(0, Math.floor((establishment.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
-          : STRIPE_CONFIG.trialDays,
         metadata: {
           establishmentId: establishment.id,
         },
-      },
+        trial_end: trialEnd,
+      } as any,
+      // Never allow promotion codes at checkout - they're only for registration
+      allow_promotion_codes: false,
       success_url: `${process.env.NEXTAUTH_URL}/etablissement/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXTAUTH_URL}/etablissement/abonnement`,
       metadata: {

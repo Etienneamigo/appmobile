@@ -134,6 +134,7 @@ model Activity {
   medias        Media[]
   favorites     Favorite[]
   statEvents    ActivityStatEvent[]
+  events        Event[]
 
   @@index([status])
   @@index([type])
@@ -209,4 +210,23 @@ model SiteSettings {
   heroVideoDesktopName  String?  // Nom du fichier desktop
   heroVideoMobileName   String?  // Nom du fichier mobile
   updatedAt             DateTime @updatedAt
+}
+
+// Modèle Événement (calendrier par activité)
+model Event {
+  id          String   @id @default(cuid())
+  activityId  String
+  title       String
+  description String?  @db.Text
+  startAt     DateTime
+  endAt       DateTime
+  allDay      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, startAt])
+  @@index([startAt])
 }

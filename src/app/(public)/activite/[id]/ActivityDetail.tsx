@@ -24,7 +24,9 @@ import {
   ChevronRight,
   ExternalLink,
 } from "lucide-react"
-import type { Activity, Media, Establishment } from "@prisma/client"
+import type { Activity, Media, Establishment, Event } from "@prisma/client"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
 
 // Normalize upload URLs to use the API serving route
 function normalizeUploadUrl(url: string): string {
@@ -44,6 +46,7 @@ interface ActivityDetailProps {
   activity: Activity & {
     medias: Media[]
     establishment: Establishment
+    events: Event[]
     _count: { favorites: number }
   }
   isFavorited: boolean
@@ -335,10 +338,61 @@ export function ActivityDetail({
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Upcoming Events */}
+            {activity.events.length > 0 && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Prochains evenements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {activity.events.slice(0, 5).map((event) => {
+                    const startDate = new Date(event.startAt)
+                    const endDate = new Date(event.endAt)
+                    const sameDay = startDate.toDateString() === endDate.toDateString()
+                    return (
+                      <div key={event.id} className="flex gap-3">
+                        <div className="flex-shrink-0 w-12 h-12 bg-white border rounded-lg flex flex-col items-center justify-center shadow-sm">
+                          <span className="text-[10px] font-medium text-primary uppercase">
+                            {format(startDate, "MMM", { locale: fr })}
+                          </span>
+                          <span className="text-base font-bold">
+                            {format(startDate, "d")}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{event.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {event.allDay ? (
+                              sameDay ? "Toute la journee" : `${format(startDate, "d MMM", { locale: fr })} - ${format(endDate, "d MMM", { locale: fr })}`
+                            ) : (
+                              `${format(startDate, "HH:mm")} - ${format(endDate, "HH:mm")}`
+                            )}
+                          </p>
+                          {event.description && (
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {event.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {activity.events.length > 5 && (
+                    <p className="text-xs text-muted-foreground text-center pt-2">
+                      + {activity.events.length - 5} autres evenements
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Establishment Info */}
             <Card>
               <CardHeader>
-                <CardTitle>Établissement</CardTitle>
+                <CardTitle>Etablissement</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="font-semibold">{activity.establishment.name}</p>

@@ -36,6 +36,13 @@ export default async function ActivityPage({ params }: ActivityPageProps) {
     include: {
       medias: true,
       establishment: true,
+      events: {
+        where: {
+          startAt: { gte: new Date() },
+        },
+        orderBy: { startAt: "asc" },
+        take: 10, // Limit to next 10 events
+      },
       _count: {
         select: { favorites: true },
       },
