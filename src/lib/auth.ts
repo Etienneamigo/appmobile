@@ -40,6 +40,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
+        // Check email verification (skip for admins)
+        if (!user.emailVerified && user.role !== "ADMIN") {
+          throw new Error("EMAIL_NOT_VERIFIED")
+        }
+
         return {
           id: user.id,
           email: user.email,

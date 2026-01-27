@@ -7,23 +7,46 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { loginAction } from "@/app/actions/auth"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { loginAction, resendVerificationAction } from "@/app/actions/auth"
 import { toast } from "sonner"
+import { Mail } from "lucide-react"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [emailNotVerified, setEmailNotVerified] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)
+    setEmailNotVerified(null)
     const result = await loginAction(formData)
     setIsLoading(false)
 
     if (result?.error) {
-      toast.error(result.error)
+      if (result.emailNotVerified && result.email) {
+        setEmailNotVerified(result.email)
+      } else {
+        toast.error(result.error)
+      }
     } else {
       router.push("/")
       router.refresh()
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!emailNotVerified) return
+
+    setIsResending(true)
+    const result = await resendVerificationAction(emailNotVerified)
+    setIsResending(false)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Email de vérification envoyé !")
     }
   }
 
@@ -44,6 +67,27 @@ export default function LoginPage() {
         </CardHeader>
         <form action={handleSubmit}>
           <CardContent className="space-y-4">
+            {emailNotVerified && (
+              <Alert className="bg-amber-50 border-amber-200">
+                <Mail className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <p className="font-medium mb-2">Email non vérifié</p>
+                  <p className="text-sm mb-3">
+                    Veuillez vérifier votre email avant de vous connecter.
+                    Consultez votre boîte de réception (et les spams).
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResendVerification}
+                    disabled={isResending}
+                  >
+                    {isResending ? "Envoi..." : "Renvoyer l'email de vérification"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

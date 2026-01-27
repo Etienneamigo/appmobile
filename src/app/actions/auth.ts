@@ -4,9 +4,9 @@ import { prisma } from "@/lib/db"
 import { signIn, signOut } from "@/lib/auth"
 import bcrypt from "bcryptjs"
 import { registerUserSchema, registerEstablishmentSchema } from "@/lib/validations"
-import { redirect } from "next/navigation"
 import { AuthError } from "next-auth"
 import { calculateTrialEndDate } from "@/lib/stripe"
+import { generateVerificationToken, sendVerificationEmail } from "@/lib/email"
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string
@@ -20,6 +20,15 @@ export async function loginAction(formData: FormData) {
     })
   } catch (error) {
     if (error instanceof AuthError) {
+      // Check if it's an email verification error
+      const errorMessage = (error.cause?.err as Error)?.message
+      if (errorMessage === "EMAIL_NOT_VERIFIED") {
+        return {
+          error: "Veuillez vérifier votre email avant de vous connecter.",
+          emailNotVerified: true,
+          email
+        }
+      }
       return { error: "Email ou mot de passe incorrect" }
     }
     throw error
@@ -52,6 +61,10 @@ export async function registerUserAction(formData: FormData) {
   // Hasher le mot de passe
   const passwordHash = await bcrypt.hash(password, 12)
 
+  // Generate verification token
+  const verificationToken = generateVerificationToken()
+  const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
   // Créer l'utilisateur
   await prisma.user.create({
     data: {
@@ -59,22 +72,17 @@ export async function registerUserAction(formData: FormData) {
       passwordHash,
       name,
       role: "USER",
+      emailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: tokenExpires,
     },
   })
 
-  // Connecter l'utilisateur
-  try {
-    await signIn("credentials", {
-      email,
-      password,
-      redirectTo: "/",
-    })
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Erreur lors de la connexion" }
-    }
-    throw error
-  }
+  // Send verification email
+  await sendVerificationEmail(email, verificationToken, name)
+
+  // Return success - don't sign in until verified
+  return { success: true, requiresVerification: true }
 }
 
 export async function registerEstablishmentAction(formData: FormData) {
@@ -141,12 +149,19 @@ export async function registerEstablishmentAction(formData: FormData) {
   // Hasher le mot de passe
   const passwordHash = await bcrypt.hash(password, 12)
 
+  // Generate verification token
+  const verificationToken = generateVerificationToken()
+  const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
   // Créer l'utilisateur et l'établissement
   await prisma.user.create({
     data: {
       email,
       passwordHash,
       role: "ESTABLISHMENT",
+      emailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: tokenExpires,
       establishment: {
         create: {
           name: establishmentName,
@@ -172,21 +187,85 @@ export async function registerEstablishmentAction(formData: FormData) {
     })
   }
 
-  // Connecter l'utilisateur
-  try {
-    await signIn("credentials", {
-      email,
-      password,
-      redirectTo: "/etablissement/dashboard",
-    })
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Erreur lors de la connexion" }
-    }
-    throw error
-  }
+  // Send verification email
+  await sendVerificationEmail(email, verificationToken, establishmentName)
+
+  // Return success - don't sign in until verified
+  return { success: true, requiresVerification: true }
 }
 
 export async function logoutAction() {
   await signOut({ redirectTo: "/" })
+}
+
+// Verify email with token
+export async function verifyEmailAction(token: string) {
+  if (!token) {
+    return { error: "Token de verification manquant" }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { emailVerificationToken: token },
+  })
+
+  if (!user) {
+    return { error: "Token de verification invalide" }
+  }
+
+  if (user.emailVerified) {
+    return { success: true, alreadyVerified: true }
+  }
+
+  if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
+    return { error: "Ce lien de verification a expire. Veuillez en demander un nouveau." }
+  }
+
+  // Mark email as verified
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpires: null,
+    },
+  })
+
+  return { success: true }
+}
+
+// Resend verification email
+export async function resendVerificationAction(email: string) {
+  if (!email) {
+    return { error: "Email requis" }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+  })
+
+  if (!user) {
+    // Don't reveal if user exists or not
+    return { success: true }
+  }
+
+  if (user.emailVerified) {
+    return { error: "Cet email est deja verifie" }
+  }
+
+  // Generate new token
+  const verificationToken = generateVerificationToken()
+  const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: tokenExpires,
+    },
+  })
+
+  // Send verification email
+  await sendVerificationEmail(email, verificationToken, user.name || undefined)
+
+  return { success: true }
 }

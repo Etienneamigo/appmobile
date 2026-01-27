@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logoutAction } from "@/app/actions/auth"
-import { User, LogOut, Building2, Heart, Menu, Shield, CreditCard } from "lucide-react"
+import { User, LogOut, Building2, Heart, Menu, Shield, CreditCard, Settings } from "lucide-react"
 
 export function Header() {
   const { data: session, status } = useSession()
@@ -96,6 +96,12 @@ export function Header() {
                       <Link href="/etablissement/dashboard" className="cursor-pointer">
                         <Building2 className="mr-2 h-4 w-4" />
                         Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/etablissement/parametres" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Parametres
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>

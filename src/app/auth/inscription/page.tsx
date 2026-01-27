@@ -2,48 +2,101 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { registerUserAction, registerEstablishmentAction } from "@/app/actions/auth"
 import { toast } from "sonner"
-import { User, Building2 } from "lucide-react"
+import { User, Building2, Mail, CheckCircle } from "lucide-react"
 
 type AccountType = "user" | "establishment" | null
 
 export default function RegisterPage() {
   const [accountType, setAccountType] = useState<AccountType>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState<string>("")
 
   async function handleUserSubmit(formData: FormData) {
     setIsLoading(true)
+    const email = formData.get("email") as string
     const result = await registerUserAction(formData)
     setIsLoading(false)
 
     if (result?.error) {
       toast.error(result.error)
-    } else {
-      toast.success("Compte créé avec succès !")
-      router.push("/")
-      router.refresh()
+    } else if (result?.requiresVerification) {
+      setRegisteredEmail(email)
+      setRegistrationSuccess(true)
     }
   }
 
   async function handleEstablishmentSubmit(formData: FormData) {
     setIsLoading(true)
+    const email = formData.get("email") as string
     const result = await registerEstablishmentAction(formData)
     setIsLoading(false)
 
     if (result?.error) {
       toast.error(result.error)
-    } else {
-      toast.success("Compte établissement créé avec succès !")
-      router.push("/etablissement/dashboard")
-      router.refresh()
+    } else if (result?.requiresVerification) {
+      setRegisteredEmail(email)
+      setRegistrationSuccess(true)
     }
+  }
+
+  // Show success message after registration
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-4">
+              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
+                <Mail className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl text-center">Vérifiez votre email</CardTitle>
+            <CardDescription className="text-center">
+              Un email de vérification a été envoyé
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-green-900">Compte créé avec succès !</p>
+                  <p className="text-sm text-green-700 mt-1">
+                    Nous avons envoyé un email de vérification à{" "}
+                    <strong>{registeredEmail}</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>Pour activer votre compte :</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Ouvrez l&apos;email que nous vous avons envoyé</li>
+                <li>Cliquez sur le lien de vérification</li>
+                <li>Connectez-vous à votre compte</li>
+              </ol>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Vous ne trouvez pas l&apos;email ? Vérifiez votre dossier spam.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link href="/auth/connexion">
+                Aller à la connexion
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   if (!accountType) {

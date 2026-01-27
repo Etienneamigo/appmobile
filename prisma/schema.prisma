@@ -59,14 +59,17 @@ enum StatEventType {
 
 // Modèle User (utilisateur, établissement ou admin)
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  name         String?
-  role         UserRole  @default(USER)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                     String    @id @default(cuid())
+  email                  String    @unique
+  passwordHash           String
+  name                   String?
+  role                   UserRole  @default(USER)
+  isActive               Boolean   @default(true)
+  emailVerified          Boolean   @default(false)
+  emailVerificationToken String?   @unique
+  emailVerificationExpires DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   // Relations
   establishment Establishment?
@@ -75,19 +78,20 @@ model User {
 
 // Modèle Établissement
 model Establishment {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  name      String
-  phone     String?
-  website   String?
-  address   String?
-  city      String?
-  zipCode   String?
-  country   String   @default("France")
-  lat       Float?
-  lng       Float?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  name       String
+  phone      String?
+  website    String?
+  bookingUrl String?  // Lien de réservation externe (Calendly, etc.)
+  address    String?
+  city       String?
+  zipCode    String?
+  country    String   @default("France")
+  lat        Float?
+  lng        Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Stripe - Abonnement
   stripeCustomerId       String?             @unique

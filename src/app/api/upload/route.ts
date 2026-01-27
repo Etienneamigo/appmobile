@@ -12,7 +12,11 @@ const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"]
 export async function POST(request: NextRequest) {
   const session = await auth()
 
-  if (!session?.user?.establishmentId) {
+  // Allow establishments and admins to upload
+  const isAdmin = session?.user?.role === "ADMIN"
+  const isEstablishment = !!session?.user?.establishmentId
+
+  if (!isAdmin && !isEstablishment) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 

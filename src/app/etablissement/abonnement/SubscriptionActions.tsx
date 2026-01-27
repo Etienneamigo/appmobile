@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { createCheckoutSession, createBillingPortalSession } from "@/app/actions/stripe"
 import { toast } from "sonner"
-import { CreditCard, Settings } from "lucide-react"
+import { CreditCard, Settings, XCircle } from "lucide-react"
 
 interface SubscriptionActionsProps {
   hasSubscription: boolean
@@ -18,11 +18,14 @@ export function SubscriptionActions({
   isActive,
 }: SubscriptionActionsProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
 
   async function handleSubscribe() {
     setIsLoading(true)
+    setLoadingAction("subscribe")
     const result = await createCheckoutSession()
     setIsLoading(false)
+    setLoadingAction(null)
 
     if (result.error) {
       toast.error(result.error)
@@ -33,8 +36,10 @@ export function SubscriptionActions({
 
   async function handleManageBilling() {
     setIsLoading(true)
+    setLoadingAction("billing")
     const result = await createBillingPortalSession()
     setIsLoading(false)
+    setLoadingAction(null)
 
     if (result.error) {
       toast.error(result.error)
@@ -43,19 +48,41 @@ export function SubscriptionActions({
     }
   }
 
+  async function handleCancelSubscription() {
+    setIsLoading(true)
+    setLoadingAction("cancel")
+    const result = await createBillingPortalSession()
+    setIsLoading(false)
+    setLoadingAction(null)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.url) {
+      // Redirect to billing portal where they can cancel
+      window.location.href = result.url
+    }
+  }
+
   return (
-    <div className="flex gap-3">
+    <div className="flex flex-wrap gap-3">
       {!isActive && (
         <Button onClick={handleSubscribe} disabled={isLoading}>
           <CreditCard className="mr-2 h-4 w-4" />
-          {isLoading ? "Chargement..." : "S'abonner maintenant"}
+          {loadingAction === "subscribe" ? "Chargement..." : "S'abonner maintenant"}
         </Button>
       )}
 
       {hasCustomer && (
         <Button variant="outline" onClick={handleManageBilling} disabled={isLoading}>
           <Settings className="mr-2 h-4 w-4" />
-          {isLoading ? "Chargement..." : "Gerer la facturation"}
+          {loadingAction === "billing" ? "Chargement..." : "Gérer la facturation"}
+        </Button>
+      )}
+
+      {hasSubscription && isActive && (
+        <Button variant="destructive" onClick={handleCancelSubscription} disabled={isLoading}>
+          <XCircle className="mr-2 h-4 w-4" />
+          {loadingAction === "cancel" ? "Chargement..." : "Annuler l'abonnement"}
         </Button>
       )}
     </div>
