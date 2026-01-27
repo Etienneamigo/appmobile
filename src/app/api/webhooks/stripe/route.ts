@@ -6,6 +6,28 @@ import Stripe from "stripe"
 // Disable body parsing - we need the raw body for signature verification
 export const dynamic = "force-dynamic"
 
+// Extended type for Stripe Subscription that includes current_period_end
+// This property exists in the API response but may not be fully typed in SDK
+interface SubscriptionWithPeriod extends Stripe.Subscription {
+  current_period_end: number
+  current_period_start: number
+}
+
+// Helper to safely get current_period_end from subscription
+function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): Date {
+  const sub = subscription as SubscriptionWithPeriod
+  if (typeof sub.current_period_end === "number") {
+    return new Date(sub.current_period_end * 1000)
+  }
+  // Fallback: use items[0] if available
+  const firstItem = subscription.items?.data?.[0]
+  if (firstItem?.current_period_end) {
+    return new Date(firstItem.current_period_end * 1000)
+  }
+  // Ultimate fallback: 30 days from now
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+}
+
 async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   const establishmentId = subscription.metadata.establishmentId
 
@@ -22,7 +44,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
       trialEndsAt: subscription.trial_end
         ? new Date(subscription.trial_end * 1000)
         : null,
-      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      currentPeriodEnd: getSubscriptionPeriodEnd(subscription),
     },
   })
 }
@@ -69,7 +91,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       trialEndsAt: subscription.trial_end
         ? new Date(subscription.trial_end * 1000)
         : null,
-      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      currentPeriodEnd: getSubscriptionPeriodEnd(subscription),
     },
   })
 }

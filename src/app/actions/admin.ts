@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { createPromoCodeSchema, updatePromoCodeSchema } from "@/lib/validations"
+import { calculateTrialEndDate } from "@/lib/stripe"
 
 // Helper to check admin role
 async function requireAdmin() {
@@ -223,6 +224,10 @@ export async function updateSiteSettings(data: {
   heroVideoMobileUrl?: string | null
   heroVideoDesktopName?: string | null
   heroVideoMobileName?: string | null
+  heroImageDesktopUrl?: string | null
+  heroImageMobileUrl?: string | null
+  heroImageDesktopName?: string | null
+  heroImageMobileName?: string | null
 }) {
   try {
     await requireAdmin()
@@ -234,6 +239,10 @@ export async function updateSiteSettings(data: {
         ...(data.heroVideoMobileUrl !== undefined && { heroVideoMobileUrl: data.heroVideoMobileUrl }),
         ...(data.heroVideoDesktopName !== undefined && { heroVideoDesktopName: data.heroVideoDesktopName }),
         ...(data.heroVideoMobileName !== undefined && { heroVideoMobileName: data.heroVideoMobileName }),
+        ...(data.heroImageDesktopUrl !== undefined && { heroImageDesktopUrl: data.heroImageDesktopUrl }),
+        ...(data.heroImageMobileUrl !== undefined && { heroImageMobileUrl: data.heroImageMobileUrl }),
+        ...(data.heroImageDesktopName !== undefined && { heroImageDesktopName: data.heroImageDesktopName }),
+        ...(data.heroImageMobileName !== undefined && { heroImageMobileName: data.heroImageMobileName }),
       },
       create: {
         id: "default",
@@ -241,6 +250,10 @@ export async function updateSiteSettings(data: {
         heroVideoMobileUrl: data.heroVideoMobileUrl,
         heroVideoDesktopName: data.heroVideoDesktopName,
         heroVideoMobileName: data.heroVideoMobileName,
+        heroImageDesktopUrl: data.heroImageDesktopUrl,
+        heroImageMobileUrl: data.heroImageMobileUrl,
+        heroImageDesktopName: data.heroImageDesktopName,
+        heroImageMobileName: data.heroImageMobileName,
       },
     })
 
@@ -274,6 +287,27 @@ export async function deleteHeroVideo(type: "desktop" | "mobile") {
   }
 }
 
+export async function deleteHeroImage(type: "desktop" | "mobile") {
+  try {
+    await requireAdmin()
+
+    const updateData = type === "desktop"
+      ? { heroImageDesktopUrl: null, heroImageDesktopName: null }
+      : { heroImageMobileUrl: null, heroImageMobileName: null }
+
+    const settings = await prisma.siteSettings.update({
+      where: { id: "default" },
+      data: updateData,
+    })
+
+    revalidatePath("/")
+    revalidatePath("/admin/parametres")
+    return { settings }
+  } catch (error) {
+    return { error: "Erreur lors de la suppression" }
+  }
+}
+
 // Establishment management
 export async function toggleEstablishmentSubscription(establishmentId: string) {
   try {
@@ -281,6 +315,7 @@ export async function toggleEstablishmentSubscription(establishmentId: string) {
 
     const establishment = await prisma.establishment.findUnique({
       where: { id: establishmentId },
+      include: { usedPromoCode: true },
     })
 
     if (!establishment) {
@@ -290,13 +325,18 @@ export async function toggleEstablishmentSubscription(establishmentId: string) {
     // Toggle between ACTIVE and CANCELED for manual override
     const newStatus = establishment.subscriptionStatus === "ACTIVE" ? "CANCELED" : "ACTIVE"
 
+    // Calculate proper trial end date respecting promo code if used
+    // IMPORTANT: No arbitrary 365-day trials - respect the promo code system
+    const extraDays = establishment.usedPromoCode?.extraTrialDays || 0
+    const trialEndDate = calculateTrialEndDate(extraDays)
+
     const updated = await prisma.establishment.update({
       where: { id: establishmentId },
       data: {
         subscriptionStatus: newStatus,
-        // If activating, set trial end to far future
+        // If activating, set trial end respecting the promo code system (60 days + promo bonus)
         ...(newStatus === "ACTIVE" && {
-          trialEndsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+          trialEndsAt: trialEndDate,
         }),
       },
     })

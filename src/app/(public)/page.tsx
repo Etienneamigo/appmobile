@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db"
 import { HomePageClient } from "./HomePageClient"
 
 export default async function HomePage() {
-  // Fetch site settings for hero video
+  // Fetch site settings for hero media (video or image)
   let settings = null
   try {
     settings = await prisma.siteSettings.findUnique({
@@ -16,6 +16,8 @@ export default async function HomePage() {
     <HomePageClient
       heroVideoDesktopUrl={settings?.heroVideoDesktopUrl}
       heroVideoMobileUrl={settings?.heroVideoMobileUrl}
+      heroImageDesktopUrl={settings?.heroImageDesktopUrl}
+      heroImageMobileUrl={settings?.heroImageMobileUrl}
     />
   )
 }

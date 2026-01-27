@@ -22,8 +22,9 @@ export const stripe = new Proxy({} as Stripe, {
 export const STRIPE_CONFIG = {
   // Monthly subscription price ID - set in .env
   priceId: process.env.STRIPE_PRICE_ID || "",
-  // Trial period in days (2 months = ~61 days)
-  trialDays: 61,
+  // Default trial period: exactly 60 days (2 months)
+  // IMPORTANT: Only promo codes can extend this period
+  trialDays: 60,
   // Monthly price in EUR
   monthlyPrice: 15,
   // Webhook secret for verifying events
@@ -31,7 +32,33 @@ export const STRIPE_CONFIG = {
 }
 
 // Helper to calculate trial end date with optional promo code bonus
+// IMPORTANT: extraDays should ONLY come from a validated promo code
 export function calculateTrialEndDate(extraDays: number = 0): Date {
   const trialDays = STRIPE_CONFIG.trialDays + extraDays
   return new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
+}
+
+// Guard function to validate trial end date
+// Returns the maximum allowed trial end date if the provided date exceeds limits
+export function validateTrialEndDate(
+  trialEndsAt: Date,
+  hasPromoCode: boolean,
+  promoExtraDays: number = 0
+): Date {
+  const now = new Date()
+  const maxTrialDays = hasPromoCode
+    ? STRIPE_CONFIG.trialDays + promoExtraDays
+    : STRIPE_CONFIG.trialDays
+
+  const maxTrialEnd = new Date(now.getTime() + maxTrialDays * 24 * 60 * 60 * 1000)
+
+  // If the provided date exceeds the maximum allowed, cap it
+  if (trialEndsAt > maxTrialEnd) {
+    console.warn(
+      `Trial end date ${trialEndsAt.toISOString()} exceeds max allowed (${maxTrialDays} days). Capping to ${maxTrialEnd.toISOString()}`
+    )
+    return maxTrialEnd
+  }
+
+  return trialEndsAt
 }

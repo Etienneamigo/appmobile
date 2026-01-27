@@ -71,8 +71,8 @@ async function main() {
   })
   console.log("👤 Created test user: user@test.com / password123")
 
-  // Calculate trial end dates
-  const trialEndsAt = new Date(Date.now() + 61 * 24 * 60 * 60 * 1000) // 2 months from now
+  // Calculate trial end dates - exactly 60 days (2 months)
+  const trialEndsAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
 
   // Create establishment 1 (Paris)
   const establishment1 = await prisma.user.create({

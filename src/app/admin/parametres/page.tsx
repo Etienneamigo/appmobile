@@ -1,6 +1,9 @@
 import { getSiteSettings } from "@/app/actions/admin"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { VideoSettingsForm } from "./VideoSettingsForm"
+import { ImageSettingsForm } from "./ImageSettingsForm"
+import { Info } from "lucide-react"
 
 export default async function ParametresPage() {
   const { settings, error } = await getSiteSettings()
@@ -18,12 +21,19 @@ export default async function ParametresPage() {
         </div>
       )}
 
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Priorite d&apos;affichage :</strong> Video &gt; Image &gt; Gradient par defaut.
+          Si vous definissez une video, elle sera affichee. Sinon, l&apos;image sera utilisee comme fallback.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
-          <CardTitle>Videos de fond</CardTitle>
+          <CardTitle>Videos de fond (prioritaire)</CardTitle>
           <CardDescription>
-            Gerez les videos de fond affichees sur la page d&apos;accueil.
-            La video desktop sera affichee sur les ecrans larges, la video mobile sur les smartphones.
+            Les videos sont prioritaires sur les images. Si une video est definie, elle sera affichee.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -38,36 +48,71 @@ export default async function ParametresPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Specifications videos</CardTitle>
+          <CardTitle>Images de fond (fallback)</CardTitle>
+          <CardDescription>
+            Les images seront affichees si aucune video n&apos;est definie. Utile pour un chargement plus rapide.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <h4 className="font-medium">Video Desktop</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>Format recommande : MP4 (H.264)</li>
-                <li>Resolution : 1920x1080 (Full HD) ou plus</li>
-                <li>Ratio : 16:9</li>
-                <li>Duree : 10-30 secondes (en boucle)</li>
-                <li>Taille max : 30 Mo</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">Video Mobile</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>Format recommande : MP4 (H.264)</li>
-                <li>Resolution : 720x1280 (portrait) ou 1080x1920</li>
-                <li>Ratio : 9:16 (portrait)</li>
-                <li>Duree : 10-30 secondes (en boucle)</li>
-                <li>Taille max : 30 Mo</li>
-              </ul>
+        <CardContent>
+          <ImageSettingsForm
+            desktopUrl={settings?.heroImageDesktopUrl}
+            mobileUrl={settings?.heroImageMobileUrl}
+            desktopName={settings?.heroImageDesktopName}
+            mobileName={settings?.heroImageMobileName}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Specifications</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <h4 className="font-medium mb-3">Videos</h4>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium">Desktop</h5>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>Format : MP4 (H.264)</li>
+                  <li>Resolution : 1920x1080+</li>
+                  <li>Ratio : 16:9</li>
+                  <li>Taille max : 30 Mo</li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium">Mobile</h5>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>Format : MP4 (H.264)</li>
+                  <li>Resolution : 720x1280+</li>
+                  <li>Ratio : 9:16 (portrait)</li>
+                  <li>Taille max : 30 Mo</li>
+                </ul>
+              </div>
             </div>
           </div>
-          <div className="pt-4 border-t">
-            <p className="text-sm text-muted-foreground">
-              <strong>Conseil :</strong> Utilisez des videos compressees et optimisees pour le web.
-              Les videos trop lourdes ralentiront le chargement de la page d&apos;accueil.
-            </p>
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Images</h4>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium">Desktop</h5>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>Format : JPG, PNG, WebP</li>
+                  <li>Resolution : 1920x1080+</li>
+                  <li>Ratio : 16:9</li>
+                  <li>Taille max : 10 Mo</li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <h5 className="text-sm font-medium">Mobile</h5>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>Format : JPG, PNG, WebP</li>
+                  <li>Resolution : 720x1280+</li>
+                  <li>Ratio : 9:16 (portrait)</li>
+                  <li>Taille max : 10 Mo</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

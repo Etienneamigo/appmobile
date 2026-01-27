@@ -209,10 +209,16 @@ model PromoCode {
 // Modèle Paramètres du site (singleton)
 model SiteSettings {
   id                    String   @id @default("default")
+  // Vidéo de fond (prioritaire si définie)
   heroVideoDesktopUrl   String?  // Vidéo de fond desktop
   heroVideoMobileUrl    String?  // Vidéo de fond mobile
-  heroVideoDesktopName  String?  // Nom du fichier desktop
-  heroVideoMobileName   String?  // Nom du fichier mobile
+  heroVideoDesktopName  String?  // Nom du fichier vidéo desktop
+  heroVideoMobileName   String?  // Nom du fichier vidéo mobile
+  // Image de fond (fallback si pas de vidéo)
+  heroImageDesktopUrl   String?  // Image de fond desktop
+  heroImageMobileUrl    String?  // Image de fond mobile
+  heroImageDesktopName  String?  // Nom du fichier image desktop
+  heroImageMobileName   String?  // Nom du fichier image mobile
   updatedAt             DateTime @updatedAt
 }
 
