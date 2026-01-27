@@ -197,6 +197,83 @@ export async function togglePromoCodeActive(id: string) {
   }
 }
 
+// Site settings management
+export async function getSiteSettings() {
+  try {
+    let settings = await prisma.siteSettings.findUnique({
+      where: { id: "default" },
+    })
+
+    // Create default settings if not exists
+    if (!settings) {
+      settings = await prisma.siteSettings.create({
+        data: { id: "default" },
+      })
+    }
+
+    return { settings }
+  } catch (error) {
+    console.error("Error fetching site settings:", error)
+    return { error: "Erreur lors de la recuperation des parametres" }
+  }
+}
+
+export async function updateSiteSettings(data: {
+  heroVideoDesktopUrl?: string | null
+  heroVideoMobileUrl?: string | null
+  heroVideoDesktopName?: string | null
+  heroVideoMobileName?: string | null
+}) {
+  try {
+    await requireAdmin()
+
+    const settings = await prisma.siteSettings.upsert({
+      where: { id: "default" },
+      update: {
+        ...(data.heroVideoDesktopUrl !== undefined && { heroVideoDesktopUrl: data.heroVideoDesktopUrl }),
+        ...(data.heroVideoMobileUrl !== undefined && { heroVideoMobileUrl: data.heroVideoMobileUrl }),
+        ...(data.heroVideoDesktopName !== undefined && { heroVideoDesktopName: data.heroVideoDesktopName }),
+        ...(data.heroVideoMobileName !== undefined && { heroVideoMobileName: data.heroVideoMobileName }),
+      },
+      create: {
+        id: "default",
+        heroVideoDesktopUrl: data.heroVideoDesktopUrl,
+        heroVideoMobileUrl: data.heroVideoMobileUrl,
+        heroVideoDesktopName: data.heroVideoDesktopName,
+        heroVideoMobileName: data.heroVideoMobileName,
+      },
+    })
+
+    revalidatePath("/")
+    revalidatePath("/admin/parametres")
+    return { settings }
+  } catch (error) {
+    console.error("Error updating site settings:", error)
+    return { error: "Erreur lors de la mise a jour des parametres" }
+  }
+}
+
+export async function deleteHeroVideo(type: "desktop" | "mobile") {
+  try {
+    await requireAdmin()
+
+    const updateData = type === "desktop"
+      ? { heroVideoDesktopUrl: null, heroVideoDesktopName: null }
+      : { heroVideoMobileUrl: null, heroVideoMobileName: null }
+
+    const settings = await prisma.siteSettings.update({
+      where: { id: "default" },
+      data: updateData,
+    })
+
+    revalidatePath("/")
+    revalidatePath("/admin/parametres")
+    return { settings }
+  } catch (error) {
+    return { error: "Erreur lors de la suppression" }
+  }
+}
+
 // Establishment management
 export async function toggleEstablishmentSubscription(establishmentId: string) {
   try {

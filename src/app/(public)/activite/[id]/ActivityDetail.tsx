@@ -26,6 +26,15 @@ import {
 } from "lucide-react"
 import type { Activity, Media, Establishment } from "@prisma/client"
 
+// Normalize upload URLs to use the API serving route
+function normalizeUploadUrl(url: string): string {
+  // If it's an old /uploads/ path, convert to /api/uploads/
+  if (url.startsWith("/uploads/")) {
+    return url.replace("/uploads/", "/api/uploads/")
+  }
+  return url
+}
+
 const ActivityMap = dynamic(
   () => import("@/components/map/ActivityMap").then((mod) => mod.ActivityMap),
   { ssr: false, loading: () => <div className="h-64 bg-gray-200 rounded-lg animate-pulse" /> }
@@ -132,7 +141,7 @@ export function ActivityDetail({
           <div className="relative mb-8">
             <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
               <img
-                src={images[currentImageIndex].url}
+                src={normalizeUploadUrl(images[currentImageIndex].url)}
                 alt={`${activity.title} - Image ${currentImageIndex + 1}`}
                 className="w-full h-full object-cover"
               />
@@ -263,7 +272,7 @@ export function ActivityDetail({
                   {uploadedVideo ? (
                     <div className="aspect-video">
                       <video
-                        src={uploadedVideo.url}
+                        src={normalizeUploadUrl(uploadedVideo.url)}
                         controls
                         className="w-full h-full rounded-lg bg-black"
                         preload="metadata"

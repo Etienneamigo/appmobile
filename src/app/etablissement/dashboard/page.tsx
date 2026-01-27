@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
-import { Plus, Eye, Heart, Edit, MapPin, ExternalLink, Settings } from "lucide-react"
+import { Plus, Eye, Heart, Edit, MapPin, ExternalLink, Settings, CreditCard, AlertCircle } from "lucide-react"
 import { ActivityActions } from "./ActivityActions"
 import { AnalyticsCard } from "./AnalyticsCard"
 
@@ -34,6 +34,22 @@ export default async function DashboardPage() {
   const hasActivity = !!activity
   const typeInfo = activity ? ACTIVITY_TYPES[activity.type as ActivityTypeKey] : null
   const firstImage = activity?.medias.find(m => m.kind === "IMAGE")
+
+  // Normalize upload URLs to use API route for proper MIME type handling
+  function normalizeUploadUrl(url: string): string {
+    if (url.startsWith("/uploads/")) {
+      return url.replace("/uploads/", "/api/uploads/")
+    }
+    return url
+  }
+
+  // Calculate subscription status
+  const isTrialing = establishment?.subscriptionStatus === "TRIALING"
+  const isActive = establishment?.subscriptionStatus === "ACTIVE"
+  const trialExpired = isTrialing && establishment?.trialEndsAt && new Date(establishment.trialEndsAt) < new Date()
+  const daysLeft = establishment?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(establishment.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0
 
   return (
     <div className="space-y-8">
@@ -72,8 +88,37 @@ export default async function DashboardPage() {
 
       {hasActivity ? (
         <>
+          {/* Subscription Alert */}
+          {(trialExpired || (isTrialing && daysLeft <= 14)) && (
+            <Card className={trialExpired ? "border-red-300 bg-red-50" : "border-orange-300 bg-orange-50"}>
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className={`h-5 w-5 ${trialExpired ? "text-red-600" : "text-orange-600"}`} />
+                  <div>
+                    <p className={`font-medium ${trialExpired ? "text-red-800" : "text-orange-800"}`}>
+                      {trialExpired
+                        ? "Votre période d'essai a expiré"
+                        : `Plus que ${daysLeft} jour${daysLeft > 1 ? "s" : ""} d'essai`}
+                    </p>
+                    <p className={`text-sm ${trialExpired ? "text-red-600" : "text-orange-600"}`}>
+                      {trialExpired
+                        ? "Votre activité n'est plus visible. Abonnez-vous pour continuer."
+                        : "Pensez à vous abonner pour ne pas perdre en visibilité."}
+                    </p>
+                  </div>
+                </div>
+                <Button asChild variant={trialExpired ? "destructive" : "default"}>
+                  <Link href="/etablissement/abonnement">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Gérer l&apos;abonnement
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Statistiques */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Statut</CardTitle>
@@ -113,6 +158,26 @@ export default async function DashboardPage() {
                 </p>
               </CardContent>
             </Card>
+            <Card className="hover:bg-gray-50 transition-colors">
+              <Link href="/etablissement/abonnement">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Abonnement</CardTitle>
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Badge variant={isActive ? "default" : isTrialing && !trialExpired ? "secondary" : "destructive"}>
+                    {isActive ? "Actif" : isTrialing && !trialExpired ? "Essai" : "Expiré"}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {isActive
+                      ? "Abonnement actif"
+                      : isTrialing && !trialExpired
+                        ? `${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}`
+                        : "Cliquez pour vous abonner"}
+                  </p>
+                </CardContent>
+              </Link>
+            </Card>
           </div>
 
           {/* Apercu de l'activité */}
@@ -129,7 +194,7 @@ export default async function DashboardPage() {
                 <div className="w-full md:w-64 h-48 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
                   {firstImage ? (
                     <img
-                      src={firstImage.url}
+                      src={normalizeUploadUrl(firstImage.url)}
                       alt={activity.title}
                       className="w-full h-full object-cover"
                     />

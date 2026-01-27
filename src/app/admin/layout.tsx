@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { SessionProvider } from "@/components/providers/SessionProvider"
 import { Header } from "@/components/layout/Header"
 import Link from "next/link"
-import { Users, Building2, Tag, LayoutDashboard } from "lucide-react"
+import { Users, Building2, Tag, LayoutDashboard, Settings } from "lucide-react"
 
 export default async function AdminLayout({
   children,
@@ -55,6 +55,13 @@ export default async function AdminLayout({
               >
                 <Tag className="h-5 w-5" />
                 Codes promo
+              </Link>
+              <Link
+                href="/admin/parametres"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+              >
+                <Settings className="h-5 w-5" />
+                Parametres du site
               </Link>
             </nav>
           </aside>

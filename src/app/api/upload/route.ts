@@ -60,14 +60,15 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     await writeFile(filePath, buffer)
 
-    // Retourner l'URL et les métadonnées
-    const url = `/uploads/${subDir}/${fileName}`
+    // Retourner l'URL via l'API de serving (pour avoir les bons MIME types)
+    const url = `/api/uploads/${subDir}/${fileName}`
 
     return NextResponse.json({
       url,
       kind: isVideo ? "VIDEO_UPLOAD" : "IMAGE",
       fileName: file.name,
       fileSize: file.size,
+      mimeType: file.type,
     })
   } catch (error) {
     console.error("Upload error:", error)

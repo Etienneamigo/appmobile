@@ -18,6 +18,15 @@ interface MediaManagerProps {
 const MAX_VIDEO_SIZE_MB = 30
 const RECOMMENDED_VIDEO_DURATION = { min: 10, max: 14 }
 
+// Normalize upload URLs to use the API serving route
+function normalizeUploadUrl(url: string): string {
+  // If it's an old /uploads/ path, convert to /api/uploads/
+  if (url.startsWith("/uploads/")) {
+    return url.replace("/uploads/", "/api/uploads/")
+  }
+  return url
+}
+
 export function MediaManager({ activityId, medias }: MediaManagerProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isUploadingVideo, setIsUploadingVideo] = useState(false)
@@ -234,7 +243,7 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
             {images.map((media) => (
               <div key={media.id} className="relative group">
                 <img
-                  src={media.url}
+                  src={normalizeUploadUrl(media.url)}
                   alt=""
                   className="w-full h-24 object-cover rounded-lg"
                 />
@@ -299,11 +308,13 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
           <div className="space-y-2">
             <div className="relative rounded-lg overflow-hidden bg-black">
               <video
-                src={uploadedVideo.url}
+                src={normalizeUploadUrl(uploadedVideo.url)}
                 controls
                 className="w-full max-h-64"
                 preload="metadata"
-              />
+              >
+                Votre navigateur ne supporte pas la lecture de vidéos.
+              </video>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logoutAction } from "@/app/actions/auth"
-import { User, LogOut, Building2, Heart, Menu, Shield } from "lucide-react"
+import { User, LogOut, Building2, Heart, Menu, Shield, CreditCard } from "lucide-react"
 
 export function Header() {
   const { data: session, status } = useSession()
@@ -40,9 +40,14 @@ export function Header() {
             Rechercher
           </Link>
           {session?.user?.role === "ESTABLISHMENT" && (
-            <Link href="/etablissement/dashboard" className="text-gray-600 hover:text-gray-900">
-              Mon établissement
-            </Link>
+            <>
+              <Link href="/etablissement/dashboard" className="text-gray-600 hover:text-gray-900">
+                Mon établissement
+              </Link>
+              <Link href="/etablissement/abonnement" className="text-gray-600 hover:text-gray-900">
+                Abonnement
+              </Link>
+            </>
           )}
           {session?.user?.role === "ADMIN" && (
             <Link href="/admin" className="text-gray-600 hover:text-gray-900">
@@ -86,12 +91,20 @@ export function Header() {
                   </DropdownMenuItem>
                 )}
                 {session.user.role === "ESTABLISHMENT" && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/etablissement/dashboard" className="cursor-pointer">
-                      <Building2 className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/etablissement/dashboard" className="cursor-pointer">
+                        <Building2 className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/etablissement/abonnement" className="cursor-pointer">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Abonnement
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
                 {session.user.role === "ADMIN" && (
                   <DropdownMenuItem asChild>
@@ -135,9 +148,14 @@ export function Header() {
                 <Link href="/recherche">Rechercher</Link>
               </DropdownMenuItem>
               {session?.user?.role === "ESTABLISHMENT" && (
-                <DropdownMenuItem asChild>
-                  <Link href="/etablissement/dashboard">Mon établissement</Link>
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href="/etablissement/dashboard">Mon établissement</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/etablissement/abonnement">Abonnement</Link>
+                  </DropdownMenuItem>
+                </>
               )}
               {session?.user?.role === "ADMIN" && (
                 <DropdownMenuItem asChild>

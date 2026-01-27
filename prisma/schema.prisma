@@ -200,3 +200,13 @@ model PromoCode {
   // Relations
   establishments Establishment[]
 }
+
+// Modèle Paramètres du site (singleton)
+model SiteSettings {
+  id                    String   @id @default("default")
+  heroVideoDesktopUrl   String?  // Vidéo de fond desktop
+  heroVideoMobileUrl    String?  // Vidéo de fond mobile
+  heroVideoDesktopName  String?  // Nom du fichier desktop
+  heroVideoMobileName   String?  // Nom du fichier mobile
+  updatedAt             DateTime @updatedAt
+}

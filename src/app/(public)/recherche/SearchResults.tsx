@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
@@ -55,8 +55,17 @@ function getOrCreateSessionId(): string {
   return sessionId
 }
 
+// Normalize upload URLs to use API route for proper MIME type handling
+function normalizeUploadUrl(url: string): string {
+  if (url.startsWith("/uploads/")) {
+    return url.replace("/uploads/", "/api/uploads/")
+  }
+  return url
+}
+
 export function SearchResults({ params }: SearchResultsProps) {
   const router = useRouter()
+  const resultsRef = useRef<HTMLDivElement>(null)
   const [activities, setActivities] = useState<ActivityWithDistance[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -141,7 +150,15 @@ export function SearchResults({ params }: SearchResultsProps) {
     if (priceMax) searchParams.set("priceMax", priceMax)
     if (sortBy) searchParams.set("sortBy", sortBy)
 
+    // Close filters panel on mobile after search
+    setShowFilters(false)
+
     router.push(`/recherche?${searchParams.toString()}`)
+
+    // Smooth scroll to results after a short delay (for mobile UX)
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 100)
   }
 
   function handleActivityClick(id: string) {
@@ -294,6 +311,7 @@ export function SearchResults({ params }: SearchResultsProps) {
       )}
 
       {/* Results */}
+      <div ref={resultsRef}>
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
@@ -338,6 +356,7 @@ export function SearchResults({ params }: SearchResultsProps) {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -355,7 +374,7 @@ function ActivityCard({ activity }: { activity: ActivityWithDistance }) {
             <div className="w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0 bg-gray-200">
               {firstImage ? (
                 <img
-                  src={firstImage.url}
+                  src={normalizeUploadUrl(firstImage.url)}
                   alt={activity.title}
                   className="w-full h-full object-cover"
                 />
