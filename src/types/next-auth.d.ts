@@ -1,6 +1,6 @@
 import "next-auth"
 
-type UserRole = "USER" | "ESTABLISHMENT"
+type UserRole = "USER" | "ESTABLISHMENT" | "ADMIN"
 
 declare module "next-auth" {
   interface User {

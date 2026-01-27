@@ -1,11 +1,32 @@
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/db"
+import { redirect } from "next/navigation"
 import { ActivityForm } from "@/components/forms/ActivityForm"
 
-export default function NewActivityPage() {
+export default async function NewActivityPage() {
+  const session = await auth()
+
+  if (!session?.user?.establishmentId) {
+    redirect("/auth/connexion")
+  }
+
+  // Check if establishment already has an activity (1:1 constraint)
+  const existingActivity = await prisma.activity.findUnique({
+    where: { establishmentId: session.user.establishmentId },
+  })
+
+  // If activity already exists, redirect to edit page
+  if (existingActivity) {
+    redirect(`/etablissement/activites/${existingActivity.id}`)
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Nouvelle activité</h1>
-        <p className="text-muted-foreground">Créez une nouvelle activité pour votre établissement</p>
+        <h1 className="text-3xl font-bold">Créer mon activité</h1>
+        <p className="text-muted-foreground">
+          Configurez l&apos;activité de votre établissement
+        </p>
       </div>
       <ActivityForm mode="create" />
     </div>

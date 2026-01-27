@@ -273,6 +273,30 @@ export default function RegisterPage() {
               </div>
             </div>
             <input type="hidden" name="country" value="France" />
+
+            <div className="pt-4 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="promoCode">Code promo (optionnel)</Label>
+                <Input
+                  id="promoCode"
+                  name="promoCode"
+                  type="text"
+                  placeholder="CODE2024"
+                  disabled={isLoading}
+                  className="uppercase"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Beneficiez de jours d&apos;essai supplementaires
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>2 mois d&apos;essai gratuit</strong> inclus a l&apos;inscription.
+                Aucun moyen de paiement requis.
+              </p>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>

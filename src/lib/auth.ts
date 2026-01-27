@@ -30,7 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           include: { establishment: true },
         })
 
-        if (!user) {
+        if (!user || !user.isActive) {
           return null
         }
 
@@ -62,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.role = token.role as "USER" | "ESTABLISHMENT"
+        session.user.role = token.role as "USER" | "ESTABLISHMENT" | "ADMIN"
         session.user.establishmentId = token.establishmentId as string | undefined
       }
       return session

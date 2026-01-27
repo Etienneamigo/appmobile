@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
-import { incrementViewCount } from "@/app/actions/activities"
 import { ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
 import { ActivityDetail } from "./ActivityDetail"
+import { ClickTracker } from "./ClickTracker"
 
 interface ActivityPageProps {
   params: Promise<{ id: string }>
@@ -60,15 +60,16 @@ export default async function ActivityPage({ params }: ActivityPageProps) {
     isFavorited = !!favorite
   }
 
-  // Increment view count
-  await incrementViewCount(activity.id)
-
   return (
-    <ActivityDetail
-      activity={activity}
-      isFavorited={isFavorited}
-      isAuthenticated={!!session}
-      userId={session?.user?.id}
-    />
+    <>
+      {/* Track click/view via client-side component */}
+      <ClickTracker activityId={activity.id} />
+      <ActivityDetail
+        activity={activity}
+        isFavorited={isFavorited}
+        isAuthenticated={!!session}
+        userId={session?.user?.id}
+      />
+    </>
   )
 }

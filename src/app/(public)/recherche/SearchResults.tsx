@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { searchActivities, geocodeCity, ActivityWithDistance } from "@/app/actions/search"
+import { trackImpressions } from "@/app/actions/analytics"
 import { ACTIVITY_TYPE_OPTIONS, DISTANCE_OPTIONS, ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
 import { formatDistance } from "@/lib/geo"
 import { MapPin, Heart, Users, Clock, Euro, Search, Filter, List, Map } from "lucide-react"
@@ -42,6 +43,18 @@ interface SearchResultsProps {
   }
 }
 
+// Get or create a session ID for anonymous analytics tracking
+function getOrCreateSessionId(): string {
+  if (typeof window === "undefined") return ""
+
+  let sessionId = localStorage.getItem("analytics_session_id")
+  if (!sessionId) {
+    sessionId = crypto.randomUUID()
+    localStorage.setItem("analytics_session_id", sessionId)
+  }
+  return sessionId
+}
+
 export function SearchResults({ params }: SearchResultsProps) {
   const router = useRouter()
   const [activities, setActivities] = useState<ActivityWithDistance[]>([])
@@ -50,6 +63,12 @@ export function SearchResults({ params }: SearchResultsProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<"list" | "map">("list")
   const [center, setCenter] = useState<{ lat: number; lng: number } | undefined>()
+  const [sessionId, setSessionId] = useState<string>("")
+
+  // Initialize session ID on client
+  useEffect(() => {
+    setSessionId(getOrCreateSessionId())
+  }, [])
 
   // Filter states
   const [city, setCity] = useState(params.city || "")
@@ -100,6 +119,14 @@ export function SearchResults({ params }: SearchResultsProps) {
   useEffect(() => {
     fetchActivities()
   }, [fetchActivities])
+
+  // Track impressions when activities are displayed
+  useEffect(() => {
+    if (activities.length > 0 && sessionId) {
+      const activityIds = activities.map(a => a.id)
+      trackImpressions(activityIds, sessionId)
+    }
+  }, [activities, sessionId])
 
   function handleSearch() {
     const searchParams = new URLSearchParams()

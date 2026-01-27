@@ -22,6 +22,7 @@ export const registerEstablishmentSchema = z.object({
   city: z.string().optional(),
   zipCode: z.string().optional(),
   country: z.string().default("France"),
+  promoCode: z.string().optional(), // Code promo optionnel à l'inscription
 })
 
 // Activity schemas
@@ -73,6 +74,18 @@ export const searchSchema = z.object({
   limit: z.number().int().positive().max(50).default(20),
 })
 
+// Promo code schemas
+export const createPromoCodeSchema = z.object({
+  code: z.string().min(3, "Le code doit contenir au moins 3 caractères").max(50),
+  description: z.string().optional(),
+  extraTrialDays: z.number().int().min(0).default(0),
+  maxRedemptions: z.number().int().positive().optional().nullable(),
+  expiresAt: z.string().datetime().optional().nullable(),
+  isActive: z.boolean().default(true),
+})
+
+export const updatePromoCodeSchema = createPromoCodeSchema.partial()
+
 // Types
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterUserInput = z.infer<typeof registerUserSchema>
@@ -82,3 +95,5 @@ export type UpdateActivityInput = z.infer<typeof updateActivitySchema>
 export type SearchInput = z.infer<typeof searchSchema>
 export type ActivityType = z.infer<typeof activityTypeEnum>
 export type ActivityStatus = z.infer<typeof activityStatusEnum>
+export type CreatePromoCodeInput = z.infer<typeof createPromoCodeSchema>
+export type UpdatePromoCodeInput = z.infer<typeof updatePromoCodeSchema>

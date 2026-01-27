@@ -54,7 +54,9 @@ export function ActivityDetail({
 
   const typeInfo = ACTIVITY_TYPES[activity.type as ActivityTypeKey]
   const images = activity.medias.filter((m) => m.kind === "IMAGE")
-  const video = activity.medias.find((m) => m.kind === "VIDEO")
+  // Prioritize uploaded video over external video link
+  const uploadedVideo = activity.medias.find((m) => m.kind === "VIDEO_UPLOAD")
+  const externalVideo = activity.medias.find((m) => m.kind === "VIDEO")
 
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${activity.lat},${activity.lng}`
   const osmUrl = `https://www.openstreetmap.org/directions?route=;${activity.lat},${activity.lng}`
@@ -251,24 +253,35 @@ export function ActivityDetail({
               </CardContent>
             </Card>
 
-            {/* Video */}
-            {video && (
+            {/* Video - prioritize uploaded video over external link */}
+            {(uploadedVideo || externalVideo) && (
               <Card>
                 <CardHeader>
                   <CardTitle>Vidéo</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {video.url.includes("youtube") || video.url.includes("youtu.be") ? (
+                  {uploadedVideo ? (
+                    <div className="aspect-video">
+                      <video
+                        src={uploadedVideo.url}
+                        controls
+                        className="w-full h-full rounded-lg bg-black"
+                        preload="metadata"
+                      >
+                        Votre navigateur ne supporte pas la lecture de vidéos.
+                      </video>
+                    </div>
+                  ) : externalVideo?.url.includes("youtube") || externalVideo?.url.includes("youtu.be") ? (
                     <div className="aspect-video">
                       <iframe
-                        src={video.url.replace("watch?v=", "embed/")}
+                        src={externalVideo.url.replace("watch?v=", "embed/")}
                         className="w-full h-full rounded-lg"
                         allowFullScreen
                       />
                     </div>
-                  ) : (
+                  ) : externalVideo ? (
                     <a
-                      href={video.url}
+                      href={externalVideo.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-primary hover:underline"
@@ -276,7 +289,7 @@ export function ActivityDetail({
                       <ExternalLink className="h-4 w-4" />
                       Voir la vidéo
                     </a>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
             )}

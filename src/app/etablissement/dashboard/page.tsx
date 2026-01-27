@@ -5,14 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
-import { Plus, Eye, Heart, Edit, MoreHorizontal } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Plus, Eye, Heart, Edit, MapPin, ExternalLink, Settings } from "lucide-react"
 import { ActivityActions } from "./ActivityActions"
+import { AnalyticsCard } from "./AnalyticsCard"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -25,7 +20,8 @@ export default async function DashboardPage() {
     where: { id: session.user.establishmentId },
   })
 
-  const activities = await prisma.activity.findMany({
+  // 1 establishment = 1 activity (1:1 constraint)
+  const activity = await prisma.activity.findUnique({
     where: { establishmentId: session.user.establishmentId },
     include: {
       medias: true,
@@ -33,157 +29,265 @@ export default async function DashboardPage() {
         select: { favorites: true }
       }
     },
-    orderBy: { createdAt: "desc" },
   })
 
-  const stats = {
-    total: activities.length,
-    published: activities.filter(a => a.status === "PUBLISHED").length,
-    totalViews: activities.reduce((sum, a) => sum + a.viewCount, 0),
-    totalFavorites: activities.reduce((sum, a) => sum + a._count.favorites, 0),
-  }
+  const hasActivity = !!activity
+  const typeInfo = activity ? ACTIVITY_TYPES[activity.type as ActivityTypeKey] : null
+  const firstImage = activity?.medias.find(m => m.kind === "IMAGE")
 
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">{establishment?.name}</h1>
-          <p className="text-muted-foreground">Gérez vos activités</p>
+          <p className="text-muted-foreground">
+            {hasActivity ? "Gérez votre activité" : "Configurez votre activité"}
+          </p>
         </div>
-        <Button asChild>
-          <Link href="/etablissement/activites/nouvelle">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouvelle activité
-          </Link>
-        </Button>
+        {hasActivity ? (
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/activite/${activity.id}`} target="_blank">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Voir la page publique
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/etablissement/activites/${activity.id}`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Modifier
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <Button asChild>
+            <Link href="/etablissement/activites/nouvelle">
+              <Plus className="mr-2 h-4 w-4" />
+              Créer mon activité
+            </Link>
+          </Button>
+        )}
       </div>
 
-      {/* Statistiques */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total activités</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Publiées</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.published}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vues totales</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalViews}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Favoris</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalFavorites}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {hasActivity ? (
+        <>
+          {/* Statistiques */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Statut</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Badge variant={activity.status === "PUBLISHED" ? "default" : "secondary"} className="text-sm">
+                  {activity.status === "PUBLISHED" ? "Publié" : "Brouillon"}
+                </Badge>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {activity.status === "PUBLISHED"
+                    ? "Visible dans les recherches"
+                    : "Non visible publiquement"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Vues totales</CardTitle>
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activity.viewCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nombre de visites sur votre page
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Favoris</CardTitle>
+                <Heart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activity._count.favorites}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Utilisateurs ayant ajouté en favoris
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Liste des activités */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Mes activités</CardTitle>
-          <CardDescription>
-            {activities.length === 0
-              ? "Vous n'avez pas encore créé d'activité"
-              : `${activities.length} activité${activities.length > 1 ? "s" : ""}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {activities.length === 0 ? (
+          {/* Apercu de l'activité */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Mon activité</CardTitle>
+              <CardDescription>
+                Apercu de votre activité telle qu&apos;elle apparait aux utilisateurs
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Image */}
+                <div className="w-full md:w-64 h-48 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                  {firstImage ? (
+                    <img
+                      src={firstImage.url}
+                      alt={activity.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-6xl bg-gray-100">
+                      {typeInfo?.emoji || "🎯"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary">
+                        {typeInfo?.emoji} {typeInfo?.label}
+                      </Badge>
+                      <Badge variant={activity.status === "PUBLISHED" ? "default" : "outline"}>
+                        {activity.status === "PUBLISHED" ? "Publié" : "Brouillon"}
+                      </Badge>
+                    </div>
+                    <h3 className="text-xl font-semibold">{activity.title}</h3>
+                    <p className="text-muted-foreground flex items-center gap-1 mt-1">
+                      <MapPin className="h-4 w-4" />
+                      {activity.address}, {activity.zipCode} {activity.city}
+                    </p>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {activity.description}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                    {activity.priceFrom && (
+                      <span>A partir de {activity.priceFrom}€</span>
+                    )}
+                    {activity.durationMinutes && (
+                      <span>• {activity.durationMinutes} min</span>
+                    )}
+                    {activity.maxPeople && (
+                      <span>• Jusqu&apos;a {activity.maxPeople} personnes</span>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button asChild>
+                      <Link href={`/etablissement/activites/${activity.id}`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Modifier l&apos;activité
+                      </Link>
+                    </Button>
+                    <ActivityActions activity={activity} />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Actions rapides */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+              <Link href={`/etablissement/activites/${activity.id}`}>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Gérer les médias
+                  </CardTitle>
+                  <CardDescription>
+                    Ajoutez ou modifiez les images et vidéos de votre activité
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {activity.medias.filter(m => m.kind === "IMAGE").length} image(s) •
+                    {activity.medias.some(m => m.kind === "VIDEO_UPLOAD" || m.kind === "VIDEO")
+                      ? " 1 vidéo"
+                      : " Aucune vidéo"}
+                  </p>
+                </CardContent>
+              </Link>
+            </Card>
+
+            <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+              <Link href={`/activite/${activity.id}`} target="_blank">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <ExternalLink className="h-5 w-5" />
+                    Voir la page publique
+                  </CardTitle>
+                  <CardDescription>
+                    Visualisez votre activité telle que les utilisateurs la voient
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Ouvre dans un nouvel onglet
+                  </p>
+                </CardContent>
+              </Link>
+            </Card>
+          </div>
+
+          {/* Detailed Analytics */}
+          <AnalyticsCard activityId={activity.id} />
+        </>
+      ) : (
+        /* No activity - prompt to create */
+        <Card>
+          <CardHeader>
+            <CardTitle>Bienvenue sur votre espace établissement</CardTitle>
+            <CardDescription>
+              Créez votre activité pour apparaitre dans les recherches des utilisateurs
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">
-                Créez votre première activité pour commencer
+              <div className="text-6xl mb-4">🎯</div>
+              <h3 className="text-xl font-semibold mb-2">
+                Configurez votre activité
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Décrivez votre activité, ajoutez des photos et une vidéo,
+                définissez vos tarifs et horaires pour attirer de nouveaux clients.
               </p>
-              <Button asChild>
+              <Button size="lg" asChild>
                 <Link href="/etablissement/activites/nouvelle">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Créer une activité
+                  <Plus className="mr-2 h-5 w-5" />
+                  Créer mon activité
                 </Link>
               </Button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {activities.map((activity) => {
-                const typeInfo = ACTIVITY_TYPES[activity.type as ActivityTypeKey]
-                const firstImage = activity.medias.find(m => m.kind === "IMAGE")
 
-                return (
-                  <div
-                    key={activity.id}
-                    className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    {/* Image */}
-                    <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
-                      {firstImage ? (
-                        <img
-                          src={firstImage.url}
-                          alt={activity.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-3xl">
-                          {typeInfo?.emoji || "🎯"}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold truncate">{activity.title}</h3>
-                        <Badge variant={activity.status === "PUBLISHED" ? "default" : "secondary"}>
-                          {activity.status === "PUBLISHED" ? "Publié" : "Brouillon"}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {typeInfo?.emoji} {typeInfo?.label} • {activity.city}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" />
-                          {activity.viewCount}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          {activity._count.favorites}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/etablissement/activites/${activity.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <ActivityActions activity={activity} />
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="grid md:grid-cols-3 gap-4 pt-4 border-t">
+              <div className="text-center p-4">
+                <div className="text-2xl mb-2">📸</div>
+                <h4 className="font-medium">Photos & Vidéos</h4>
+                <p className="text-sm text-muted-foreground">
+                  Mettez en valeur votre établissement
+                </p>
+              </div>
+              <div className="text-center p-4">
+                <div className="text-2xl mb-2">📍</div>
+                <h4 className="font-medium">Localisation</h4>
+                <p className="text-sm text-muted-foreground">
+                  Apparaissez sur la carte interactive
+                </p>
+              </div>
+              <div className="text-center p-4">
+                <div className="text-2xl mb-2">⭐</div>
+                <h4 className="font-medium">Visibilité</h4>
+                <p className="text-sm text-muted-foreground">
+                  Soyez trouvé par de nouveaux clients
+                </p>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

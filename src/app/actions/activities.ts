@@ -161,7 +161,13 @@ export async function toggleActivityStatus(id: string) {
   return { activity: updatedActivity }
 }
 
-export async function addMediaToActivity(activityId: string, url: string, kind: "IMAGE" | "VIDEO") {
+export async function addMediaToActivity(
+  activityId: string,
+  url: string,
+  kind: "IMAGE" | "VIDEO" | "VIDEO_UPLOAD",
+  fileName?: string,
+  fileSize?: number
+) {
   const session = await auth()
 
   if (!session?.user?.establishmentId) {
@@ -180,16 +186,29 @@ export async function addMediaToActivity(activityId: string, url: string, kind: 
     return { error: "Activité non trouvée" }
   }
 
+  // Pour les vidéos uploadées, supprimer l'ancienne vidéo uploadée s'il y en a une
+  if (kind === "VIDEO_UPLOAD") {
+    await prisma.media.deleteMany({
+      where: {
+        activityId,
+        kind: "VIDEO_UPLOAD",
+      },
+    })
+  }
+
   const media = await prisma.media.create({
     data: {
       activityId,
       url,
       kind,
+      fileName,
+      fileSize,
     },
   })
 
   revalidatePath(`/etablissement/activites/${activityId}`)
   revalidatePath(`/activite/${activityId}`)
+  revalidatePath("/etablissement/dashboard")
 
   return { media }
 }

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logoutAction } from "@/app/actions/auth"
-import { User, LogOut, Building2, Heart, Menu } from "lucide-react"
+import { User, LogOut, Building2, Heart, Menu, Shield } from "lucide-react"
 
 export function Header() {
   const { data: session, status } = useSession()
@@ -42,6 +42,11 @@ export function Header() {
           {session?.user?.role === "ESTABLISHMENT" && (
             <Link href="/etablissement/dashboard" className="text-gray-600 hover:text-gray-900">
               Mon établissement
+            </Link>
+          )}
+          {session?.user?.role === "ADMIN" && (
+            <Link href="/admin" className="text-gray-600 hover:text-gray-900">
+              Administration
             </Link>
           )}
         </nav>
@@ -88,6 +93,14 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                 )}
+                {session.user.role === "ADMIN" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Administration
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <form action={logoutAction}>
@@ -124,6 +137,11 @@ export function Header() {
               {session?.user?.role === "ESTABLISHMENT" && (
                 <DropdownMenuItem asChild>
                   <Link href="/etablissement/dashboard">Mon établissement</Link>
+                </DropdownMenuItem>
+              )}
+              {session?.user?.role === "ADMIN" && (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin">Administration</Link>
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

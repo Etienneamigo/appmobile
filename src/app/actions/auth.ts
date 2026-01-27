@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs"
 import { registerUserSchema, registerEstablishmentSchema } from "@/lib/validations"
 import { redirect } from "next/navigation"
 import { AuthError } from "next-auth"
+import { calculateTrialEndDate } from "@/lib/stripe"
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string
@@ -87,6 +88,7 @@ export async function registerEstablishmentAction(formData: FormData) {
     city: formData.get("city") as string || undefined,
     zipCode: formData.get("zipCode") as string || undefined,
     country: formData.get("country") as string || "France",
+    promoCode: formData.get("promoCode") as string || undefined,
   }
 
   const parsed = registerEstablishmentSchema.safeParse(rawData)
@@ -94,7 +96,7 @@ export async function registerEstablishmentAction(formData: FormData) {
     return { error: parsed.error.issues[0].message }
   }
 
-  const { email, password, establishmentName, phone, website, address, city, zipCode, country } = parsed.data
+  const { email, password, establishmentName, phone, website, address, city, zipCode, country, promoCode } = parsed.data
 
   // Vérifier si l'utilisateur existe déjà
   const existingUser = await prisma.user.findUnique({
@@ -104,6 +106,37 @@ export async function registerEstablishmentAction(formData: FormData) {
   if (existingUser) {
     return { error: "Un compte avec cet email existe déjà" }
   }
+
+  // Validate promo code if provided
+  let validPromoCode = null
+  let extraTrialDays = 0
+
+  if (promoCode) {
+    validPromoCode = await prisma.promoCode.findUnique({
+      where: { code: promoCode.toUpperCase() },
+    })
+
+    if (!validPromoCode) {
+      return { error: "Code promo invalide" }
+    }
+
+    if (!validPromoCode.isActive) {
+      return { error: "Ce code promo n'est plus actif" }
+    }
+
+    if (validPromoCode.expiresAt && new Date(validPromoCode.expiresAt) < new Date()) {
+      return { error: "Ce code promo a expire" }
+    }
+
+    if (validPromoCode.maxRedemptions && validPromoCode.redeemedCount >= validPromoCode.maxRedemptions) {
+      return { error: "Ce code promo a atteint sa limite d'utilisation" }
+    }
+
+    extraTrialDays = validPromoCode.extraTrialDays
+  }
+
+  // Calculate trial end date
+  const trialEndsAt = calculateTrialEndDate(extraTrialDays)
 
   // Hasher le mot de passe
   const passwordHash = await bcrypt.hash(password, 12)
@@ -123,10 +156,21 @@ export async function registerEstablishmentAction(formData: FormData) {
           city,
           zipCode,
           country,
+          subscriptionStatus: "TRIALING",
+          trialEndsAt,
+          ...(validPromoCode && { usedPromoCodeId: validPromoCode.id }),
         },
       },
     },
   })
+
+  // Increment promo code redemption count
+  if (validPromoCode) {
+    await prisma.promoCode.update({
+      where: { id: validPromoCode.id },
+      data: { redeemedCount: { increment: 1 } },
+    })
+  }
 
   // Connecter l'utilisateur
   try {

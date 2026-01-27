@@ -1,0 +1,232 @@
+"use server"
+
+import { prisma } from "@/lib/db"
+import { auth } from "@/lib/auth"
+import { revalidatePath } from "next/cache"
+import { createPromoCodeSchema, updatePromoCodeSchema } from "@/lib/validations"
+
+// Helper to check admin role
+async function requireAdmin() {
+  const session = await auth()
+  if (!session || session.user.role !== "ADMIN") {
+    throw new Error("Non autorise")
+  }
+  return session
+}
+
+// User management
+export async function toggleUserActive(userId: string) {
+  try {
+    await requireAdmin()
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!user) {
+      return { error: "Utilisateur non trouve" }
+    }
+
+    // Don't allow deactivating admins
+    if (user.role === "ADMIN") {
+      return { error: "Impossible de desactiver un administrateur" }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !user.isActive },
+    })
+
+    revalidatePath("/admin/users")
+    return { user: updatedUser }
+  } catch (error) {
+    return { error: "Erreur lors de la modification" }
+  }
+}
+
+export async function deleteUser(userId: string) {
+  try {
+    await requireAdmin()
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { establishment: true },
+    })
+
+    if (!user) {
+      return { error: "Utilisateur non trouve" }
+    }
+
+    if (user.role === "ADMIN") {
+      return { error: "Impossible de supprimer un administrateur" }
+    }
+
+    // Delete user (cascades to favorites, establishment, activities, etc.)
+    await prisma.user.delete({
+      where: { id: userId },
+    })
+
+    revalidatePath("/admin/users")
+    revalidatePath("/admin/etablissements")
+    return { success: true }
+  } catch (error) {
+    return { error: "Erreur lors de la suppression" }
+  }
+}
+
+// Promo code management
+export async function createPromoCode(data: {
+  code: string
+  description?: string
+  extraTrialDays?: number
+  maxRedemptions?: number | null
+  expiresAt?: string | null
+  isActive?: boolean
+}) {
+  try {
+    await requireAdmin()
+
+    const parsed = createPromoCodeSchema.safeParse(data)
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0].message }
+    }
+
+    // Check if code already exists
+    const existing = await prisma.promoCode.findUnique({
+      where: { code: parsed.data.code.toUpperCase() },
+    })
+
+    if (existing) {
+      return { error: "Ce code promo existe deja" }
+    }
+
+    const promoCode = await prisma.promoCode.create({
+      data: {
+        code: parsed.data.code.toUpperCase(),
+        description: parsed.data.description,
+        extraTrialDays: parsed.data.extraTrialDays,
+        maxRedemptions: parsed.data.maxRedemptions,
+        expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
+        isActive: parsed.data.isActive ?? true,
+      },
+    })
+
+    revalidatePath("/admin/promo-codes")
+    return { promoCode }
+  } catch (error) {
+    return { error: "Erreur lors de la creation" }
+  }
+}
+
+export async function updatePromoCode(
+  id: string,
+  data: {
+    code?: string
+    description?: string
+    extraTrialDays?: number
+    maxRedemptions?: number | null
+    expiresAt?: string | null
+    isActive?: boolean
+  }
+) {
+  try {
+    await requireAdmin()
+
+    const parsed = updatePromoCodeSchema.safeParse(data)
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0].message }
+    }
+
+    const promoCode = await prisma.promoCode.update({
+      where: { id },
+      data: {
+        ...(parsed.data.code && { code: parsed.data.code.toUpperCase() }),
+        ...(parsed.data.description !== undefined && { description: parsed.data.description }),
+        ...(parsed.data.extraTrialDays !== undefined && { extraTrialDays: parsed.data.extraTrialDays }),
+        ...(parsed.data.maxRedemptions !== undefined && { maxRedemptions: parsed.data.maxRedemptions }),
+        ...(parsed.data.expiresAt !== undefined && {
+          expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
+        }),
+        ...(parsed.data.isActive !== undefined && { isActive: parsed.data.isActive }),
+      },
+    })
+
+    revalidatePath("/admin/promo-codes")
+    return { promoCode }
+  } catch (error) {
+    return { error: "Erreur lors de la modification" }
+  }
+}
+
+export async function deletePromoCode(id: string) {
+  try {
+    await requireAdmin()
+
+    await prisma.promoCode.delete({
+      where: { id },
+    })
+
+    revalidatePath("/admin/promo-codes")
+    return { success: true }
+  } catch (error) {
+    return { error: "Erreur lors de la suppression" }
+  }
+}
+
+export async function togglePromoCodeActive(id: string) {
+  try {
+    await requireAdmin()
+
+    const promoCode = await prisma.promoCode.findUnique({
+      where: { id },
+    })
+
+    if (!promoCode) {
+      return { error: "Code promo non trouve" }
+    }
+
+    const updated = await prisma.promoCode.update({
+      where: { id },
+      data: { isActive: !promoCode.isActive },
+    })
+
+    revalidatePath("/admin/promo-codes")
+    return { promoCode: updated }
+  } catch (error) {
+    return { error: "Erreur lors de la modification" }
+  }
+}
+
+// Establishment management
+export async function toggleEstablishmentSubscription(establishmentId: string) {
+  try {
+    await requireAdmin()
+
+    const establishment = await prisma.establishment.findUnique({
+      where: { id: establishmentId },
+    })
+
+    if (!establishment) {
+      return { error: "Etablissement non trouve" }
+    }
+
+    // Toggle between ACTIVE and CANCELED for manual override
+    const newStatus = establishment.subscriptionStatus === "ACTIVE" ? "CANCELED" : "ACTIVE"
+
+    const updated = await prisma.establishment.update({
+      where: { id: establishmentId },
+      data: {
+        subscriptionStatus: newStatus,
+        // If activating, set trial end to far future
+        ...(newStatus === "ACTIVE" && {
+          trialEndsAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+        }),
+      },
+    })
+
+    revalidatePath("/admin/etablissements")
+    return { establishment: updated }
+  } catch (error) {
+    return { error: "Erreur lors de la modification" }
+  }
+}

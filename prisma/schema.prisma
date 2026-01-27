@@ -14,6 +14,7 @@ datasource db {
 enum UserRole {
   USER
   ESTABLISHMENT
+  ADMIN
 }
 
 // Types d'activités
@@ -36,16 +37,34 @@ enum ActivityStatus {
 // Type de média
 enum MediaKind {
   IMAGE
-  VIDEO
+  VIDEO        // Lien externe (YouTube, Vimeo, etc.)
+  VIDEO_UPLOAD // Fichier vidéo uploadé
 }
 
-// Modèle User (utilisateur ou établissement)
+// Statut d'abonnement
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+// Type d'événement analytics
+enum StatEventType {
+  IMPRESSION
+  CLICK
+}
+
+// Modèle User (utilisateur, établissement ou admin)
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
   name         String?
   role         UserRole  @default(USER)
+  isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -70,15 +89,26 @@ model Establishment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Stripe - Abonnement
+  stripeCustomerId       String?             @unique
+  stripeSubscriptionId   String?             @unique
+  subscriptionStatus     SubscriptionStatus?
+  trialEndsAt            DateTime?
+  currentPeriodEnd       DateTime?
+
+  // Code promo utilisé
+  usedPromoCodeId        String?
+
   // Relations
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities Activity[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity   Activity?   // Relation 1:1 - un établissement = une activité
+  usedPromoCode PromoCode? @relation(fields: [usedPromoCodeId], references: [id])
 }
 
-// Modèle Activité
+// Modèle Activité (unique par établissement)
 model Activity {
   id              String         @id @default(cuid())
-  establishmentId String
+  establishmentId String         @unique // Contrainte 1:1
   type            ActivityType
   title           String
   description     String         @db.Text
@@ -103,6 +133,7 @@ model Activity {
   establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
   medias        Media[]
   favorites     Favorite[]
+  statEvents    ActivityStatEvent[]
 
   @@index([status])
   @@index([type])
@@ -116,6 +147,8 @@ model Media {
   activityId String
   kind       MediaKind
   url        String
+  fileName   String?   // Nom du fichier original (pour vidéos uploadées)
+  fileSize   Int?      // Taille en bytes (pour vidéos uploadées)
   createdAt  DateTime  @default(now())
 
   // Relations
@@ -133,4 +166,37 @@ model Favorite {
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@id([userId, activityId])
+}
+
+// Modèle Événement Analytics (impressions et clics)
+model ActivityStatEvent {
+  id         String        @id @default(cuid())
+  activityId String
+  type       StatEventType
+  sessionId  String?       // Cookie de session anonyme
+  userId     String?       // Si utilisateur connecté
+  createdAt  DateTime      @default(now())
+
+  // Relations
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, type, createdAt])
+  @@index([activityId, sessionId, createdAt])
+}
+
+// Modèle Code Promo
+model PromoCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  description     String?
+  extraTrialDays  Int       @default(0)  // Jours de trial supplémentaires
+  maxRedemptions  Int?                   // Limite d'utilisations (null = illimité)
+  redeemedCount   Int       @default(0)
+  expiresAt       DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  establishments Establishment[]
 }
