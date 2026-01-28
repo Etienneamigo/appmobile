@@ -236,6 +236,113 @@ Vérifier les logs pour les warnings `[Rate Limit]` :
 docker logs activites-web | grep "Rate Limit"
 ```
 
+## API Mobile
+
+L'application expose une API REST pour les applications mobiles, séparée de l'auth web NextAuth.
+
+### Configuration
+
+```bash
+# Optionnel mais recommandé (sinon utilise AUTH_SECRET)
+MOBILE_JWT_SECRET="<générer avec: openssl rand -hex 32>"
+```
+
+### Endpoints
+
+#### POST /api/mobile/login
+
+Authentification et obtention du token JWT.
+
+```bash
+curl -X POST https://maisonapee.com/api/mobile/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "secret"}'
+```
+
+Réponse succès (200) :
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "clx...",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "role": "USER",
+    "establishmentId": null
+  }
+}
+```
+
+Réponse erreur (401) :
+```json
+{ "error": "Email ou mot de passe incorrect" }
+```
+
+#### GET /api/mobile/me
+
+Récupère le profil de l'utilisateur connecté.
+
+```bash
+curl https://maisonapee.com/api/mobile/me \
+  -H "Authorization: Bearer <token>"
+```
+
+#### GET /api/mobile/ping
+
+Endpoint de test pour valider l'authentification.
+
+```bash
+curl https://maisonapee.com/api/mobile/ping \
+  -H "Authorization: Bearer <token>"
+```
+
+Réponse :
+```json
+{
+  "pong": true,
+  "timestamp": "2026-01-28T...",
+  "userId": "clx...",
+  "role": "USER"
+}
+```
+
+### Intégration Mobile
+
+```typescript
+// Exemple React Native / Expo
+const API_URL = "https://maisonapee.com"
+
+async function login(email: string, password: string) {
+  const res = await fetch(`${API_URL}/api/mobile/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!res.ok) {
+    const { error } = await res.json()
+    throw new Error(error)
+  }
+
+  const { token, user } = await res.json()
+  // Stocker le token (AsyncStorage, SecureStore, etc.)
+  return { token, user }
+}
+
+async function fetchWithAuth(endpoint: string, token: string) {
+  return fetch(`${API_URL}${endpoint}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+```
+
+### Sécurité Mobile
+
+- Tokens JWT valides 30 jours
+- Rate limiting strict sur /login (3 req/min par IP)
+- Les tokens sont vérifiés à chaque requête (user actif, existe en DB)
+- Utilisez un secret différent de AUTH_SECRET pour isoler les sessions web/mobile
+
 ## Support
 
 Pour les problèmes techniques, vérifier :
