@@ -29,4 +29,11 @@ COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/prisma ./prisma
 
+# Create uploads directories and set permissions
+RUN mkdir -p /app/public/uploads/images /app/public/uploads/videos && \
+    chown -R node:node /app/public/uploads
+
+# Use non-root user for security
+USER node
+
 CMD ["npm", "start"]
