@@ -1,0 +1,4 @@
+maisonapee.com, www.maisonapee.com {
+  header X-Served-By "activites-vps"
+  reverse_proxy web:3000
+}
