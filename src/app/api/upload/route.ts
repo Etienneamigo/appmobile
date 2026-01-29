@@ -5,6 +5,39 @@ import path from "path"
 import { randomUUID } from "crypto"
 import { validateFile, sanitizeFilename, isAllowedMimeType } from "@/lib/file-validation"
 import { checkRateLimit, getClientIP, rateLimitResponse } from "@/lib/rate-limit"
+import { optionalMobileAuth, type MobileUser } from "@/lib/mobile-auth"
+
+// Unified user type for auth check
+interface AuthUser {
+  role: string
+  establishmentId: string | null
+}
+
+/**
+ * Get authenticated user from either NextAuth session or mobile JWT
+ * Returns null if neither auth method succeeds
+ */
+async function getAuthUser(request: NextRequest): Promise<AuthUser | null> {
+  // 1. Try NextAuth session first (web)
+  const session = await auth()
+  if (session?.user) {
+    return {
+      role: session.user.role || "USER",
+      establishmentId: session.user.establishmentId || null,
+    }
+  }
+
+  // 2. Fallback to mobile JWT
+  const mobileUser = await optionalMobileAuth(request)
+  if (mobileUser) {
+    return {
+      role: mobileUser.role,
+      establishmentId: mobileUser.establishmentId,
+    }
+  }
+
+  return null
+}
 
 export async function POST(request: NextRequest) {
   // Rate limiting
@@ -14,14 +47,22 @@ export async function POST(request: NextRequest) {
     return rateLimitResponse(rateLimit)
   }
 
-  const session = await auth()
+  // Get user from either web session or mobile token
+  const user = await getAuthUser(request)
+
+  if (!user) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
 
   // Allow establishments and admins to upload
-  const isAdmin = session?.user?.role === "ADMIN"
-  const isEstablishment = !!session?.user?.establishmentId
+  const isAdmin = user.role === "ADMIN"
+  const isEstablishment = user.role === "ESTABLISHMENT" && !!user.establishmentId
 
   if (!isAdmin && !isEstablishment) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    return NextResponse.json(
+      { error: "Seuls les établissements et administrateurs peuvent uploader" },
+      { status: 403 }
+    )
   }
 
   try {
