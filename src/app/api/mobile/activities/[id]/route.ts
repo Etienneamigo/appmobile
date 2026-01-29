@@ -52,7 +52,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  let isFavorited = false
+  let isFavorite = false
   if (user?.role === UserRole.USER) {
     const fav = await prisma.favorite.findUnique({
       where: {
@@ -60,7 +60,7 @@ export async function GET(
       },
       select: { userId: true },
     })
-    isFavorited = !!fav
+    isFavorite = !!fav
   }
 
   if (activity.status === ActivityStatus.PUBLISHED) {
@@ -72,5 +72,5 @@ export async function GET(
       .catch(() => {})
   }
 
-  return NextResponse.json({ ...activity, isFavorited })
+  return NextResponse.json({ ...activity, isFavorite })
 }

@@ -9,6 +9,12 @@ function parseIntSafe(v: string | null, def: number) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : def
 }
 
+// Helper to get first image URL from medias
+function getImageUrl(medias: { kind: string; url: string }[]): string | null {
+  const image = medias.find(m => m.kind === "IMAGE")
+  return image?.url || medias[0]?.url || null
+}
+
 export async function GET(request: NextRequest) {
   const limited = await enforceApiRateLimit(request, "api")
   if (limited) return limited
@@ -53,7 +59,7 @@ export async function GET(request: NextRequest) {
       take: pageSize,
       include: {
         establishment: { select: { id: true, name: true, city: true, website: true, bookingUrl: true } },
-        medias: { orderBy: { createdAt: "asc" }, take: 1 },
+        medias: { orderBy: { createdAt: "asc" }, take: 5 },
       },
     }),
   ])
@@ -67,6 +73,7 @@ export async function GET(request: NextRequest) {
     favSet = new Set(favs.map(f => f.activityId))
   }
 
+  // Map to mobile-expected format (ActivityListItem)
   const items = itemsRaw.map(a => ({
     id: a.id,
     type: a.type,
@@ -88,9 +95,14 @@ export async function GET(request: NextRequest) {
     viewCount: a.viewCount,
     createdAt: a.createdAt,
     updatedAt: a.updatedAt,
+    // Mobile-expected flat fields
+    imageUrl: getImageUrl(a.medias),
+    establishmentName: a.establishment?.name || "",
+    bookingUrl: a.establishment?.bookingUrl || null,
+    isFavorite: user?.role === UserRole.USER ? favSet.has(a.id) : false,
+    // Keep nested for backward compat if needed
     establishment: a.establishment,
     medias: a.medias,
-    isFavorited: user?.role === UserRole.USER ? favSet.has(a.id) : false,
   }))
 
   return NextResponse.json({
