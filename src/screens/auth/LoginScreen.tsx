@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { ApiError } from '../types';
+import { useAuth } from '../../context/AuthContext';
+import { ApiError } from '../../types';
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();

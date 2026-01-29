@@ -109,4 +109,69 @@ export const apiClient = {
   delete<T>(endpoint: string, options?: Omit<RequestOptions, 'method' | 'body'>) {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   },
+
+  patch<T>(endpoint: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) {
+    return this.request<T>(endpoint, { ...options, method: 'PATCH', body });
+  },
+
+  async uploadFile<T>(endpoint: string, file: { uri: string; name: string; type: string }): Promise<T> {
+    const token = await secureStorage.getToken();
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as any);
+
+    const url = `${BASE_URL}${endpoint}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      if (response.status === 401) {
+        if (onUnauthorized) {
+          onUnauthorized();
+        }
+        const error: ApiError = {
+          message: 'Session expirée. Veuillez vous reconnecter.',
+          status: 401,
+        };
+        throw error;
+      }
+
+      if (!response.ok) {
+        let errorMessage = 'Erreur lors de l\'upload';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          // Response not JSON
+        }
+        const error: ApiError = {
+          message: errorMessage,
+          status: response.status,
+        };
+        throw error;
+      }
+
+      return response.json() as Promise<T>;
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      const networkError: ApiError = {
+        message: 'Erreur de connexion. Vérifiez votre connexion internet.',
+        status: 0,
+      };
+      throw networkError;
+    }
+  },
 };

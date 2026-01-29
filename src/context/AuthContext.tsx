@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { secureStorage } from '../storage/secureStore';
 import { authApi } from '../api/auth';
 import { setOnUnauthorized } from '../api/client';
-import { User, LoginCredentials, ApiError } from '../types';
+import { User, LoginCredentials, UserRole } from '../types';
 
 interface AuthState {
   user: User | null;
@@ -14,6 +14,8 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  isRole: (role: UserRole) => boolean;
+  hasEstablishment: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,12 +88,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  const isRole = useCallback((role: UserRole): boolean => {
+    return state.user?.role === role;
+  }, [state.user?.role]);
+
+  const hasEstablishment = Boolean(state.user?.establishmentId);
+
   return (
     <AuthContext.Provider
       value={{
         ...state,
         login,
         logout,
+        isRole,
+        hasEstablishment,
       }}
     >
       {children}
