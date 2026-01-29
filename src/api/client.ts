@@ -23,8 +23,9 @@ export const apiClient = {
     const { method = 'GET', body, headers = {}, skipAuth = false } = options;
 
     const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
+      'Accept': 'application/json; charset=utf-8',
+      'Accept-Charset': 'utf-8',
       ...headers,
     };
 
@@ -130,7 +131,8 @@ export const apiClient = {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
+          'Accept': 'application/json; charset=utf-8',
+          'Accept-Charset': 'utf-8',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: formData,

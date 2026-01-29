@@ -20,8 +20,8 @@ export const AdminDashboardScreen: React.FC = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await adminApi.getStats();
-      setStats(response.data);
+      const statsData = await adminApi.getStats();
+      setStats(statsData);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');

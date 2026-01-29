@@ -29,8 +29,8 @@ export const EstablishmentDashboardScreen: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const response = await establishmentApi.get();
-      setEstablishment(response.data);
+      const establishmentData = await establishmentApi.get();
+      setEstablishment(establishmentData);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');
@@ -75,10 +75,17 @@ export const EstablishmentDashboardScreen: React.FC = () => {
     );
   }
 
-  const subscriptionColor = establishment.subscription.isActive ? '#2ecc71' : '#e74c3c';
-  const subscriptionText = establishment.subscription.isTrialing
+  // Derive isActive from status if not provided directly
+  const subscriptionStatus = establishment.subscription?.status;
+  const isActive = establishment.subscription?.isActive ??
+    (subscriptionStatus === 'ACTIVE' || subscriptionStatus === 'TRIALING');
+  const isTrialing = establishment.subscription?.isTrialing ??
+    (subscriptionStatus === 'TRIALING');
+
+  const subscriptionColor = isActive ? '#2ecc71' : '#e74c3c';
+  const subscriptionText = isTrialing
     ? 'Période d\'essai'
-    : establishment.subscription.isActive
+    : isActive
     ? 'Abonnement actif'
     : 'Abonnement inactif';
 
@@ -104,7 +111,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
         <View style={[styles.subscriptionBadge, { backgroundColor: subscriptionColor }]}>
           <Text style={styles.subscriptionText}>{subscriptionText}</Text>
         </View>
-        {establishment.subscription.trialEndsAt && establishment.subscription.isTrialing && (
+        {establishment.subscription?.trialEndsAt && isTrialing && (
           <Text style={styles.trialEndText}>
             Expire le {new Date(establishment.subscription.trialEndsAt).toLocaleDateString('fr-FR')}
           </Text>

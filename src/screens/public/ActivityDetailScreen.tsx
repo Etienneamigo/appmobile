@@ -36,8 +36,8 @@ export const ActivityDetailScreen: React.FC = () => {
 
   const fetchActivity = useCallback(async () => {
     try {
-      const response = await activitiesApi.getById(activityId);
-      setActivity(response.data);
+      const activityData = await activitiesApi.getById(activityId);
+      setActivity(activityData);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');

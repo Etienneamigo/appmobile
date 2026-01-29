@@ -1,12 +1,9 @@
 import { apiClient } from './client';
 import { AdminStats } from '../types';
 
-interface AdminStatsResponse {
-  data: AdminStats;
-}
-
+// Backend returns AdminStats directly, not wrapped in { data: ... }
 export const adminApi = {
-  getStats(): Promise<AdminStatsResponse> {
-    return apiClient.get<AdminStatsResponse>('/api/mobile/admin/stats');
+  getStats(): Promise<AdminStats> {
+    return apiClient.get<AdminStats>('/api/mobile/admin/stats');
   },
 };

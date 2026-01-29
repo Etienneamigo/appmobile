@@ -1,9 +1,13 @@
 import { apiClient } from './client';
-import { FavoriteItem, Pagination } from '../types';
+import { FavoriteItem } from '../types';
 
-interface FavoritesListResponse {
-  data: FavoriteItem[];
-  pagination: Pagination;
+// Response shape from the backend API - same as activities list
+export interface FavoritesListResponse {
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+  items: FavoriteItem[];
 }
 
 interface ToggleFavoriteResponse {

@@ -35,16 +35,15 @@ export const EstablishmentEditScreen: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await establishmentApi.get();
-        const data = response.data;
+        const establishment = await establishmentApi.get();
         setForm({
-          name: data.name || '',
-          phone: data.phone || '',
-          website: data.website || '',
-          bookingUrl: data.bookingUrl || '',
-          address: data.address || '',
-          city: data.city || '',
-          zipCode: data.zipCode || '',
+          name: establishment.name || '',
+          phone: establishment.phone || '',
+          website: establishment.website || '',
+          bookingUrl: establishment.bookingUrl || '',
+          address: establishment.address || '',
+          city: establishment.city || '',
+          zipCode: establishment.zipCode || '',
         });
         setError(null);
       } catch (err: any) {

@@ -53,11 +53,11 @@ export const SearchScreen: React.FC = () => {
       try {
         const response = await activitiesApi.list(params);
         if (append) {
-          setActivities((prev) => [...prev, ...response.data]);
+          setActivities((prev) => [...prev, ...response.items]);
         } else {
-          setActivities(response.data);
+          setActivities(response.items);
         }
-        setHasMore(response.pagination.hasMore);
+        setHasMore(response.hasMore);
         setError(null);
       } catch (err: any) {
         setError(err.message || 'Erreur lors du chargement');

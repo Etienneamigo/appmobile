@@ -7,23 +7,7 @@ import {
   MediaKind,
 } from '../types';
 
-interface EstablishmentResponse {
-  data: Establishment;
-}
-
-interface MyActivityResponse {
-  data: MyActivity | null;
-  message?: string;
-}
-
-interface MediaListResponse {
-  data: Media[];
-}
-
-interface MediaAddResponse {
-  message: string;
-  data: Media;
-}
+// Backend returns objects directly, not wrapped in { data: ... }
 
 interface MessageResponse {
   message: string;
@@ -58,27 +42,27 @@ interface UpdateActivityData {
 }
 
 export const establishmentApi = {
-  // Establishment
-  get(): Promise<EstablishmentResponse> {
-    return apiClient.get<EstablishmentResponse>('/api/mobile/establishment');
+  // Establishment - returns Establishment directly
+  get(): Promise<Establishment> {
+    return apiClient.get<Establishment>('/api/mobile/establishment');
   },
 
-  update(data: UpdateEstablishmentData): Promise<EstablishmentResponse> {
-    return apiClient.patch<EstablishmentResponse>('/api/mobile/establishment', data);
+  update(data: UpdateEstablishmentData): Promise<Establishment> {
+    return apiClient.patch<Establishment>('/api/mobile/establishment', data);
   },
 
-  // Activity
-  getActivity(): Promise<MyActivityResponse> {
-    return apiClient.get<MyActivityResponse>('/api/mobile/establishment/activity');
+  // Activity - returns MyActivity directly (or null)
+  getActivity(): Promise<MyActivity | null> {
+    return apiClient.get<MyActivity | null>('/api/mobile/establishment/activity');
   },
 
   updateActivity(data: UpdateActivityData): Promise<{ message: string; data: { id: string; title: string; status: string; updatedAt: string } }> {
     return apiClient.patch('/api/mobile/establishment/activity', data);
   },
 
-  // Media
-  getMedias(): Promise<MediaListResponse> {
-    return apiClient.get<MediaListResponse>('/api/mobile/establishment/media');
+  // Media - returns Media[] directly
+  getMedias(): Promise<Media[]> {
+    return apiClient.get<Media[]>('/api/mobile/establishment/media');
   },
 
   addMedia(data: {
@@ -86,8 +70,8 @@ export const establishmentApi = {
     kind: MediaKind;
     fileName?: string | null;
     fileSize?: number | null;
-  }): Promise<MediaAddResponse> {
-    return apiClient.post<MediaAddResponse>('/api/mobile/establishment/media', data);
+  }): Promise<Media> {
+    return apiClient.post<Media>('/api/mobile/establishment/media', data);
   },
 
   deleteMedia(mediaId: string): Promise<MessageResponse> {

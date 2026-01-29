@@ -53,23 +53,22 @@ export const ActivityEditScreen: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await establishmentApi.getActivity();
-        if (response.data) {
-          const data = response.data;
+        const activity = await establishmentApi.getActivity();
+        if (activity) {
           setForm({
-            title: data.title || '',
-            description: data.description || '',
-            type: data.type,
-            address: data.address || '',
-            city: data.city || '',
-            zipCode: data.zipCode || '',
-            minPeople: data.minPeople?.toString() || '',
-            maxPeople: data.maxPeople?.toString() || '',
-            durationMinutes: data.durationMinutes?.toString() || '',
-            priceFrom: data.priceFrom?.toString() || '',
-            scheduleText: data.scheduleText || '',
-            tags: data.tags.join(', '),
-            isPublished: data.status === 'PUBLISHED',
+            title: activity.title || '',
+            description: activity.description || '',
+            type: activity.type,
+            address: activity.address || '',
+            city: activity.city || '',
+            zipCode: activity.zipCode || '',
+            minPeople: activity.minPeople?.toString() || '',
+            maxPeople: activity.maxPeople?.toString() || '',
+            durationMinutes: activity.durationMinutes?.toString() || '',
+            priceFrom: activity.priceFrom?.toString() || '',
+            scheduleText: activity.scheduleText || '',
+            tags: activity.tags.join(', '),
+            isPublished: activity.status === 'PUBLISHED',
           });
         }
         setError(null);

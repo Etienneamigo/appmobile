@@ -28,7 +28,7 @@ export const FavoritesScreen: React.FC = () => {
   const fetchFavorites = useCallback(async () => {
     try {
       const response = await favoritesApi.list(1, 100);
-      setFavorites(response.data);
+      setFavorites(response.items);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');

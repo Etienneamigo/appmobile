@@ -23,8 +23,8 @@ export const MediaManagerScreen: React.FC = () => {
 
   const fetchMedias = useCallback(async () => {
     try {
-      const response = await establishmentApi.getMedias();
-      setMedias(response.data);
+      const mediasData = await establishmentApi.getMedias();
+      setMedias(mediasData);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');

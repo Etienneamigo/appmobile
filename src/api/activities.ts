@@ -2,16 +2,15 @@ import { apiClient } from './client';
 import {
   ActivityListItem,
   ActivityDetail,
-  Pagination,
 } from '../types';
 
-interface ActivitiesListResponse {
-  data: ActivityListItem[];
-  pagination: Pagination;
-}
-
-interface ActivityDetailResponse {
-  data: ActivityDetail;
+// Response shape from the backend API
+export interface ActivitiesListResponse {
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+  items: ActivityListItem[];
 }
 
 export interface ActivitiesSearchParams {
@@ -37,7 +36,7 @@ export const activitiesApi = {
     );
   },
 
-  getById(id: string): Promise<ActivityDetailResponse> {
-    return apiClient.get<ActivityDetailResponse>(`/api/mobile/activities/${id}`);
+  getById(id: string): Promise<ActivityDetail> {
+    return apiClient.get<ActivityDetail>(`/api/mobile/activities/${id}`);
   },
 };
