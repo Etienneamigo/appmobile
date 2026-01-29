@@ -4,7 +4,10 @@ import { requireMobileAuth } from "@/lib/mobile-auth"
 import { enforceApiRateLimit } from "../../../_helpers/rl"
 import { UserRole } from "@prisma/client"
 
-export async function DELETE(request: NextRequest, ctx: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const limited = await enforceApiRateLimit(request, "api")
   if (limited) return limited
 
@@ -19,9 +22,15 @@ export async function DELETE(request: NextRequest, ctx: { params: { id: string }
   })
   if (!activity) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const id = ctx.params.id
-  const media = await prisma.media.findUnique({ where: { id }, select: { id: true, activityId: true } })
-  if (!media || media.activityId !== activity.id) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  const { id } = await ctx.params
+
+  const media = await prisma.media.findUnique({
+    where: { id },
+    select: { id: true, activityId: true },
+  })
+  if (!media || media.activityId !== activity.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
 
   await prisma.media.delete({ where: { id } })
   return NextResponse.json({ ok: true })

@@ -4,17 +4,32 @@ import { optionalMobileAuth } from "@/lib/mobile-auth"
 import { enforceApiRateLimit } from "../../_helpers/rl"
 import { ActivityStatus, UserRole } from "@prisma/client"
 
-export async function GET(request: NextRequest, ctx: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const limited = await enforceApiRateLimit(request, "api")
   if (limited) return limited
 
   const user = await optionalMobileAuth(request)
-  const id = ctx.params.id
+  const { id } = await ctx.params
 
   const activity = await prisma.activity.findUnique({
     where: { id },
     include: {
-      establishment: { select: { id: true, name: true, phone: true, website: true, bookingUrl: true, address: true, city: true, zipCode: true, country: true } },
+      establishment: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          website: true,
+          bookingUrl: true,
+          address: true,
+          city: true,
+          zipCode: true,
+          country: true,
+        },
+      },
       medias: { orderBy: { createdAt: "asc" } },
     },
   })
@@ -40,19 +55,22 @@ export async function GET(request: NextRequest, ctx: { params: { id: string } })
   let isFavorited = false
   if (user?.role === UserRole.USER) {
     const fav = await prisma.favorite.findUnique({
-      where: { userId_activityId: { userId: user.id, activityId: activity.id } },
+      where: {
+        userId_activityId: { userId: user.id, activityId: activity.id },
+      },
       select: { userId: true },
     })
     isFavorited = !!fav
   }
 
-  // Increment viewCount only for published public views
   if (activity.status === ActivityStatus.PUBLISHED) {
-    prisma.activity.update({ where: { id: activity.id }, data: { viewCount: { increment: 1 } } }).catch(() => {})
+    prisma.activity
+      .update({
+        where: { id: activity.id },
+        data: { viewCount: { increment: 1 } },
+      })
+      .catch(() => {})
   }
 
-  return NextResponse.json({
-    ...activity,
-    isFavorited,
-  })
+  return NextResponse.json({ ...activity, isFavorited })
 }

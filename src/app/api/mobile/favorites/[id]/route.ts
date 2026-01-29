@@ -4,7 +4,10 @@ import { requireMobileAuth } from "@/lib/mobile-auth"
 import { enforceApiRateLimit } from "../../_helpers/rl"
 import { UserRole } from "@prisma/client"
 
-export async function POST(request: NextRequest, ctx: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const limited = await enforceApiRateLimit(request, "api")
   if (limited) return limited
 
@@ -13,7 +16,7 @@ export async function POST(request: NextRequest, ctx: { params: { id: string } }
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const activityId = ctx.params.id
+  const { id: activityId } = await ctx.params
 
   await prisma.favorite.upsert({
     where: { userId_activityId: { userId: user.id, activityId } },
@@ -24,7 +27,10 @@ export async function POST(request: NextRequest, ctx: { params: { id: string } }
   return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(request: NextRequest, ctx: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const limited = await enforceApiRateLimit(request, "api")
   if (limited) return limited
 
@@ -33,7 +39,7 @@ export async function DELETE(request: NextRequest, ctx: { params: { id: string }
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const activityId = ctx.params.id
+  const { id: activityId } = await ctx.params
 
   await prisma.favorite.deleteMany({
     where: { userId: user.id, activityId },
