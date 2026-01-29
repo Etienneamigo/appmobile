@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,31 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
+  ScrollView,
+  Animated,
+  Dimensions,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { activitiesApi, ActivitiesSearchParams } from '../../api/activities';
 import { favoritesApi } from '../../api/favorites';
 import { ActivityListItem, ActivityType, ACTIVITY_TYPE_LABELS } from '../../types';
 import { ActivityCard } from '../../components/ActivityCard';
+import { SkeletonList, SkeletonCategories } from '../../components/SkeletonCard';
 import { useAuth } from '../../context/AuthContext';
+import {
+  colors,
+  borderRadius,
+  spacing,
+  shadows,
+  typography,
+  getActivityEmoji,
+} from '../../theme';
+
+const { width, height } = Dimensions.get('window');
 
 type RootStackParamList = {
   ActivityDetail: { activityId: string };
@@ -36,18 +52,26 @@ export const SearchScreen: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
   const [activities, setActivities] = useState<ActivityListItem[]>([]);
+  const [discoverActivities, setDiscoverActivities] = useState<ActivityListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDiscover, setIsLoadingDiscover] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
 
-  // Filters
+  // Search state
   const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<ActivityType | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
+  // Animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const searchInputRef = useRef<TextInput>(null);
+
+  // Fetch activities for search results
   const fetchActivities = useCallback(
     async (params: ActivitiesSearchParams, append = false) => {
       try {
@@ -65,6 +89,19 @@ export const SearchScreen: React.FC = () => {
     },
     []
   );
+
+  // Fetch discover activities (popular/recent)
+  const fetchDiscoverActivities = useCallback(async () => {
+    try {
+      setIsLoadingDiscover(true);
+      const response = await activitiesApi.list({ page: 1, limit: 10 });
+      setDiscoverActivities(response.items);
+    } catch (err) {
+      // Silent fail for discover
+    } finally {
+      setIsLoadingDiscover(false);
+    }
+  }, []);
 
   const loadInitial = useCallback(async () => {
     setIsLoading(true);
@@ -98,17 +135,32 @@ export const SearchScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setPage(1);
-    await fetchActivities({
-      search: search || undefined,
-      type: selectedType || undefined,
-      page: 1,
-      limit: 20,
-    });
+    await Promise.all([
+      fetchActivities({
+        search: search || undefined,
+        type: selectedType || undefined,
+        page: 1,
+        limit: 20,
+      }),
+      fetchDiscoverActivities(),
+    ]);
     setIsRefreshing(false);
-  }, [search, selectedType, fetchActivities]);
+  }, [search, selectedType, fetchActivities, fetchDiscoverActivities]);
 
+  // Initial load
   useEffect(() => {
     loadInitial();
+    fetchDiscoverActivities();
+  }, []);
+
+  // Load when type changes
+  useEffect(() => {
+    if (selectedType !== null || search) {
+      setIsSearching(true);
+      loadInitial();
+    } else {
+      setIsSearching(false);
+    }
   }, [selectedType]);
 
   // Debounced search
@@ -117,7 +169,12 @@ export const SearchScreen: React.FC = () => {
       clearTimeout(searchTimeout);
     }
     const timeout = setTimeout(() => {
-      loadInitial();
+      if (search) {
+        setIsSearching(true);
+        loadInitial();
+      } else if (!selectedType) {
+        setIsSearching(false);
+      }
     }, 500);
     setSearchTimeout(timeout);
     return () => clearTimeout(timeout);
@@ -132,56 +189,196 @@ export const SearchScreen: React.FC = () => {
       } else {
         await favoritesApi.add(activity.id);
       }
-      // Update local state
-      setActivities((prev) =>
-        prev.map((a) =>
+      // Update both lists
+      const updateList = (list: ActivityListItem[]) =>
+        list.map((a) =>
           a.id === activity.id ? { ...a, isFavorite: !a.isFavorite } : a
-        )
-      );
+        );
+      setActivities(updateList);
+      setDiscoverActivities(updateList);
     } catch (err) {
       // Silently fail
     }
   };
 
-  const renderTypeFilter = () => (
-    <View style={styles.filterContainer}>
-      <FlatList
+  const handleTypeSelect = (type: ActivityType | null) => {
+    setSelectedType(type);
+  };
+
+  const clearSearch = () => {
+    setSearch('');
+    setSelectedType(null);
+    setIsSearching(false);
+  };
+
+  // Header opacity based on scroll
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const renderHero = () => (
+    <LinearGradient
+      colors={colors.gradients.hero as [string, string, string]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.heroContainer}
+    >
+      <View style={styles.heroContent}>
+        <Text style={styles.heroTitle}>Qu'est-ce qu'on{'\n'}fait ce soir ?</Text>
+        <Text style={styles.heroSubtitle}>
+          Decouvrez les meilleures activites pres de chez vous
+        </Text>
+
+        {/* Search card with glassmorphism effect */}
+        <View style={styles.searchCard}>
+          <View style={styles.searchInputContainer}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Rechercher une activite..."
+              placeholderTextColor={colors.text.tertiary}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')} style={styles.clearButton}>
+                <Text style={styles.clearIcon}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+
+  const renderCategories = () => (
+    <View style={styles.categoriesSection}>
+      <Text style={styles.sectionTitle}>Decouvrez nos categories</Text>
+      <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={[null, ...ACTIVITY_TYPES]}
-        keyExtractor={(item) => item || 'all'}
-        renderItem={({ item }) => (
+        contentContainerStyle={styles.categoriesList}
+      >
+        {/* All option */}
+        <TouchableOpacity
+          style={[
+            styles.categoryCard,
+            selectedType === null && isSearching && styles.categoryCardSelected,
+          ]}
+          onPress={() => handleTypeSelect(null)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.categoryIconContainer, selectedType === null && isSearching && styles.categoryIconSelected]}>
+            <Text style={styles.categoryIcon}>🎯</Text>
+          </View>
+          <Text style={[styles.categoryLabel, selectedType === null && isSearching && styles.categoryLabelSelected]}>
+            Tout
+          </Text>
+        </TouchableOpacity>
+
+        {ACTIVITY_TYPES.map((type) => (
           <TouchableOpacity
+            key={type}
             style={[
-              styles.filterChip,
-              (item === null ? selectedType === null : selectedType === item) &&
-                styles.filterChipActive,
+              styles.categoryCard,
+              selectedType === type && styles.categoryCardSelected,
             ]}
-            onPress={() => setSelectedType(item)}
+            onPress={() => handleTypeSelect(type)}
+            activeOpacity={0.8}
           >
+            <View style={[styles.categoryIconContainer, selectedType === type && styles.categoryIconSelected]}>
+              <Text style={styles.categoryIcon}>{getActivityEmoji(type)}</Text>
+            </View>
             <Text
               style={[
-                styles.filterChipText,
-                (item === null ? selectedType === null : selectedType === item) &&
-                  styles.filterChipTextActive,
+                styles.categoryLabel,
+                selectedType === type && styles.categoryLabelSelected,
               ]}
+              numberOfLines={2}
             >
-              {item === null ? 'Tous' : ACTIVITY_TYPE_LABELS[item]}
+              {ACTIVITY_TYPE_LABELS[type]}
             </Text>
           </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.filterList}
-      />
+        ))}
+      </ScrollView>
     </View>
   );
+
+  const renderDiscover = () => {
+    if (isSearching) return null;
+
+    return (
+      <View style={styles.discoverSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>A decouvrir</Text>
+          <TouchableOpacity onPress={() => setIsSearching(true)}>
+            <Text style={styles.seeAllText}>Voir tout</Text>
+          </TouchableOpacity>
+        </View>
+
+        {isLoadingDiscover ? (
+          <View style={styles.discoverSkeletonContainer}>
+            <SkeletonCategories />
+          </View>
+        ) : (
+          <FlatList
+            horizontal
+            data={discoverActivities}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.discoverList}
+            renderItem={({ item }) => (
+              <ActivityCard
+                activity={item}
+                variant="vertical"
+                onPress={() =>
+                  navigation.navigate('ActivityDetail', { activityId: item.id })
+                }
+                onFavoriteToggle={
+                  isAuthenticated ? () => handleFavoriteToggle(item) : undefined
+                }
+                showFavorite={isAuthenticated}
+              />
+            )}
+          />
+        )}
+      </View>
+    );
+  };
+
+  const renderSearchResults = () => {
+    if (!isSearching) return null;
+
+    return (
+      <View style={styles.resultsSection}>
+        <View style={styles.resultsHeader}>
+          <Text style={styles.resultsTitle}>
+            {activities.length} activite{activities.length !== 1 ? 's' : ''} trouvee{activities.length !== 1 ? 's' : ''}
+          </Text>
+          {(search || selectedType) && (
+            <TouchableOpacity onPress={clearSearch} style={styles.clearFiltersButton}>
+              <Text style={styles.clearFiltersText}>Effacer</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyStateIcon}>🔍</Text>
-      <Text style={styles.emptyStateTitle}>Aucune activité trouvée</Text>
+      <Text style={styles.emptyStateTitle}>Aucune activite trouvee</Text>
       <Text style={styles.emptyStateText}>
         Essayez de modifier vos filtres ou votre recherche
       </Text>
+      <TouchableOpacity style={styles.emptyStateButton} onPress={clearSearch}>
+        <Text style={styles.emptyStateButtonText}>Effacer les filtres</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -189,52 +386,65 @@ export const SearchScreen: React.FC = () => {
     if (!isLoadingMore) return null;
     return (
       <View style={styles.loadingMore}>
-        <ActivityIndicator size="small" color="#3498db" />
+        <SkeletonList count={2} />
       </View>
     );
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher une activité..."
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor="#999"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Text style={styles.clearIcon}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+  const renderListHeader = () => (
+    <>
+      {renderHero()}
+      {renderCategories()}
+      {renderDiscover()}
+      {renderSearchResults()}
+    </>
+  );
 
-      {/* Type Filters */}
-      {renderTypeFilter()}
-
-      {/* Results */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3498db" />
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      ) : error ? (
+  // Error state
+  if (error && !isRefreshing) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        {renderHero()}
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadInitial}>
-            <Text style={styles.retryButtonText}>Réessayer</Text>
+            <Text style={styles.retryButtonText}>Reessayer</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Sticky header on scroll */}
+      <Animated.View style={[styles.stickyHeader, { opacity: headerOpacity }]}>
+        <View style={styles.stickySearchBar}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.stickySearchInput}
+            placeholder="Rechercher..."
+            placeholderTextColor={colors.text.tertiary}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+      </Animated.View>
+
+      {isLoading && !isRefreshing ? (
+        <ScrollView style={styles.loadingContainer}>
+          {renderListHeader()}
+          <View style={styles.loadingList}>
+            <SkeletonList count={3} />
+          </View>
+        </ScrollView>
       ) : (
         <FlatList
-          data={activities}
+          data={isSearching ? activities : []}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <ActivityCard
@@ -248,17 +458,24 @@ export const SearchScreen: React.FC = () => {
               showFavorite={isAuthenticated}
             />
           )}
-          ListEmptyComponent={renderEmptyState}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={isSearching ? renderEmptyState : null}
           ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              tintColor="#3498db"
+              tintColor={colors.primary.main}
+              progressViewOffset={100}
             />
           }
-          onEndReached={loadMore}
+          onEndReached={isSearching ? loadMore : undefined}
           onEndReachedThreshold={0.5}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
         />
       )}
@@ -269,128 +486,281 @@ export const SearchScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
-  searchContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+
+  // Hero section
+  heroContainer: {
+    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight || 40,
+    paddingBottom: spacing['4xl'],
+    paddingHorizontal: spacing.lg,
   },
-  searchBar: {
+  heroContent: {
+    alignItems: 'center',
+  },
+  heroTitle: {
+    fontSize: typography.size['4xl'],
+    fontWeight: typography.weight.extrabold,
+    color: colors.text.inverse,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  heroSubtitle: {
+    fontSize: typography.size.lg,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    marginBottom: spacing['3xl'],
+  },
+
+  // Search card
+  searchCard: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: borderRadius['2xl'],
+    padding: spacing.md,
+    ...shadows.xl,
+  },
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    height: 50,
   },
   searchIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 18,
+    marginRight: spacing.sm,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.size.md,
+    color: colors.text.primary,
+  },
+  clearButton: {
+    padding: spacing.xs,
   },
   clearIcon: {
-    fontSize: 18,
-    color: '#999',
-    padding: 4,
+    fontSize: 16,
+    color: colors.text.tertiary,
   },
-  filterContainer: {
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+
+  // Sticky header
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: colors.background.elevated,
+    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 30,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    ...shadows.md,
   },
-  filterList: {
-    paddingHorizontal: 12,
-    gap: 8,
+  stickySearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    height: 44,
   },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#3498db',
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: '#fff',
-  },
-  listContent: {
-    paddingVertical: 8,
-    flexGrow: 1,
-  },
-  loadingContainer: {
+  stickySearchInput: {
     flex: 1,
+    fontSize: typography.size.base,
+    color: colors.text.primary,
+  },
+
+  // Categories section
+  categoriesSection: {
+    paddingVertical: spacing.xl,
+    backgroundColor: colors.neutral[50],
+  },
+  sectionTitle: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  categoriesList: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  categoryCard: {
+    alignItems: 'center',
+    width: 80,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.xl,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    ...shadows.sm,
+  },
+  categoryCardSelected: {
+    borderColor: colors.primary.main,
+    backgroundColor: colors.primary.main + '10',
+  },
+  categoryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+  categoryIconSelected: {
+    backgroundColor: colors.primary.main + '20',
+  },
+  categoryIcon: {
+    fontSize: 24,
+  },
+  categoryLabel: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+    fontWeight: typography.weight.medium,
+    textAlign: 'center',
+  },
+  categoryLabelSelected: {
+    color: colors.primary.main,
+    fontWeight: typography.weight.semibold,
+  },
+
+  // Discover section
+  discoverSection: {
+    paddingVertical: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  seeAllText: {
+    fontSize: typography.size.sm,
+    color: colors.primary.main,
+    fontWeight: typography.weight.semibold,
+  },
+  discoverList: {
+    paddingHorizontal: spacing.lg,
+  },
+  discoverSkeletonContainer: {
+    paddingVertical: spacing.lg,
+  },
+
+  // Results section
+  resultsSection: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  resultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resultsTitle: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+  clearFiltersButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius.full,
+  },
+  clearFiltersText: {
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    fontWeight: typography.weight.medium,
+  },
+
+  // List
+  listContent: {
+    paddingBottom: spacing['4xl'],
+  },
+
+  // Loading states
+  loadingContainer: {
+    flex: 1,
+  },
+  loadingList: {
+    paddingTop: spacing.lg,
   },
   loadingMore: {
-    paddingVertical: 20,
+    paddingVertical: spacing.xl,
   },
+
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing['5xl'],
+    paddingHorizontal: spacing['3xl'],
+  },
+  emptyStateIcon: {
+    fontSize: 64,
+    marginBottom: spacing.lg,
+  },
+  emptyStateTitle: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  emptyStateButton: {
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+  },
+  emptyStateButtonText: {
+    fontSize: typography.size.md,
+    color: colors.text.inverse,
+    fontWeight: typography.weight.semibold,
+  },
+
+  // Error state
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing['3xl'],
   },
   errorIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   retryButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    marginTop: 40,
-  },
-  emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: colors.text.inverse,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
 });
+
+export default SearchScreen;

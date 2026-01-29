@@ -1,22 +1,31 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   Image,
   StyleSheet,
   TouchableOpacity,
+  Animated,
   Dimensions,
 } from 'react-native';
 import { ActivityListItem, ACTIVITY_TYPE_LABELS } from '../types';
+import {
+  colors,
+  borderRadius,
+  spacing,
+  shadows,
+  typography,
+  getActivityEmoji,
+} from '../theme';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - 32;
 
 interface ActivityCardProps {
   activity: ActivityListItem;
   onPress: () => void;
   onFavoriteToggle?: () => void;
   showFavorite?: boolean;
+  variant?: 'horizontal' | 'vertical';
 }
 
 export const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -24,195 +33,407 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   onPress,
   onFavoriteToggle,
   showFavorite = true,
+  variant = 'horizontal',
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const heartAnim = useRef(new Animated.Value(1)).current;
+
   const imageUri = activity.imageUrl
     ? activity.imageUrl.startsWith('http')
       ? activity.imageUrl
       : `https://maisonapee.com${activity.imageUrl}`
     : null;
 
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handleFavoritePress = () => {
+    if (!onFavoriteToggle) return;
+
+    // Heart bounce animation
+    Animated.sequence([
+      Animated.spring(heartAnim, {
+        toValue: 1.3,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 12,
+      }),
+      Animated.spring(heartAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 8,
+      }),
+    ]).start();
+
+    onFavoriteToggle();
+  };
+
+  const emoji = getActivityEmoji(activity.type);
+
+  // Vertical card layout (for featured/discover section)
+  if (variant === 'vertical') {
+    return (
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        <Animated.View
+          style={[styles.verticalCard, { transform: [{ scale: scaleAnim }] }]}
+        >
+          <View style={styles.verticalImageContainer}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.verticalImage} />
+            ) : (
+              <View style={styles.verticalPlaceholder}>
+                <Text style={styles.placeholderEmoji}>{emoji}</Text>
+              </View>
+            )}
+            <View style={styles.imageOverlay} />
+
+            {/* Type badge */}
+            <View style={styles.verticalBadge}>
+              <Text style={styles.badgeEmoji}>{emoji}</Text>
+              <Text style={styles.badgeText}>
+                {ACTIVITY_TYPE_LABELS[activity.type]}
+              </Text>
+            </View>
+
+            {/* Favorite button */}
+            {showFavorite && onFavoriteToggle && (
+              <TouchableOpacity
+                style={styles.favoriteButton}
+                onPress={handleFavoritePress}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Animated.Text
+                  style={[
+                    styles.favoriteIcon,
+                    { transform: [{ scale: heartAnim }] },
+                  ]}
+                >
+                  {activity.isFavorite ? '❤️' : '🤍'}
+                </Animated.Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.verticalContent}>
+            <Text style={styles.title} numberOfLines={2}>
+              {activity.title}
+            </Text>
+            <Text style={styles.establishment} numberOfLines={1}>
+              {activity.establishmentName}
+            </Text>
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>📍</Text>
+                <Text style={styles.infoText}>{activity.city}</Text>
+              </View>
+              {activity.priceFrom !== null && (
+                <View style={styles.infoItem}>
+                  <Text style={styles.priceText}>{activity.priceFrom}€</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  }
+
+  // Horizontal card layout (default for lists)
   return (
     <TouchableOpacity
-      style={styles.card}
+      activeOpacity={1}
       onPress={onPress}
-      activeOpacity={0.9}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
     >
-      <View style={styles.imageContainer}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.image} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>
+      <Animated.View
+        style={[styles.card, { transform: [{ scale: scaleAnim }] }]}
+      >
+        {/* Image section */}
+        <View style={styles.imageContainer}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.image} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Text style={styles.placeholderEmoji}>{emoji}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Content section */}
+        <View style={styles.content}>
+          {/* Type badge */}
+          <View style={styles.badge}>
+            <Text style={styles.badgeEmoji}>{emoji}</Text>
+            <Text style={styles.badgeText}>
               {ACTIVITY_TYPE_LABELS[activity.type]}
             </Text>
           </View>
-        )}
-        <View style={styles.typeTag}>
-          <Text style={styles.typeTagText}>
-            {ACTIVITY_TYPE_LABELS[activity.type]}
+
+          {/* Title */}
+          <Text style={styles.title} numberOfLines={2}>
+            {activity.title}
           </Text>
+
+          {/* Establishment */}
+          <Text style={styles.establishment} numberOfLines={1}>
+            {activity.establishmentName}
+          </Text>
+
+          {/* Info row */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoIcon}>📍</Text>
+              <Text style={styles.infoText}>{activity.city}</Text>
+            </View>
+            {activity.durationMinutes && (
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>⏱️</Text>
+                <Text style={styles.infoText}>{activity.durationMinutes}min</Text>
+              </View>
+            )}
+            {activity.priceFrom !== null && (
+              <View style={styles.priceContainer}>
+                <Text style={styles.priceText}>{activity.priceFrom}€</Text>
+              </View>
+            )}
+          </View>
+
+          {/* People info */}
+          {(activity.minPeople || activity.maxPeople) && (
+            <View style={styles.peopleInfo}>
+              <Text style={styles.infoIcon}>👥</Text>
+              <Text style={styles.infoText}>
+                {activity.minPeople && activity.maxPeople
+                  ? `${activity.minPeople}-${activity.maxPeople}`
+                  : activity.minPeople || activity.maxPeople}
+                {' pers.'}
+              </Text>
+            </View>
+          )}
         </View>
+
+        {/* Favorite button */}
         {showFavorite && onFavoriteToggle && (
           <TouchableOpacity
-            style={styles.favoriteButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onFavoriteToggle();
-            }}
+            style={styles.favoriteButtonHorizontal}
+            onPress={handleFavoritePress}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={styles.favoriteIcon}>
+            <Animated.Text
+              style={[
+                styles.favoriteIcon,
+                { transform: [{ scale: heartAnim }] },
+              ]}
+            >
               {activity.isFavorite ? '❤️' : '🤍'}
-            </Text>
+            </Animated.Text>
           </TouchableOpacity>
         )}
-      </View>
-
-      <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>
-          {activity.title}
-        </Text>
-        <Text style={styles.establishment} numberOfLines={1}>
-          {activity.establishmentName}
-        </Text>
-        <Text style={styles.location} numberOfLines={1}>
-          📍 {activity.city}
-        </Text>
-
-        <View style={styles.footer}>
-          {activity.priceFrom !== null && (
-            <Text style={styles.price}>
-              À partir de {activity.priceFrom}€
-            </Text>
-          )}
-          {activity.durationMinutes !== null && (
-            <Text style={styles.duration}>
-              ⏱ {activity.durationMinutes} min
-            </Text>
-          )}
-        </View>
-
-        {activity.tags.length > 0 && (
-          <View style={styles.tags}>
-            {activity.tags.slice(0, 3).map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
+      </Animated.View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
+  // Horizontal card styles
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.xl,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
+    flexDirection: 'row',
     overflow: 'hidden',
+    ...shadows.lg,
   },
   imageContainer: {
-    position: 'relative',
-    height: 180,
+    width: 120,
+    height: 140,
+    margin: spacing.md,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-  placeholderImage: {
+  placeholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#e0e0e0',
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: {
-    fontSize: 16,
-    color: '#666',
+  placeholderEmoji: {
+    fontSize: 48,
   },
-  typeTag: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+  content: {
+    flex: 1,
+    paddingVertical: spacing.lg,
+    paddingRight: spacing.lg,
+    justifyContent: 'center',
   },
-  typeTagText: {
-    color: '#fff',
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary.main + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.sm,
+    gap: spacing.xs,
+  },
+  badgeEmoji: {
     fontSize: 12,
-    fontWeight: '600',
+  },
+  badgeText: {
+    fontSize: typography.size.xs,
+    color: colors.primary.dark,
+    fontWeight: typography.weight.semibold,
+  },
+  title: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+    lineHeight: typography.size.md * typography.lineHeight.tight,
+  },
+  establishment: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    marginBottom: spacing.sm,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  infoIcon: {
+    fontSize: 12,
+  },
+  infoText: {
+    fontSize: typography.size.xs,
+    color: colors.text.secondary,
+  },
+  priceContainer: {
+    backgroundColor: colors.success.main + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  priceText: {
+    fontSize: typography.size.sm,
+    color: colors.success.dark,
+    fontWeight: typography.weight.bold,
+  },
+  peopleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  favoriteButtonHorizontal: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.background.elevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.md,
+  },
+  favoriteIcon: {
+    fontSize: 18,
+  },
+
+  // Vertical card styles
+  verticalCard: {
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.xl,
+    marginHorizontal: spacing.sm,
+    width: width * 0.7,
+    overflow: 'hidden',
+    ...shadows.lg,
+  },
+  verticalImageContainer: {
+    position: 'relative',
+    height: 160,
+  },
+  verticalImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  verticalPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  verticalBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
   },
   favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    top: spacing.md,
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.sm,
   },
-  favoriteIcon: {
-    fontSize: 20,
-  },
-  content: {
-    padding: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  establishment: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  location: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  price: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2ecc71',
-  },
-  duration: {
-    fontSize: 13,
-    color: '#666',
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  tag: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tagText: {
-    fontSize: 12,
-    color: '#666',
+  verticalContent: {
+    padding: spacing.lg,
   },
 });
+
+export default ActivityCard;
