@@ -32,6 +32,8 @@ services:
       - activites_pg:/var/lib/postgresql/data
 
   web:
+    env_file:
+      - .env
     container_name: activites-web
     build:
       context: ..
