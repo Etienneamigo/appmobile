@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../../config/env';
 import React from 'react';
 import {
   View,
@@ -91,7 +92,7 @@ export const AccountScreen: React.FC = () => {
           <View style={styles.separator} />
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Backend</Text>
-            <Text style={styles.infoValue}>maisonapee.com</Text>
+            <Text style={styles.infoValue}>{API_BASE_URL.replace(/^https?:\/\//, '')}</Text>
           </View>
         </View>
       </View>

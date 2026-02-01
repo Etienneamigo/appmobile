@@ -1,3 +1,4 @@
+import { withApiBaseUrl } from '../config/env';
 import React, { useRef } from 'react';
 import {
   View,
@@ -41,7 +42,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   const imageUri = activity.imageUrl
     ? activity.imageUrl.startsWith('http')
       ? activity.imageUrl
-      : `https://maisonapee.com${activity.imageUrl}`
+      : withApiBaseUrl(activity.imageUrl)
     : null;
 
   const handlePressIn = () => {

@@ -1,3 +1,4 @@
+import { withApiBaseUrl } from '../../config/env';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -203,7 +204,7 @@ export const MediaManagerScreen: React.FC = () => {
                   source={{
                     uri: media.url.startsWith('http')
                       ? media.url
-                      : `https://maisonapee.com${media.url}`,
+                      : withApiBaseUrl(media.url),
                   }}
                   style={styles.mediaImage}
                 />

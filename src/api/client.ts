@@ -1,7 +1,11 @@
 import { secureStorage } from '../storage/secureStore';
 import { ApiError } from '../types';
 
-const BASE_URL = 'https://maisonapee.com';
+// Centralized API base URL (changeable per environment/build)
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ||
+  'https://maisonapee.com';
+
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
