@@ -590,7 +590,7 @@ export const SearchScreen: React.FC = () => {
               showFavorite={isAuthenticated}
             />
           )}
-          ListHeaderComponent={renderListHeader}
+          ListHeaderComponent={<View>{renderListHeader()}</View>}
           ListEmptyComponent={isSearching && hasSearched ? renderEmptyState : null}
           ListFooterComponent={renderFooter}
           refreshControl={
