@@ -8,6 +8,11 @@ function parseIntSafe(v: string | null, def: number) {
   const n = v ? Number(v) : NaN
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : def
 }
+function parseFloatSafe(v: string | null): number | null {
+  if (!v) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
 
 // Helper to get first image URL from medias
 function getImageUrl(medias: { kind: string; url: string }[]): string | null {
@@ -25,6 +30,11 @@ export async function GET(request: NextRequest) {
   const search = (searchParams.get("search") || "").trim()
   const city = (searchParams.get("city") || "").trim()
   const type = (searchParams.get("type") || "").trim()
+  const lat = parseFloatSafe(searchParams.get("lat"))
+  const lng = parseFloatSafe(searchParams.get("lng"))
+  const radiusKmRaw = parseFloatSafe(searchParams.get("radiusKm"))
+  // Si géoloc active mais pas de rayon fourni => défaut 10km
+  const radiusKm = lat != null && lng != null ? (radiusKmRaw ?? 10) : null
 
   const page = parseIntSafe(searchParams.get("page"), 1)
   const pageSize = Math.min(parseIntSafe(searchParams.get("pageSize"), 20), 50)
@@ -48,6 +58,19 @@ export async function GET(request: NextRequest) {
       { description: { contains: search, mode: "insensitive" } },
       { city: { contains: search, mode: "insensitive" } },
     ]
+  }
+    // Optional geo filter (bounding box) using lat/lng + radiusKm
+  if (lat != null && lng != null && radiusKm != null) {
+    const r = Math.min(Math.max(radiusKm, 1), 200) // clamp 1..200km
+    const latDelta = r / 111.32
+    const cosLat = Math.cos((lat * Math.PI) / 180)
+    const lngDelta = r / (111.32 * Math.max(cosLat, 0.2)) // avoid huge delta near poles
+
+    where.AND = where.AND || []
+    where.AND.push(
+      { lat: { gte: lat - latDelta, lte: lat + latDelta } },
+      { lng: { gte: lng - lngDelta, lte: lng + lngDelta } }
+    )
   }
 
   const [total, itemsRaw] = await Promise.all([
