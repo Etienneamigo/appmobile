@@ -127,7 +127,7 @@ export const TypeSelect: React.FC<TypeSelectProps> = ({
                   )}
                 </TouchableOpacity>
               )}
-              scrollEnabled={false}
+              keyboardShouldPersistTaps="handled"
             />
 
             <TouchableOpacity

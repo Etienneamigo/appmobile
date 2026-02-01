@@ -69,10 +69,14 @@ export const establishmentApi = {
     if (Array.isArray(response)) {
       return response;
     }
-    if (response && Array.isArray(response.medias)) {
-      return response.medias;
-    }
-    return [];
+    if (response && Array.isArray((response as any).medias)) {
+  return (response as any).medias;
+}
+if (response && Array.isArray((response as any).items)) {
+  return (response as any).items;
+}
+return [];
+
   },
 
   addMedia(data: {
