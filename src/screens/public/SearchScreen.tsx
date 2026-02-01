@@ -41,12 +41,15 @@ type RootStackParamList = {
   ActivityDetail: { activityId: string };
 };
 
-const ACTIVITY_TYPES: ActivityType[] = [
+// Popular categories shown in horizontal scroll (subset of all types)
+const POPULAR_CATEGORIES: ActivityType[] = [
   'BOWLING',
   'ESCAPE_GAME',
   'BAR_DANSANT',
   'KARAOKE',
   'LASER_GAME',
+  'KARTING',
+  'REALITE_VIRTUELLE',
   'CINEMA',
   'TRAMPOLINE_PARK',
 ];
@@ -380,7 +383,7 @@ export const SearchScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        {ACTIVITY_TYPES.map((type) => (
+        {POPULAR_CATEGORIES.map((type) => (
           <TouchableOpacity
             key={type}
             style={[

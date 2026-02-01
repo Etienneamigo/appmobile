@@ -32,16 +32,22 @@ export const activitiesApi = {
     if (params.city) queryParams.append('city', params.city);
     if (params.type) queryParams.append('type', params.type);
     if (params.page) queryParams.append('page', params.page.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
-    // V4: Geolocation params (sent to API, backend may not support yet)
+    if (params.limit) queryParams.append('pageSize', params.limit.toString());
+    // V4: Geolocation params
     if (params.lat !== undefined) queryParams.append('lat', params.lat.toString());
     if (params.lng !== undefined) queryParams.append('lng', params.lng.toString());
     if (params.radiusKm !== undefined) queryParams.append('radiusKm', params.radiusKm.toString());
 
     const query = queryParams.toString();
-    return apiClient.get<ActivitiesListResponse>(
-      `/api/mobile/activities${query ? `?${query}` : ''}`
-    );
+    const url = `/api/mobile/activities${query ? `?${query}` : ''}`;
+
+    // Debug log in development
+    if (__DEV__) {
+      console.log('[Activities API] Request:', url);
+      console.log('[Activities API] Params:', params);
+    }
+
+    return apiClient.get<ActivitiesListResponse>(url);
   },
 
   getById(id: string): Promise<ActivityDetail> {

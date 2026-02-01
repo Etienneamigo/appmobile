@@ -1,7 +1,7 @@
 // User roles
 export type UserRole = 'USER' | 'ESTABLISHMENT' | 'ADMIN';
 
-// Activity types
+// Activity types (V4 - extended list matching web)
 export type ActivityType =
   | 'BOWLING'
   | 'ESCAPE_GAME'
@@ -9,7 +9,20 @@ export type ActivityType =
   | 'KARAOKE'
   | 'LASER_GAME'
   | 'CINEMA'
-  | 'TRAMPOLINE_PARK';
+  | 'TRAMPOLINE_PARK'
+  // V4 new types
+  | 'KARTING'
+  | 'REALITE_VIRTUELLE'
+  | 'QUIZ_GAME'
+  | 'MINIGOLF'
+  | 'ESCALADE'
+  | 'PATINOIRE'
+  | 'SPA_BIEN_ETRE'
+  | 'ATELIER'
+  | 'DEGUSTATION'
+  | 'COMEDY_CLUB'
+  | 'MUSEE_EXPO'
+  | 'CONCERT_SPECTACLE';
 
 // Activity status
 export type ActivityStatus = 'DRAFT' | 'PUBLISHED';
@@ -225,6 +238,19 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   BAR_DANSANT: 'Bar Dansant',
   KARAOKE: 'Karaoke',
   LASER_GAME: 'Laser Game',
-  CINEMA: 'Cinéma',
+  CINEMA: 'Cinema',
   TRAMPOLINE_PARK: 'Trampoline Park',
+  // V4 new types
+  KARTING: 'Karting',
+  REALITE_VIRTUELLE: 'Realite Virtuelle',
+  QUIZ_GAME: 'Quiz Game',
+  MINIGOLF: 'Minigolf',
+  ESCALADE: 'Escalade',
+  PATINOIRE: 'Patinoire',
+  SPA_BIEN_ETRE: 'Spa & Bien-etre',
+  ATELIER: 'Atelier',
+  DEGUSTATION: 'Degustation',
+  COMEDY_CLUB: 'Comedy Club',
+  MUSEE_EXPO: 'Musee & Expo',
+  CONCERT_SPECTACLE: 'Concert & Spectacle',
 };

@@ -2,26 +2,60 @@
 
 Version 4 aligns the mobile app's search functionality with the web application.
 
-## Changes Summary
+## Changes Summary (V4.1 Update)
 
-### New Components
+### Bug Fixes
+- **Type filter fix**: Changed `limit` to `pageSize` param to match backend API
+- **Medias crash fix**: Made `establishmentApi.getMedias()` robust against undefined/null responses
+- **Debug logging**: Added console logs in dev mode for API requests
 
-| Component | Path | Description |
-|-----------|------|-------------|
-| `LocationInput` | `src/components/search/LocationInput.tsx` | City/postal code input with geolocation button |
-| `TypeSelect` | `src/components/search/TypeSelect.tsx` | Activity type dropdown selector |
-| `RadiusSelect` | `src/components/search/RadiusSelect.tsx` | Search radius dropdown (1-50 km) |
+### New Activity Types (12 added)
+- KARTING, REALITE_VIRTUELLE, QUIZ_GAME, MINIGOLF, ESCALADE, PATINOIRE
+- SPA_BIEN_ETRE, ATELIER, DEGUSTATION, COMEDY_CLUB, MUSEE_EXPO, CONCERT_SPECTACLE
 
-### New Files
+---
 
-- `src/constants/search.ts` - Search constants (distance options, default values)
-- `src/hooks/useGeolocation.ts` - Geolocation hook using expo-location
-- `src/hooks/index.ts` - Hooks export barrel
+## Activity Types Mapping
 
-### Modified Files
+### Complete Type List
 
-- `src/api/activities.ts` - Added `lat`, `lng`, `radiusKm` params
-- `src/screens/public/SearchScreen.tsx` - Full search form integration
+| Enum Value | Label | Emoji |
+|------------|-------|-------|
+| `BOWLING` | Bowling | 🎳 |
+| `ESCAPE_GAME` | Escape Game | 🔐 |
+| `BAR_DANSANT` | Bar dansant | 💃 |
+| `KARAOKE` | Karaoke | 🎤 |
+| `LASER_GAME` | Laser Game | 🔫 |
+| `CINEMA` | Cinema | 🎬 |
+| `TRAMPOLINE_PARK` | Trampoline Park | 🤸 |
+| `KARTING` | Karting | 🏎️ |
+| `REALITE_VIRTUELLE` | Realite Virtuelle | 🥽 |
+| `QUIZ_GAME` | Quiz Game | 🧩 |
+| `MINIGOLF` | Minigolf | ⛳ |
+| `ESCALADE` | Escalade | 🧗 |
+| `PATINOIRE` | Patinoire | ⛸️ |
+| `SPA_BIEN_ETRE` | Spa & Bien-etre | 🧖 |
+| `ATELIER` | Atelier | 🎨 |
+| `DEGUSTATION` | Degustation | 🍷 |
+| `COMEDY_CLUB` | Comedy Club | 🎭 |
+| `MUSEE_EXPO` | Musee & Expo | 🏛️ |
+| `CONCERT_SPECTACLE` | Concert & Spectacle | 🎵 |
+
+### API URL Examples
+
+```
+# Filter by type only
+GET /api/mobile/activities?type=KARTING&page=1&pageSize=20
+
+# Filter by type + city
+GET /api/mobile/activities?type=BOWLING&city=Paris&page=1&pageSize=20
+
+# Filter by type + geolocation + radius
+GET /api/mobile/activities?type=ESCAPE_GAME&lat=48.8566&lng=2.3522&radiusKm=10
+
+# All filters combined
+GET /api/mobile/activities?type=BAR_DANSANT&city=Lyon&lat=45.764&lng=4.8357&radiusKm=25&page=1&pageSize=20
+```
 
 ---
 
@@ -32,16 +66,16 @@ Version 4 aligns the mobile app's search functionality with the web application.
 | Web Param | Mobile Param | Backend Support | Notes |
 |-----------|--------------|-----------------|-------|
 | `city` | `city` | YES | Text search on city name |
-| `type` | `type` | YES | Activity type enum |
-| `lat` | `lat` | NO* | Latitude for geo search |
-| `lng` | `lng` | NO* | Longitude for geo search |
-| `radius` | `radiusKm` | NO* | Search radius in km |
-
-*Backend API (`/api/mobile/activities`) does not yet support geo-search parameters. The mobile app sends them but they are currently ignored. Backend enhancement required.
+| `type` | `type` | YES | Activity type enum (must match exactly) |
+| `lat` | `lat` | YES | Latitude for geo search |
+| `lng` | `lng` | YES | Longitude for geo search |
+| `radius` | `radiusKm` | YES | Search radius in km (default: 10) |
+| `page` | `page` | YES | Pagination page number |
+| `limit` | `pageSize` | YES | Items per page (max 50) |
 
 ### Priority Logic
 
-```
+```typescript
 if (hasGeolocation && lat && lng) {
   // Use coordinates + radius
   params = { lat, lng, radiusKm }
@@ -49,6 +83,58 @@ if (hasGeolocation && lat && lng) {
   // Use city text search
   params = { city }
 }
+// Type is always sent if selected
+if (type) params.type = type
+```
+
+---
+
+## Files Modified (V4.1)
+
+### Mobile App
+
+| File | Change |
+|------|--------|
+| `src/types/index.ts` | Added 12 new ActivityType values + labels |
+| `src/constants/search.ts` | Added new types to ACTIVITY_TYPE_OPTIONS |
+| `src/theme/index.ts` | Added emojis for new types |
+| `src/api/activities.ts` | Fixed `limit` → `pageSize`, added debug log |
+| `src/api/establishment.ts` | Made `getMedias()` robust |
+| `src/screens/establishment/MediaManagerScreen.tsx` | Defensive medias handling |
+| `src/screens/public/SearchScreen.tsx` | Updated category list |
+
+### Web App (to apply)
+
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Added 12 new enum values |
+| `prisma/migrations/20260201000000_add_v4_activity_types/migration.sql` | ALTER TYPE SQL |
+| `src/lib/constants.ts` | Added labels + emojis |
+
+---
+
+## Search Components
+
+### New Components
+
+| Component | Path | Description |
+|-----------|------|-------------|
+| `LocationInput` | `src/components/search/LocationInput.tsx` | City/postal code input with geolocation button |
+| `TypeSelect` | `src/components/search/TypeSelect.tsx` | Activity type dropdown selector |
+| `RadiusSelect` | `src/components/search/RadiusSelect.tsx` | Search radius dropdown (1-50 km) |
+
+### Search Card (Hero Section)
+
+```
++----------------------------------+
+|  Ou cherchez-vous ?              |
+|  [City/ZIP input    ] [Locate]   |
+|                                  |
+|  Type d'activite  | Rayon        |
+|  [Dropdown      ] | [Dropdown ]  |
+|                                  |
+|  [   Rechercher des activites  ] |
++----------------------------------+
 ```
 
 ---
@@ -77,32 +163,6 @@ if (hasGeolocation && lat && lng) {
 
 ---
 
-## UI Components
-
-### Search Card (Hero Section)
-
-```
-+----------------------------------+
-|  Ou cherchez-vous ?              |
-|  [City/ZIP input    ] [Locate]   |
-|                                  |
-|  Type d'activite  | Rayon        |
-|  [Dropdown      ] | [Dropdown ]  |
-|                                  |
-|  [   Rechercher des activites  ] |
-+----------------------------------+
-```
-
-### Filter Badges (Results Header)
-
-When active, displays badges like:
-- `📍 Ma position` (geolocation active)
-- `📍 Paris` (city filter)
-- `🎳 Bowling` (type filter)
-- `10 km` (radius)
-
----
-
 ## Default Values
 
 | Setting | Default | Source |
@@ -110,22 +170,7 @@ When active, displays badges like:
 | Radius | 10 km | Web behavior |
 | Type | `null` (all) | Web behavior |
 | City | `""` (empty) | Web behavior |
-
----
-
-## Backend Requirements (TODO)
-
-For full geo-search support, the backend API needs to:
-
-1. Accept `lat`, `lng`, `radiusKm` query params
-2. Calculate distance using Haversine formula or PostGIS
-3. Filter activities within radius
-4. Optionally sort by distance
-
-Example query:
-```
-GET /api/mobile/activities?lat=48.8566&lng=2.3522&radiusKm=10&type=BOWLING
-```
+| Page Size | 20 | Backend default |
 
 ---
 
@@ -138,19 +183,21 @@ GET /api/mobile/activities?lat=48.8566&lng=2.3522&radiusKm=10&type=BOWLING
 - [x] Images display on activity cards
 - [x] Favorites toggle works
 - [x] No crash if geolocation permission denied
+- [x] No crash if medias API returns undefined
 - [x] Empty state when no results
 - [x] Loading skeletons display correctly
 - [x] Pull-to-refresh works
 - [x] Infinite scroll pagination
 - [x] Clear filters button works
+- [x] New activity types display correctly
 
 ---
 
-## Dependencies Added
+## Dependencies
 
 ```json
 {
-  "expo-location": "^18.0.x"
+  "expo-location": "^19.0.x"
 }
 ```
 
@@ -191,9 +238,30 @@ SearchScreen
 │       ├── TypeSelect
 │       ├── RadiusSelect
 │       └── SearchButton
-├── Categories (horizontal scroll)
+├── Categories (horizontal scroll - POPULAR_CATEGORIES subset)
 ├── Discover (when not searching)
 └── Results (when searching)
     ├── ResultsHeader + FilterBadges
     └── ActivityCard list
 ```
+
+---
+
+## Web Migration Instructions
+
+To deploy the new activity types on the web/backend:
+
+1. Apply the Prisma migration:
+   ```bash
+   cd web-repo
+   npx prisma migrate deploy
+   ```
+
+2. Regenerate Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+
+3. The `constants.ts` already has the new types with labels/emojis.
+
+4. Restart the server to pick up enum changes.

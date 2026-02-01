@@ -206,8 +206,9 @@ export const shadows = {
   },
 };
 
-// Activity type emojis (matching web)
+// Activity type emojis (V4 - extended list matching web)
 export const ACTIVITY_EMOJIS: Record<string, string> = {
+  // Original types
   BOWLING: '🎳',
   ESCAPE_GAME: '🔐',
   BAR_DANSANT: '💃',
@@ -215,6 +216,19 @@ export const ACTIVITY_EMOJIS: Record<string, string> = {
   LASER_GAME: '🔫',
   CINEMA: '🎬',
   TRAMPOLINE_PARK: '🤸',
+  // V4 new types
+  KARTING: '🏎️',
+  REALITE_VIRTUELLE: '🥽',
+  QUIZ_GAME: '🧩',
+  MINIGOLF: '⛳',
+  ESCALADE: '🧗',
+  PATINOIRE: '⛸️',
+  SPA_BIEN_ETRE: '🧖',
+  ATELIER: '🎨',
+  DEGUSTATION: '🍷',
+  COMEDY_CLUB: '🎭',
+  MUSEE_EXPO: '🏛️',
+  CONCERT_SPECTACLE: '🎵',
 };
 
 // Helper to get emoji for activity type

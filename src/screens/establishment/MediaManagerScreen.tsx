@@ -24,10 +24,12 @@ export const MediaManagerScreen: React.FC = () => {
   const fetchMedias = useCallback(async () => {
     try {
       const mediasData = await establishmentApi.getMedias();
-      setMedias(mediasData);
+      // Ensure medias is always an array (defensive)
+      setMedias(Array.isArray(mediasData) ? mediasData : []);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');
+      setMedias([]); // Reset to empty on error
     }
   }, []);
 

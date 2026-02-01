@@ -60,9 +60,19 @@ export const establishmentApi = {
     return apiClient.patch('/api/mobile/establishment/activity', data);
   },
 
-  // Media - returns Media[] directly
-  getMedias(): Promise<Media[]> {
-    return apiClient.get<Media[]>('/api/mobile/establishment/media');
+  // Media - returns Media[] directly (normalized to empty array if undefined)
+  async getMedias(): Promise<Media[]> {
+    const response = await apiClient.get<Media[] | { medias?: Media[] } | null>(
+      '/api/mobile/establishment/media'
+    );
+    // Normalize response: handle array, object with medias, or null/undefined
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && Array.isArray(response.medias)) {
+      return response.medias;
+    }
+    return [];
   },
 
   addMedia(data: {
