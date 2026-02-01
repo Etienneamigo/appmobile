@@ -1,0 +1,87 @@
+diff --git a/prisma/migrations/20260201000000_add_v4_activity_types/migration.sql b/prisma/migrations/20260201000000_add_v4_activity_types/migration.sql
+new file mode 100644
+index 0000000..925556a
+--- /dev/null
++++ b/prisma/migrations/20260201000000_add_v4_activity_types/migration.sql
+@@ -0,0 +1,16 @@
++-- V4: Add new activity types
++-- Note: PostgreSQL enums require ALTER TYPE to add new values
++
++-- Add new activity types to ActivityType enum
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'KARTING';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'REALITE_VIRTUELLE';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'QUIZ_GAME';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'MINIGOLF';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'ESCALADE';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'PATINOIRE';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'SPA_BIEN_ETRE';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'ATELIER';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'DEGUSTATION';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'COMEDY_CLUB';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'MUSEE_EXPO';
++ALTER TYPE "ActivityType" ADD VALUE IF NOT EXISTS 'CONCERT_SPECTACLE';
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index ade298e..810ca4b 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -17,8 +17,9 @@ enum UserRole {
+   ADMIN
+ }
+ 
+-// Types d'activités
++// Types d'activités (V4 - extended list)
+ enum ActivityType {
++  // Original types
+   BOWLING
+   ESCAPE_GAME
+   BAR_DANSANT
+@@ -26,6 +27,19 @@ enum ActivityType {
+   LASER_GAME
+   CINEMA
+   TRAMPOLINE_PARK
++  // V4 new types
++  KARTING
++  REALITE_VIRTUELLE
++  QUIZ_GAME
++  MINIGOLF
++  ESCALADE
++  PATINOIRE
++  SPA_BIEN_ETRE
++  ATELIER
++  DEGUSTATION
++  COMEDY_CLUB
++  MUSEE_EXPO
++  CONCERT_SPECTACLE
+ }
+ 
+ // Statut d'activité
+diff --git a/src/lib/constants.ts b/src/lib/constants.ts
+index b5b9b02..2692472 100644
+--- a/src/lib/constants.ts
++++ b/src/lib/constants.ts
+@@ -1,4 +1,5 @@
+ export const ACTIVITY_TYPES = {
++  // Original types
+   BOWLING: { label: "Bowling", emoji: "🎳" },
+   ESCAPE_GAME: { label: "Escape Game", emoji: "🔐" },
+   BAR_DANSANT: { label: "Bar dansant", emoji: "💃" },
+@@ -6,6 +7,19 @@ export const ACTIVITY_TYPES = {
+   LASER_GAME: { label: "Laser Game", emoji: "🔫" },
+   CINEMA: { label: "Cinéma", emoji: "🎬" },
+   TRAMPOLINE_PARK: { label: "Trampoline Park", emoji: "🤸" },
++  // V4 new types
++  KARTING: { label: "Karting", emoji: "🏎️" },
++  REALITE_VIRTUELLE: { label: "Réalité Virtuelle", emoji: "🥽" },
++  QUIZ_GAME: { label: "Quiz Game", emoji: "🧩" },
++  MINIGOLF: { label: "Minigolf", emoji: "⛳" },
++  ESCALADE: { label: "Escalade", emoji: "🧗" },
++  PATINOIRE: { label: "Patinoire", emoji: "⛸️" },
++  SPA_BIEN_ETRE: { label: "Spa & Bien-être", emoji: "🧖" },
++  ATELIER: { label: "Atelier", emoji: "🎨" },
++  DEGUSTATION: { label: "Dégustation", emoji: "🍷" },
++  COMEDY_CLUB: { label: "Comedy Club", emoji: "🎭" },
++  MUSEE_EXPO: { label: "Musée & Expo", emoji: "🏛️" },
++  CONCERT_SPECTACLE: { label: "Concert & Spectacle", emoji: "🎵" },
+ } as const
+ 
+ export type ActivityTypeKey = keyof typeof ACTIVITY_TYPES
