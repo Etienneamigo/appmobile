@@ -117,17 +117,30 @@ export const SearchScreen: React.FC = () => {
   const fetchActivities = useCallback(
     async (params: ActivitiesSearchParams, append = false) => {
       try {
-        const response = await activitiesApi.list(params);
-        if (append) {
-          setActivities((prev) => [...prev, ...response.items]);
-        } else {
-          setActivities(response.items);
-        }
-        setHasMore(response.hasMore);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Erreur lors du chargement');
-      }
+  const response = await activitiesApi.list(params);
+
+  if (__DEV__) {
+    const types = (response.items || []).map((a: any) => a.type);
+    console.log('[SearchScreen] Received types:', Array.from(new Set(types)));
+    console.log(
+      '[SearchScreen] First item:',
+      response.items?.[0]?.id,
+      response.items?.[0]?.title,
+      response.items?.[0]?.type
+    );
+  }
+
+  if (append) {
+    setActivities((prev) => [...prev, ...response.items]);
+  } else {
+    setActivities(response.items);
+  }
+  setHasMore(response.hasMore);
+  setError(null);
+} catch (err: any) {
+  setError(err.message || 'Erreur lors du chargement');
+}
+
     },
     []
   );
@@ -286,12 +299,39 @@ export const SearchScreen: React.FC = () => {
   };
 
   const handleCategorySelect = (type: ActivityType | null) => {
-    setFilters((prev) => ({ ...prev, type }));
-    // Auto-search when category is selected
-    setTimeout(() => {
-      performSearch();
-    }, 0);
+  // Force search mode immediately
+  setIsSearching(true);
+  setHasSearched(true);
+  setPage(1);
+
+  // Update UI state
+  setFilters((prev) => ({ ...prev, type }));
+
+  // Build params using the selected type directly (avoid waiting for setState)
+  const params: ActivitiesSearchParams = {
+    page: 1,
+    limit: 20,
   };
+
+  // Keep existing location filters
+  if (filters.hasGeolocation && filters.lat !== null && filters.lng !== null) {
+    params.lat = filters.lat;
+    params.lng = filters.lng;
+    params.radiusKm = filters.radiusKm;
+  } else if (filters.city.trim()) {
+    params.city = filters.city.trim();
+  }
+
+  // Apply selected type
+  if (type) {
+    params.type = type;
+  }
+
+  // Fetch immediately with correct params (no second tap needed)
+  fetchActivities(params);
+};
+
+
 
   // Header opacity based on scroll
   const headerOpacity = scrollY.interpolate({
