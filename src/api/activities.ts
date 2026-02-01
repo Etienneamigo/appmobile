@@ -19,6 +19,10 @@ export interface ActivitiesSearchParams {
   type?: string;
   page?: number;
   limit?: number;
+  // Geolocation params (V4 - prepared for backend support)
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
 }
 
 export const activitiesApi = {
@@ -29,6 +33,10 @@ export const activitiesApi = {
     if (params.type) queryParams.append('type', params.type);
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
+    // V4: Geolocation params (sent to API, backend may not support yet)
+    if (params.lat !== undefined) queryParams.append('lat', params.lat.toString());
+    if (params.lng !== undefined) queryParams.append('lng', params.lng.toString());
+    if (params.radiusKm !== undefined) queryParams.append('radiusKm', params.radiusKm.toString());
 
     const query = queryParams.toString();
     return apiClient.get<ActivitiesListResponse>(

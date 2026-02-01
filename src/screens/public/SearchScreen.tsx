@@ -12,6 +12,7 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -21,7 +22,10 @@ import { favoritesApi } from '../../api/favorites';
 import { ActivityListItem, ActivityType, ACTIVITY_TYPE_LABELS } from '../../types';
 import { ActivityCard } from '../../components/ActivityCard';
 import { SkeletonList, SkeletonCategories } from '../../components/SkeletonCard';
+import { LocationInput, TypeSelect, RadiusSelect } from '../../components/search';
 import { useAuth } from '../../context/AuthContext';
+import { useGeolocation } from '../../hooks/useGeolocation';
+import { DEFAULT_RADIUS_KM, SearchFilters, DEFAULT_SEARCH_FILTERS } from '../../constants/search';
 import {
   colors,
   borderRadius,
@@ -50,6 +54,7 @@ const ACTIVITY_TYPES: ActivityType[] = [
 export const SearchScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isAuthenticated } = useAuth();
+  const geolocation = useGeolocation();
 
   const [activities, setActivities] = useState<ActivityListItem[]>([]);
   const [discoverActivities, setDiscoverActivities] = useState<ActivityListItem[]>([]);
@@ -61,15 +66,49 @@ export const SearchScreen: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
 
-  // Search state
-  const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<ActivityType | null>(null);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  // Search filters (V4 - like web)
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_SEARCH_FILTERS);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   // Animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef<TextInput>(null);
+
+  // Build API params from filters
+  const buildSearchParams = useCallback(
+    (pageNum: number = 1): ActivitiesSearchParams => {
+      const params: ActivitiesSearchParams = {
+        page: pageNum,
+        limit: 20,
+      };
+
+      // Priority: geolocation > city text
+      if (filters.hasGeolocation && filters.lat !== null && filters.lng !== null) {
+        params.lat = filters.lat;
+        params.lng = filters.lng;
+        params.radiusKm = filters.radiusKm;
+      } else if (filters.city.trim()) {
+        params.city = filters.city.trim();
+      }
+
+      if (filters.type) {
+        params.type = filters.type;
+      }
+
+      return params;
+    },
+    [filters]
+  );
+
+  // Check if any filter is active
+  const hasActiveFilters = useCallback(() => {
+    return (
+      filters.city.trim().length > 0 ||
+      filters.hasGeolocation ||
+      filters.type !== null
+    );
+  }, [filters]);
 
   // Fetch activities for search results
   const fetchActivities = useCallback(
@@ -103,49 +142,46 @@ export const SearchScreen: React.FC = () => {
     }
   }, []);
 
+  // Perform search with current filters
+  const performSearch = useCallback(async () => {
+    setIsLoading(true);
+    setIsSearching(true);
+    setHasSearched(true);
+    setPage(1);
+    const params = buildSearchParams(1);
+    await fetchActivities(params);
+    setIsLoading(false);
+  }, [buildSearchParams, fetchActivities]);
+
+  // Load initial data (discover section)
   const loadInitial = useCallback(async () => {
     setIsLoading(true);
     setPage(1);
-    await fetchActivities({
-      search: search || undefined,
-      type: selectedType || undefined,
-      page: 1,
-      limit: 20,
-    });
+    await fetchActivities({ page: 1, limit: 20 });
     setIsLoading(false);
-  }, [search, selectedType, fetchActivities]);
+  }, [fetchActivities]);
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
+    if (isLoadingMore || !hasMore || !isSearching) return;
     setIsLoadingMore(true);
     const nextPage = page + 1;
-    await fetchActivities(
-      {
-        search: search || undefined,
-        type: selectedType || undefined,
-        page: nextPage,
-        limit: 20,
-      },
-      true
-    );
+    const params = buildSearchParams(nextPage);
+    await fetchActivities(params, true);
     setPage(nextPage);
     setIsLoadingMore(false);
-  }, [page, hasMore, isLoadingMore, search, selectedType, fetchActivities]);
+  }, [page, hasMore, isLoadingMore, isSearching, buildSearchParams, fetchActivities]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    setPage(1);
-    await Promise.all([
-      fetchActivities({
-        search: search || undefined,
-        type: selectedType || undefined,
-        page: 1,
-        limit: 20,
-      }),
-      fetchDiscoverActivities(),
-    ]);
+    if (isSearching) {
+      setPage(1);
+      const params = buildSearchParams(1);
+      await fetchActivities(params);
+    } else {
+      await fetchDiscoverActivities();
+    }
     setIsRefreshing(false);
-  }, [search, selectedType, fetchActivities, fetchDiscoverActivities]);
+  }, [isSearching, buildSearchParams, fetchActivities, fetchDiscoverActivities]);
 
   // Initial load
   useEffect(() => {
@@ -153,32 +189,77 @@ export const SearchScreen: React.FC = () => {
     fetchDiscoverActivities();
   }, []);
 
-  // Load when type changes
-  useEffect(() => {
-    if (selectedType !== null || search) {
-      setIsSearching(true);
-      loadInitial();
+  // Handle geolocation button press
+  const handleGeolocationPress = useCallback(async () => {
+    if (filters.hasGeolocation) {
+      // Clear geolocation
+      setFilters((prev) => ({
+        ...prev,
+        lat: null,
+        lng: null,
+        hasGeolocation: false,
+      }));
+      geolocation.clearLocation();
     } else {
-      setIsSearching(false);
+      // Request geolocation
+      await geolocation.requestLocation();
     }
-  }, [selectedType]);
+  }, [filters.hasGeolocation, geolocation]);
 
-  // Debounced search
+  // Update filters when geolocation changes
   useEffect(() => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
+    if (geolocation.lat !== null && geolocation.lng !== null) {
+      setFilters((prev) => ({
+        ...prev,
+        lat: geolocation.lat,
+        lng: geolocation.lng,
+        hasGeolocation: true,
+        city: '', // Clear city when using geolocation
+      }));
     }
-    const timeout = setTimeout(() => {
-      if (search) {
-        setIsSearching(true);
-        loadInitial();
-      } else if (!selectedType) {
-        setIsSearching(false);
-      }
-    }, 500);
-    setSearchTimeout(timeout);
-    return () => clearTimeout(timeout);
-  }, [search]);
+  }, [geolocation.lat, geolocation.lng]);
+
+  // Handle city input change
+  const handleCityChange = useCallback((text: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      city: text,
+      // Clear geolocation when typing city
+      lat: null,
+      lng: null,
+      hasGeolocation: false,
+    }));
+  }, []);
+
+  // Handle type change
+  const handleTypeChange = useCallback((type: ActivityType | null) => {
+    setFilters((prev) => ({ ...prev, type }));
+  }, []);
+
+  // Handle radius change
+  const handleRadiusChange = useCallback((radiusKm: number) => {
+    setFilters((prev) => ({ ...prev, radiusKm }));
+  }, []);
+
+  // Clear all filters
+  const clearFilters = useCallback(() => {
+    setFilters(DEFAULT_SEARCH_FILTERS);
+    geolocation.clearLocation();
+    setIsSearching(false);
+    setHasSearched(false);
+  }, [geolocation]);
+
+  // Handle search button press
+  const handleSearchPress = useCallback(() => {
+    // If no filters, show discover
+    if (!hasActiveFilters()) {
+      setIsSearching(true);
+      setHasSearched(true);
+      performSearch();
+    } else {
+      performSearch();
+    }
+  }, [hasActiveFilters, performSearch]);
 
   const handleFavoriteToggle = async (activity: ActivityListItem) => {
     if (!isAuthenticated) return;
@@ -201,19 +282,17 @@ export const SearchScreen: React.FC = () => {
     }
   };
 
-  const handleTypeSelect = (type: ActivityType | null) => {
-    setSelectedType(type);
-  };
-
-  const clearSearch = () => {
-    setSearch('');
-    setSelectedType(null);
-    setIsSearching(false);
+  const handleCategorySelect = (type: ActivityType | null) => {
+    setFilters((prev) => ({ ...prev, type }));
+    // Auto-search when category is selected
+    setTimeout(() => {
+      performSearch();
+    }, 0);
   };
 
   // Header opacity based on scroll
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
+    inputRange: [0, 150],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -231,25 +310,46 @@ export const SearchScreen: React.FC = () => {
           Decouvrez les meilleures activites pres de chez vous
         </Text>
 
-        {/* Search card with glassmorphism effect */}
+        {/* Search card with glassmorphism effect - V4 */}
         <View style={styles.searchCard}>
-          <View style={styles.searchInputContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              ref={searchInputRef}
-              style={styles.searchInput}
-              placeholder="Rechercher une activite..."
-              placeholderTextColor={colors.text.tertiary}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
+          {/* Location input + Geolocation */}
+          <LocationInput
+            value={filters.city}
+            onChangeText={handleCityChange}
+            onGeolocationPress={handleGeolocationPress}
+            isGeolocating={geolocation.isLoading}
+            hasGeolocation={filters.hasGeolocation}
+          />
+
+          {/* Type and Radius selects */}
+          <View style={styles.selectRow}>
+            <TypeSelect
+              value={filters.type}
+              onChange={handleTypeChange}
             />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')} style={styles.clearButton}>
-                <Text style={styles.clearIcon}>✕</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.selectSpacer} />
+            <RadiusSelect
+              value={filters.radiusKm}
+              onChange={handleRadiusChange}
+            />
           </View>
+
+          {/* Search button */}
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={handleSearchPress}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={[colors.primary.main, colors.primary.dark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.searchButtonGradient}
+            >
+              <Text style={styles.searchButtonIcon}>🔍</Text>
+              <Text style={styles.searchButtonText}>Rechercher des activites</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </View>
     </LinearGradient>
@@ -267,15 +367,15 @@ export const SearchScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.categoryCard,
-            selectedType === null && isSearching && styles.categoryCardSelected,
+            filters.type === null && hasSearched && styles.categoryCardSelected,
           ]}
-          onPress={() => handleTypeSelect(null)}
+          onPress={() => handleCategorySelect(null)}
           activeOpacity={0.8}
         >
-          <View style={[styles.categoryIconContainer, selectedType === null && isSearching && styles.categoryIconSelected]}>
+          <View style={[styles.categoryIconContainer, filters.type === null && hasSearched && styles.categoryIconSelected]}>
             <Text style={styles.categoryIcon}>🎯</Text>
           </View>
-          <Text style={[styles.categoryLabel, selectedType === null && isSearching && styles.categoryLabelSelected]}>
+          <Text style={[styles.categoryLabel, filters.type === null && hasSearched && styles.categoryLabelSelected]}>
             Tout
           </Text>
         </TouchableOpacity>
@@ -285,18 +385,18 @@ export const SearchScreen: React.FC = () => {
             key={type}
             style={[
               styles.categoryCard,
-              selectedType === type && styles.categoryCardSelected,
+              filters.type === type && styles.categoryCardSelected,
             ]}
-            onPress={() => handleTypeSelect(type)}
+            onPress={() => handleCategorySelect(type)}
             activeOpacity={0.8}
           >
-            <View style={[styles.categoryIconContainer, selectedType === type && styles.categoryIconSelected]}>
+            <View style={[styles.categoryIconContainer, filters.type === type && styles.categoryIconSelected]}>
               <Text style={styles.categoryIcon}>{getActivityEmoji(type)}</Text>
             </View>
             <Text
               style={[
                 styles.categoryLabel,
-                selectedType === type && styles.categoryLabelSelected,
+                filters.type === type && styles.categoryLabelSelected,
               ]}
               numberOfLines={2}
             >
@@ -309,13 +409,13 @@ export const SearchScreen: React.FC = () => {
   );
 
   const renderDiscover = () => {
-    if (isSearching) return null;
+    if (isSearching && hasSearched) return null;
 
     return (
       <View style={styles.discoverSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>A decouvrir</Text>
-          <TouchableOpacity onPress={() => setIsSearching(true)}>
+          <TouchableOpacity onPress={handleSearchPress}>
             <Text style={styles.seeAllText}>Voir tout</Text>
           </TouchableOpacity>
         </View>
@@ -351,7 +451,7 @@ export const SearchScreen: React.FC = () => {
   };
 
   const renderSearchResults = () => {
-    if (!isSearching) return null;
+    if (!isSearching || !hasSearched) return null;
 
     return (
       <View style={styles.resultsSection}>
@@ -359,12 +459,39 @@ export const SearchScreen: React.FC = () => {
           <Text style={styles.resultsTitle}>
             {activities.length} activite{activities.length !== 1 ? 's' : ''} trouvee{activities.length !== 1 ? 's' : ''}
           </Text>
-          {(search || selectedType) && (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearFiltersButton}>
+          {hasActiveFilters() && (
+            <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersButton}>
               <Text style={styles.clearFiltersText}>Effacer</Text>
             </TouchableOpacity>
           )}
         </View>
+        {/* Active filters summary */}
+        {hasActiveFilters() && (
+          <View style={styles.filtersPreview}>
+            {filters.hasGeolocation && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>📍 Ma position</Text>
+              </View>
+            )}
+            {filters.city && !filters.hasGeolocation && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>📍 {filters.city}</Text>
+              </View>
+            )}
+            {filters.type && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>
+                  {getActivityEmoji(filters.type)} {ACTIVITY_TYPE_LABELS[filters.type]}
+                </Text>
+              </View>
+            )}
+            {(filters.hasGeolocation || filters.city) && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{filters.radiusKm} km</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
     );
   };
@@ -376,7 +503,7 @@ export const SearchScreen: React.FC = () => {
       <Text style={styles.emptyStateText}>
         Essayez de modifier vos filtres ou votre recherche
       </Text>
-      <TouchableOpacity style={styles.emptyStateButton} onPress={clearSearch}>
+      <TouchableOpacity style={styles.emptyStateButton} onPress={clearFilters}>
         <Text style={styles.emptyStateButtonText}>Effacer les filtres</Text>
       </TouchableOpacity>
     </View>
@@ -409,7 +536,7 @@ export const SearchScreen: React.FC = () => {
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadInitial}>
+          <TouchableOpacity style={styles.retryButton} onPress={performSearch}>
             <Text style={styles.retryButtonText}>Reessayer</Text>
           </TouchableOpacity>
         </View>
@@ -429,8 +556,10 @@ export const SearchScreen: React.FC = () => {
             style={styles.stickySearchInput}
             placeholder="Rechercher..."
             placeholderTextColor={colors.text.tertiary}
-            value={search}
-            onChangeText={setSearch}
+            value={filters.city}
+            onChangeText={handleCityChange}
+            onSubmitEditing={handleSearchPress}
+            returnKeyType="search"
           />
         </View>
       </Animated.View>
@@ -444,7 +573,7 @@ export const SearchScreen: React.FC = () => {
         </ScrollView>
       ) : (
         <FlatList
-          data={isSearching ? activities : []}
+          data={isSearching && hasSearched ? activities : []}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <ActivityCard
@@ -459,7 +588,7 @@ export const SearchScreen: React.FC = () => {
             />
           )}
           ListHeaderComponent={renderListHeader}
-          ListEmptyComponent={isSearching ? renderEmptyState : null}
+          ListEmptyComponent={isSearching && hasSearched ? renderEmptyState : null}
           ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
@@ -492,7 +621,7 @@ const styles = StyleSheet.create({
   // Hero section
   heroContainer: {
     paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight || 40,
-    paddingBottom: spacing['4xl'],
+    paddingBottom: spacing['3xl'],
     paddingHorizontal: spacing.lg,
   },
   heroContent: {
@@ -512,40 +641,44 @@ const styles = StyleSheet.create({
     fontSize: typography.size.lg,
     color: 'rgba(255,255,255,0.9)',
     textAlign: 'center',
-    marginBottom: spacing['3xl'],
+    marginBottom: spacing['2xl'],
   },
 
-  // Search card
+  // Search card (V4 - glassmorphism)
   searchCard: {
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: borderRadius['2xl'],
-    padding: spacing.md,
+    padding: spacing.lg,
     ...shadows.xl,
   },
-  searchInputContainer: {
+  selectRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.lg,
+  },
+  selectSpacer: {
+    width: spacing.md,
+  },
+  searchButton: {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.md,
+  },
+  searchButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.elevated,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.md,
-    height: 50,
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
-  searchIcon: {
+  searchButtonIcon: {
     fontSize: 18,
     marginRight: spacing.sm,
   },
-  searchInput: {
-    flex: 1,
+  searchButtonText: {
     fontSize: typography.size.md,
-    color: colors.text.primary,
-  },
-  clearButton: {
-    padding: spacing.xs,
-  },
-  clearIcon: {
-    fontSize: 16,
-    color: colors.text.tertiary,
+    fontWeight: typography.weight.bold,
+    color: colors.text.inverse,
   },
 
   // Sticky header
@@ -568,6 +701,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     height: 44,
+  },
+  searchIcon: {
+    fontSize: 18,
+    marginRight: spacing.sm,
   },
   stickySearchInput: {
     flex: 1,
@@ -679,6 +816,23 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     fontSize: typography.size.sm,
     color: colors.text.secondary,
+    fontWeight: typography.weight.medium,
+  },
+  filtersPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  filterBadge: {
+    backgroundColor: colors.primary.main + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  filterBadgeText: {
+    fontSize: typography.size.xs,
+    color: colors.primary.main,
     fontWeight: typography.weight.medium,
   },
 
