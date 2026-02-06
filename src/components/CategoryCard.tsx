@@ -180,19 +180,19 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: colors.primary.main,
-    backgroundColor: colors.primary.main + '10', // 10% opacity
+    backgroundColor: colors.primary.main + '10',
   },
   emojiContainer: {
     width: 48,
     height: 48,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
   emojiContainerSelected: {
-    backgroundColor: colors.primary.main + '20', // 20% opacity
+    backgroundColor: colors.primary.main + '20',
   },
   emoji: {},
   emojiSmall: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     fontSize: typography.size.base,
   },
   labelSelected: {
-    color: colors.primary.main,
+    color: colors.primary.light,
     fontWeight: typography.weight.semibold,
   },
   selectedIndicator: {
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
   },
   allLabelSelected: {
-    color: colors.primary.main,
+    color: colors.primary.light,
     fontWeight: typography.weight.semibold,
   },
 });
