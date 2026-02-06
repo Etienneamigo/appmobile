@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { establishmentApi } from '../../api/establishment';
+import { withApiBaseUrl } from '../../api/client';
 import { Media, MediaKind } from '../../types';
+import { colors, borderRadius, spacing, shadows, typography } from '../../theme';
 
 export const MediaManagerScreen: React.FC = () => {
   const [medias, setMedias] = useState<Media[]>([]);
@@ -49,7 +51,7 @@ export const MediaManagerScreen: React.FC = () => {
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour ajouter des images.');
+      Alert.alert('Permission requise', 'Autorisez l\'acces a la galerie pour ajouter des images.');
       return;
     }
 
@@ -67,13 +69,12 @@ export const MediaManagerScreen: React.FC = () => {
 
   const uploadFile = async (asset: ImagePicker.ImagePickerAsset) => {
     if (medias.length >= 10) {
-      Alert.alert('Limite atteinte', 'Vous ne pouvez pas ajouter plus de 10 médias.');
+      Alert.alert('Limite atteinte', 'Vous ne pouvez pas ajouter plus de 10 medias.');
       return;
     }
 
     setIsUploading(true);
     try {
-      // Upload the file
       const fileName = asset.uri.split('/').pop() || 'image.jpg';
       const type = asset.mimeType || 'image/jpeg';
 
@@ -83,7 +84,6 @@ export const MediaManagerScreen: React.FC = () => {
         type,
       });
 
-      // Add media to activity
       await establishmentApi.addMedia({
         url: uploadResponse.url,
         kind: uploadResponse.kind,
@@ -91,9 +91,8 @@ export const MediaManagerScreen: React.FC = () => {
         fileSize: uploadResponse.fileSize,
       });
 
-      // Refresh list
       await fetchMedias();
-      Alert.alert('Succès', 'Image ajoutée');
+      Alert.alert('Succes', 'Image ajoutee');
     } catch (err: any) {
       Alert.alert('Erreur', err.message || 'Erreur lors de l\'upload');
     } finally {
@@ -104,7 +103,7 @@ export const MediaManagerScreen: React.FC = () => {
   const deleteMedia = async (mediaId: string) => {
     Alert.alert(
       'Supprimer',
-      'Voulez-vous vraiment supprimer ce média ?',
+      'Voulez-vous vraiment supprimer ce media ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -124,11 +123,9 @@ export const MediaManagerScreen: React.FC = () => {
   };
 
   const addVideoLink = () => {
-    // Note: Alert.prompt is iOS only, so we show an info message
-    // For a full implementation, use a modal with TextInput
     Alert.alert(
-      'Ajouter une vidéo',
-      'Pour ajouter un lien vidéo (YouTube, Vimeo), utilisez le site web.',
+      'Ajouter une video',
+      'Pour ajouter un lien video (YouTube, Vimeo), utilisez le site web.',
       [{ text: 'OK' }]
     );
   };
@@ -136,7 +133,7 @@ export const MediaManagerScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
       </View>
     );
   }
@@ -151,14 +148,14 @@ export const MediaManagerScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#3498db"
+          tintColor={colors.primary.main}
         />
       }
     >
       {/* Upload Progress */}
       {isUploading && (
         <View style={styles.uploadingBanner}>
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.primary.contrast} />
           <Text style={styles.uploadingText}>Upload en cours...</Text>
         </View>
       )}
@@ -166,7 +163,7 @@ export const MediaManagerScreen: React.FC = () => {
       {/* Stats */}
       <View style={styles.statsCard}>
         <Text style={styles.statsText}>
-          {medias.length}/10 médias utilisés
+          {medias.length}/10 medias utilises
         </Text>
         <View style={styles.statsBar}>
           <View
@@ -201,7 +198,7 @@ export const MediaManagerScreen: React.FC = () => {
                   source={{
                     uri: media.url.startsWith('http')
                       ? media.url
-                      : `https://maisonapee.com${media.url}`,
+                      : withApiBaseUrl(media.url),
                   }}
                   style={styles.mediaImage}
                 />
@@ -220,7 +217,7 @@ export const MediaManagerScreen: React.FC = () => {
       {/* Videos Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Vidéos ({videos.length})</Text>
+          <Text style={styles.sectionTitle}>Videos ({videos.length})</Text>
           <TouchableOpacity
             style={styles.addButton}
             onPress={addVideoLink}
@@ -233,7 +230,7 @@ export const MediaManagerScreen: React.FC = () => {
         {videos.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>🎬</Text>
-            <Text style={styles.emptyStateText}>Aucune vidéo</Text>
+            <Text style={styles.emptyStateText}>Aucune video</Text>
           </View>
         ) : (
           <View style={styles.videoList}>
@@ -247,7 +244,7 @@ export const MediaManagerScreen: React.FC = () => {
                     {media.url}
                   </Text>
                   <Text style={styles.videoType}>
-                    {media.kind === 'VIDEO_UPLOAD' ? 'Vidéo uploadée' : 'Lien externe'}
+                    {media.kind === 'VIDEO_UPLOAD' ? 'Video uploadee' : 'Lien externe'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -265,13 +262,13 @@ export const MediaManagerScreen: React.FC = () => {
       <View style={styles.tips}>
         <Text style={styles.tipsTitle}>Conseils</Text>
         <Text style={styles.tipsText}>
-          • Utilisez des images de haute qualité (16:9 recommandé)
+          • Utilisez des images de haute qualite (16:9 recommande)
         </Text>
         <Text style={styles.tipsText}>
-          • Les vidéos YouTube/Vimeo sont recommandées
+          • Les videos YouTube/Vimeo sont recommandees
         </Text>
         <Text style={styles.tipsText}>
-          • La première image sera utilisée comme aperçu
+          • La premiere image sera utilisee comme apercu
         </Text>
       </View>
     </ScrollView>
@@ -281,99 +278,105 @@ export const MediaManagerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background.primary,
   },
   uploadingBanner: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary.dark,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   uploadingText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
   statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.background.elevated,
+    margin: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   statsText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   statsBar: {
     height: 6,
-    backgroundColor: '#eee',
-    borderRadius: 3,
+    backgroundColor: colors.background.surface,
+    borderRadius: borderRadius.sm,
     overflow: 'hidden',
   },
   statsBarFill: {
     height: '100%',
-    backgroundColor: '#3498db',
-    borderRadius: 3,
+    backgroundColor: colors.primary.main,
+    borderRadius: borderRadius.sm,
   },
   section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.background.elevated,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
   },
   addButton: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: colors.primary.main + '15',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
   },
   addButtonText: {
-    color: '#3498db',
-    fontSize: 14,
-    fontWeight: '600',
+    color: colors.primary.main,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing['2xl'],
   },
   emptyStateIcon: {
     fontSize: 40,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    color: colors.text.tertiary,
   },
   emptyStateText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
   },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   mediaItem: {
     position: 'relative',
     width: '47%',
     aspectRatio: 16 / 9,
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
   },
   mediaImage: {
@@ -382,78 +385,79 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: spacing.sm,
+    right: spacing.sm,
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    color: colors.text.primary,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
   },
   videoList: {
-    gap: 12,
+    gap: spacing.md,
   },
   videoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: colors.background.surface,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
   },
   videoIcon: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: '#e74c3c',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.error.dark,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   videoIconText: {
-    fontSize: 16,
+    fontSize: typography.size.md,
   },
   videoInfo: {
     flex: 1,
   },
   videoUrl: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
   },
   videoType: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
     marginTop: 2,
   },
   videoDeleteButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eee',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.background.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tips: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff3cd',
-    borderRadius: 12,
-    marginBottom: 32,
+    margin: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.warning.dark + '15',
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing['3xl'],
   },
   tipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#856404',
-    marginBottom: 8,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.warning.main,
+    marginBottom: spacing.sm,
   },
   tipsText: {
-    fontSize: 14,
-    color: '#856404',
-    marginBottom: 4,
+    fontSize: typography.size.sm,
+    color: colors.warning.main,
+    opacity: 0.85,
+    marginBottom: spacing.xs,
   },
 });

@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { establishmentApi } from '../../api/establishment';
 import { Establishment } from '../../types';
+import { colors, borderRadius, spacing, shadows, typography } from '../../theme';
 
 type RootStackParamList = {
   EstablishmentEdit: undefined;
@@ -26,11 +27,12 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const establishmentData = await establishmentApi.get();
-      setEstablishment(establishmentData);
+      const data = await establishmentApi.get();
+      setEstablishment(data);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');
@@ -39,13 +41,17 @@ export const EstablishmentDashboardScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      const load = async () => {
+      if (!hasLoaded) {
         setIsLoading(true);
-        await fetchData();
-        setIsLoading(false);
-      };
-      load();
-    }, [fetchData])
+        fetchData().finally(() => {
+          setIsLoading(false);
+          setHasLoaded(true);
+        });
+      } else {
+        // Silent refresh - no loading spinner
+        fetchData();
+      }
+    }, [fetchData, hasLoaded])
   );
 
   const onRefresh = async () => {
@@ -57,7 +63,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -82,7 +88,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   const isTrialing = establishment.subscription?.isTrialing ??
     (subscriptionStatus === 'TRIALING');
 
-  const subscriptionColor = isActive ? '#2ecc71' : '#e74c3c';
+  const subscriptionColor = isActive ? colors.success.dark : colors.error.dark;
   const subscriptionText = isTrialing
     ? 'Période d\'essai'
     : isActive
@@ -96,7 +102,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#3498db"
+          tintColor={colors.primary.main}
         />
       }
     >
@@ -128,7 +134,9 @@ export const EstablishmentDashboardScreen: React.FC = () => {
               styles.statusBadge,
               {
                 backgroundColor:
-                  establishment.activity.status === 'PUBLISHED' ? '#2ecc71' : '#f39c12',
+                  establishment.activity.status === 'PUBLISHED'
+                    ? colors.success.dark
+                    : colors.warning.dark,
               },
             ]}
           >
@@ -245,122 +253,121 @@ export const EstablishmentDashboardScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing['2xl'],
+    backgroundColor: colors.background.primary,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.text.tertiary,
   },
   errorIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   retryButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: spacing['2xl'],
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
   headerCard: {
-    backgroundColor: '#fff',
-    padding: 24,
+    backgroundColor: colors.background.secondary,
+    padding: spacing['2xl'],
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.border.default,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary.dark,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   avatarText: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: typography.weight.bold,
+    color: colors.primary.contrast,
   },
   establishmentName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size['2xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   subscriptionBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
   },
   subscriptionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
   },
   trialEndText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#666',
+    marginTop: spacing.sm,
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
   },
   statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.elevated,
+    margin: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    ...shadows.md,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
   },
   activityTitle: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 8,
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   statusBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.lg,
   },
   statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border.default,
   },
   statItem: {
     flex: 1,
@@ -368,105 +375,103 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
   },
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#eee',
+    backgroundColor: colors.border.default,
   },
   noActivityCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 24,
-    borderRadius: 16,
+    backgroundColor: colors.background.elevated,
+    margin: spacing.lg,
+    padding: spacing['2xl'],
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   noActivityIcon: {
     fontSize: 48,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   noActivityTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   noActivityText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
     textAlign: 'center',
   },
   actionsCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.elevated,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    ...shadows.md,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.lg - 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border.subtle,
   },
   actionIcon: {
     fontSize: 24,
-    marginRight: 14,
+    marginRight: spacing.lg - 2,
   },
   actionContent: {
     flex: 1,
   },
   actionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.medium,
+    color: colors.text.primary,
   },
   actionSubtitle: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
     marginTop: 2,
   },
   actionArrow: {
     fontSize: 24,
-    color: '#ccc',
+    color: colors.text.disabled,
   },
   infoCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.elevated,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing['2xl'],
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    ...shadows.md,
   },
   infoRow: {
-    paddingVertical: 10,
+    paddingVertical: spacing.md - 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border.subtle,
   },
   infoLabel: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 4,
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    marginBottom: spacing.xs,
   },
   infoValue: {
-    fontSize: 15,
-    color: '#333',
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
   },
 });

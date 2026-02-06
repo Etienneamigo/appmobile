@@ -14,6 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { establishmentApi } from '../../api/establishment';
 import { Establishment } from '../../types';
+import { colors, borderRadius, spacing, shadows, typography } from '../../theme';
 
 export const EstablishmentEditScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -85,7 +86,7 @@ export const EstablishmentEditScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
       </View>
     );
   }
@@ -112,7 +113,7 @@ export const EstablishmentEditScreen: React.FC = () => {
               value={form.name}
               onChangeText={(text) => setForm({ ...form, name: text })}
               placeholder="Mon établissement"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
             />
           </View>
 
@@ -123,7 +124,7 @@ export const EstablishmentEditScreen: React.FC = () => {
               value={form.phone}
               onChangeText={(text) => setForm({ ...form, phone: text })}
               placeholder="+33 1 23 45 67 89"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               keyboardType="phone-pad"
             />
           </View>
@@ -135,7 +136,7 @@ export const EstablishmentEditScreen: React.FC = () => {
               value={form.website}
               onChangeText={(text) => setForm({ ...form, website: text })}
               placeholder="https://www.example.com"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               keyboardType="url"
               autoCapitalize="none"
             />
@@ -148,7 +149,7 @@ export const EstablishmentEditScreen: React.FC = () => {
               value={form.bookingUrl}
               onChangeText={(text) => setForm({ ...form, bookingUrl: text })}
               placeholder="https://calendly.com/..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               keyboardType="url"
               autoCapitalize="none"
             />
@@ -168,19 +169,19 @@ export const EstablishmentEditScreen: React.FC = () => {
               value={form.address}
               onChangeText={(text) => setForm({ ...form, address: text })}
               placeholder="123 Rue Example"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
             />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
               <Text style={styles.label}>Code postal</Text>
               <TextInput
                 style={styles.input}
                 value={form.zipCode}
                 onChangeText={(text) => setForm({ ...form, zipCode: text })}
                 placeholder="75001"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -191,7 +192,7 @@ export const EstablishmentEditScreen: React.FC = () => {
                 value={form.city}
                 onChangeText={(text) => setForm({ ...form, city: text })}
                 placeholder="Paris"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
               />
             </View>
           </View>
@@ -205,7 +206,7 @@ export const EstablishmentEditScreen: React.FC = () => {
           disabled={isSaving}
         >
           {isSaving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.primary.contrast} />
           ) : (
             <Text style={styles.saveButtonText}>Enregistrer</Text>
           )}
@@ -218,7 +219,7 @@ export const EstablishmentEditScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   scrollView: {
     flex: 1,
@@ -227,71 +228,73 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background.primary,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
   },
   form: {
-    padding: 20,
+    padding: spacing.xl,
+    backgroundColor: colors.background.primary,
   },
   field: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg - 2,
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   hint: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 6,
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs + 2,
   },
   separator: {
     height: 1,
-    backgroundColor: '#ddd',
-    marginVertical: 24,
+    backgroundColor: colors.border.default,
+    marginVertical: spacing['2xl'],
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
   },
   row: {
     flexDirection: 'row',
   },
   footer: {
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border.default,
   },
   saveButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary.dark,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#95a5a6',
+    backgroundColor: colors.neutral[700],
   },
   saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: colors.primary.contrast,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
   },
 });
