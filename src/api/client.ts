@@ -1,7 +1,8 @@
 import { secureStorage } from '../storage/secureStore';
 import { ApiError } from '../types';
 
-const BASE_URL = 'https://maisonapee.com';
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || 'https://maisonapee.com';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -16,6 +17,16 @@ let onUnauthorized: (() => void) | null = null;
 
 export const setOnUnauthorized = (callback: () => void) => {
   onUnauthorized = callback;
+};
+
+/**
+ * Prepend the API base URL to a relative path.
+ * If the path is already absolute (starts with http), return it as-is.
+ */
+export const withApiBaseUrl = (path: string): string => {
+  if (!path) return path;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 export const apiClient = {
