@@ -5,18 +5,18 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://maisonapee.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://wadelo.com"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://maisonapee.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://wadelo.com"
       }
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://maisonapee.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://wadelo.com"
       }
     }
   },
