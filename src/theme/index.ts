@@ -1,45 +1,45 @@
-// Design System - High-Tech 2026 Theme
-// Modern, clean, with subtle gradients and glassmorphism effects
+// Design System - Dark Premium Theme
+// Clean, modern, high-contrast dark UI with indigo accents
 
 export const colors = {
-  // Primary palette - Deep purple/blue gradient feel
+  // Primary palette - Indigo accent
   primary: {
-    main: '#6366F1', // Indigo
-    light: '#818CF8',
-    dark: '#4F46E5',
+    main: '#818CF8',
+    light: '#A5B4FC',
+    dark: '#6366F1',
     contrast: '#FFFFFF',
   },
 
   // Secondary - Cyan accent for highlights
   secondary: {
-    main: '#06B6D4',
-    light: '#22D3EE',
-    dark: '#0891B2',
+    main: '#22D3EE',
+    light: '#67E8F9',
+    dark: '#06B6D4',
     contrast: '#FFFFFF',
   },
 
   // Success
   success: {
-    main: '#10B981',
-    light: '#34D399',
-    dark: '#059669',
+    main: '#34D399',
+    light: '#6EE7B7',
+    dark: '#10B981',
   },
 
   // Warning
   warning: {
-    main: '#F59E0B',
-    light: '#FBBF24',
-    dark: '#D97706',
+    main: '#FBBF24',
+    light: '#FDE68A',
+    dark: '#F59E0B',
   },
 
   // Error
   error: {
-    main: '#EF4444',
-    light: '#F87171',
-    dark: '#DC2626',
+    main: '#F87171',
+    light: '#FCA5A5',
+    dark: '#EF4444',
   },
 
-  // Neutral/Gray scale
+  // Neutral/Gray scale (zinc-based)
   neutral: {
     50: '#FAFAFA',
     100: '#F4F4F5',
@@ -54,37 +54,35 @@ export const colors = {
     950: '#09090B',
   },
 
-  // Backgrounds
+  // Backgrounds (dark-first)
   background: {
-    primary: '#FAFAFA',
-    secondary: '#FFFFFF',
-    tertiary: '#F4F4F5',
-    elevated: '#FFFFFF',
-    dark: '#18181B',
+    primary: '#09090B',
+    secondary: '#111114',
+    tertiary: '#18181B',
+    elevated: '#1C1C22',
+    surface: '#232330',
   },
 
-  // Text colors
+  // Text colors (for dark backgrounds)
   text: {
-    primary: '#18181B',
-    secondary: '#52525B',
+    primary: '#FAFAFA',
+    secondary: '#A1A1AA',
     tertiary: '#71717A',
-    disabled: '#A1A1AA',
-    inverse: '#FFFFFF',
+    disabled: '#52525B',
+    inverse: '#09090B',
   },
 
-  // Gradients
-  gradients: {
-    primary: ['#6366F1', '#8B5CF6'],
-    secondary: ['#06B6D4', '#3B82F6'],
-    hero: ['#4F46E5', '#7C3AED', '#EC4899'],
-    card: ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)'],
-    dark: ['#18181B', '#27272A'],
+  // Borders
+  border: {
+    default: '#27272A',
+    subtle: '#1F1F28',
+    strong: '#3F3F46',
   },
 
   // Overlay
   overlay: {
-    light: 'rgba(255, 255, 255, 0.7)',
-    medium: 'rgba(255, 255, 255, 0.5)',
+    light: 'rgba(255, 255, 255, 0.05)',
+    medium: 'rgba(255, 255, 255, 0.08)',
     dark: 'rgba(0, 0, 0, 0.5)',
     darker: 'rgba(0, 0, 0, 0.7)',
   },
@@ -115,7 +113,6 @@ export const borderRadius = {
 };
 
 export const typography = {
-  // Font sizes
   size: {
     xs: 11,
     sm: 13,
@@ -129,7 +126,6 @@ export const typography = {
     '5xl': 48,
   },
 
-  // Font weights
   weight: {
     normal: '400' as const,
     medium: '500' as const,
@@ -138,7 +134,6 @@ export const typography = {
     extrabold: '800' as const,
   },
 
-  // Line heights
   lineHeight: {
     tight: 1.2,
     normal: 1.5,
@@ -157,52 +152,30 @@ export const shadows = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.3,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 2,
   },
   md: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.35,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
   },
   lg: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 6,
   },
   xl: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.45,
     shadowRadius: 16,
     elevation: 8,
-  },
-  '2xl': {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  // Colored shadows for cards
-  primary: {
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  success: {
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
   },
 };
 
@@ -231,7 +204,6 @@ export const ACTIVITY_EMOJIS: Record<string, string> = {
   CONCERT_SPECTACLE: '🎵',
 };
 
-// Helper to get emoji for activity type
 export const getActivityEmoji = (type: string): string => {
   return ACTIVITY_EMOJIS[type] || '🎯';
 };
