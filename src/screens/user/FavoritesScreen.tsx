@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { favoritesApi } from '../../api/favorites';
 import { FavoriteItem } from '../../types';
 import { ActivityCard } from '../../components/ActivityCard';
+import { colors, spacing, typography } from '../../theme';
 
 type RootStackParamList = {
   ActivityDetail: { activityId: string };
@@ -67,7 +68,7 @@ export const FavoritesScreen: React.FC = () => {
       <Text style={styles.emptyStateIcon}>❤️</Text>
       <Text style={styles.emptyStateTitle}>Pas encore de favoris</Text>
       <Text style={styles.emptyStateText}>
-        Parcourez les activités et ajoutez-les à vos favoris pour les retrouver
+        Parcourez les activites et ajoutez-les a vos favoris pour les retrouver
         facilement ici.
       </Text>
     </View>
@@ -76,7 +77,7 @@ export const FavoritesScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -111,7 +112,7 @@ export const FavoritesScreen: React.FC = () => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            tintColor="#3498db"
+            tintColor={colors.primary.main}
           />
         }
         contentContainerStyle={styles.listContent}
@@ -123,52 +124,53 @@ export const FavoritesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing['2xl'],
+    backgroundColor: colors.background.primary,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
   },
   errorIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
   },
   listContent: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     flexGrow: 1,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing['2xl'],
     marginTop: 40,
   },
   emptyStateIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   emptyStateText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
   },

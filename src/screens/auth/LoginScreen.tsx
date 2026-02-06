@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ApiError } from '../../types';
+import { colors, borderRadius, spacing, typography } from '../../theme';
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();
@@ -76,7 +77,7 @@ export const LoginScreen: React.FC = () => {
                 if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
               }}
               placeholder="votre@email.com"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -95,7 +96,7 @@ export const LoginScreen: React.FC = () => {
                 if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
               }}
               placeholder="••••••••"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               secureTextEntry
               editable={!isLoading}
             />
@@ -109,7 +110,7 @@ export const LoginScreen: React.FC = () => {
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>Se connecter</Text>
             )}
@@ -123,69 +124,69 @@ export const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing['2xl'],
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.size['3xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: spacing['5xl'],
   },
   form: {
-    gap: 16,
+    gap: spacing.lg,
   },
   inputContainer: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   inputError: {
-    borderColor: '#e74c3c',
+    borderColor: colors.error.main,
   },
   errorText: {
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 4,
+    color: colors.error.main,
+    fontSize: typography.size.xs,
+    marginTop: spacing.xs,
   },
   button: {
-    backgroundColor: '#3498db',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: colors.primary.dark,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   buttonDisabled: {
-    backgroundColor: '#a0c4e4',
+    backgroundColor: colors.neutral[700],
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
 });
