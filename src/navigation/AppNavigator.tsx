@@ -1,9 +1,10 @@
 import React from 'react';
 import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
+import { colors, typography } from '../theme';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -53,6 +54,30 @@ const FavoritesStackNav = createNativeStackNavigator<FavoritesStackParamList>();
 const EstablishmentStackNav = createNativeStackNavigator<EstablishmentStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+// Dark navigation theme
+const darkNavTheme = {
+  dark: true,
+  colors: {
+    primary: colors.primary.main,
+    background: colors.background.primary,
+    card: colors.background.secondary,
+    text: colors.text.primary,
+    border: colors.border.default,
+    notification: colors.primary.main,
+  },
+  fonts: DefaultTheme.fonts,
+};
+
+// Shared stack screen options for dark theme
+const darkStackScreenOptions = {
+  headerStyle: { backgroundColor: colors.background.secondary },
+  headerTintColor: colors.text.primary,
+  headerTitleStyle: {
+    fontWeight: '600' as const,
+    color: colors.text.primary,
+  },
+};
+
 // Tab Icon component
 const TabIcon: React.FC<{ icon: string; focused: boolean }> = ({ icon, focused }) => (
   <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.5 }}>{icon}</Text>
@@ -60,33 +85,23 @@ const TabIcon: React.FC<{ icon: string; focused: boolean }> = ({ icon, focused }
 
 // Search Stack
 const SearchStack: React.FC = () => (
-  <SearchStackNav.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#fff' },
-      headerTitleStyle: { fontWeight: '600' },
-    }}
-  >
+  <SearchStackNav.Navigator screenOptions={darkStackScreenOptions}>
     <SearchStackNav.Screen
       name="Search"
       component={SearchScreen}
-      options={{ title: 'Activités' }}
+      options={{ title: 'Activit\u00e9s' }}
     />
     <SearchStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail' }}
+      options={{ title: 'D\u00e9tail' }}
     />
   </SearchStackNav.Navigator>
 );
 
 // Favorites Stack
 const FavoritesStack: React.FC = () => (
-  <FavoritesStackNav.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#fff' },
-      headerTitleStyle: { fontWeight: '600' },
-    }}
-  >
+  <FavoritesStackNav.Navigator screenOptions={darkStackScreenOptions}>
     <FavoritesStackNav.Screen
       name="Favorites"
       component={FavoritesScreen}
@@ -95,23 +110,18 @@ const FavoritesStack: React.FC = () => (
     <FavoritesStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail' }}
+      options={{ title: 'D\u00e9tail' }}
     />
   </FavoritesStackNav.Navigator>
 );
 
 // Establishment Stack
 const EstablishmentStack: React.FC = () => (
-  <EstablishmentStackNav.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#fff' },
-      headerTitleStyle: { fontWeight: '600' },
-    }}
-  >
+  <EstablishmentStackNav.Navigator screenOptions={darkStackScreenOptions}>
     <EstablishmentStackNav.Screen
       name="EstablishmentDashboard"
       component={EstablishmentDashboardScreen}
-      options={{ title: 'Mon établissement' }}
+      options={{ title: 'Mon \u00e9tablissement' }}
     />
     <EstablishmentStackNav.Screen
       name="EstablishmentEdit"
@@ -121,12 +131,12 @@ const EstablishmentStack: React.FC = () => (
     <EstablishmentStackNav.Screen
       name="ActivityEdit"
       component={ActivityEditScreen}
-      options={{ title: 'Mon activité' }}
+      options={{ title: 'Mon activit\u00e9' }}
     />
     <EstablishmentStackNav.Screen
       name="MediaManager"
       component={MediaManagerScreen}
-      options={{ title: 'Médias' }}
+      options={{ title: 'M\u00e9dias' }}
     />
   </EstablishmentStackNav.Navigator>
 );
@@ -139,17 +149,17 @@ const MainTabs: React.FC = () => {
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: colors.background.secondary,
           borderTopWidth: 1,
-          borderTopColor: '#eee',
+          borderTopColor: colors.border.default,
           paddingTop: 8,
           paddingBottom: 8,
           height: 60,
         },
-        tabBarActiveTintColor: '#3498db',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: colors.primary.main,
+        tabBarInactiveTintColor: colors.text.disabled,
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '500',
         },
         headerShown: false,
@@ -183,7 +193,7 @@ const MainTabs: React.FC = () => {
           name="EstablishmentTab"
           component={EstablishmentStack}
           options={{
-            title: 'Mon établissement',
+            title: 'Mon \u00e9tablissement',
             tabBarIcon: ({ focused }) => <TabIcon icon="🏢" focused={focused} />,
           }}
         />
@@ -199,6 +209,12 @@ const MainTabs: React.FC = () => {
             tabBarIcon: ({ focused }) => <TabIcon icon="⚙️" focused={focused} />,
             headerShown: true,
             headerTitle: 'Administration',
+            headerStyle: { backgroundColor: colors.background.secondary },
+            headerTintColor: colors.text.primary,
+            headerTitleStyle: {
+              fontWeight: '600',
+              color: colors.text.primary,
+            },
           }}
         />
       )}
@@ -212,6 +228,12 @@ const MainTabs: React.FC = () => {
           tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
           headerShown: true,
           headerTitle: 'Mon compte',
+          headerStyle: { backgroundColor: colors.background.secondary },
+          headerTintColor: colors.text.primary,
+          headerTitleStyle: {
+            fontWeight: '600',
+            color: colors.text.primary,
+          },
         }}
       />
     </Tab.Navigator>
@@ -232,13 +254,13 @@ export const AppNavigator: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={darkNavTheme}>
       {isAuthenticated ? <MainTabs /> : <AuthNavigator />}
     </NavigationContainer>
   );
@@ -249,6 +271,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
 });
