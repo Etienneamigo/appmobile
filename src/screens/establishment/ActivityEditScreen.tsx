@@ -15,6 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { establishmentApi } from '../../api/establishment';
 import { ActivityType, ACTIVITY_TYPE_LABELS } from '../../types';
+import { colors, borderRadius, spacing, shadows, typography } from '../../theme';
 
 const ACTIVITY_TYPES: ActivityType[] = [
   'BOWLING',
@@ -126,7 +127,7 @@ export const ActivityEditScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
       </View>
     );
   }
@@ -154,7 +155,7 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.title}
               onChangeText={(text) => setForm({ ...form, title: text })}
               placeholder="Escape Game..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
             />
           </View>
 
@@ -206,7 +207,7 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.description}
               onChangeText={(text) => setForm({ ...form, description: text })}
               placeholder="Décrivez votre activité..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               multiline
               numberOfLines={5}
               textAlignVertical="top"
@@ -217,14 +218,14 @@ export const ActivityEditScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Tarifs et durée</Text>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
               <Text style={styles.label}>Prix à partir de (€)</Text>
               <TextInput
                 style={styles.input}
                 value={form.priceFrom}
                 onChangeText={(text) => setForm({ ...form, priceFrom: text })}
                 placeholder="25"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="decimal-pad"
               />
             </View>
@@ -235,21 +236,21 @@ export const ActivityEditScreen: React.FC = () => {
                 value={form.durationMinutes}
                 onChangeText={(text) => setForm({ ...form, durationMinutes: text })}
                 placeholder="60"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
               <Text style={styles.label}>Min. personnes</Text>
               <TextInput
                 style={styles.input}
                 value={form.minPeople}
                 onChangeText={(text) => setForm({ ...form, minPeople: text })}
                 placeholder="2"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -260,7 +261,7 @@ export const ActivityEditScreen: React.FC = () => {
                 value={form.maxPeople}
                 onChangeText={(text) => setForm({ ...form, maxPeople: text })}
                 placeholder="6"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -276,19 +277,19 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.address}
               onChangeText={(text) => setForm({ ...form, address: text })}
               placeholder="123 Rue Example"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
             />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
               <Text style={styles.label}>Code postal</Text>
               <TextInput
                 style={styles.input}
                 value={form.zipCode}
                 onChangeText={(text) => setForm({ ...form, zipCode: text })}
                 placeholder="75001"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -299,7 +300,7 @@ export const ActivityEditScreen: React.FC = () => {
                 value={form.city}
                 onChangeText={(text) => setForm({ ...form, city: text })}
                 placeholder="Paris"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
               />
             </View>
           </View>
@@ -314,7 +315,7 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.scheduleText}
               onChangeText={(text) => setForm({ ...form, scheduleText: text })}
               placeholder="Lun-Ven: 10h-22h&#10;Sam-Dim: 9h-23h"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
@@ -328,7 +329,7 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.tags}
               onChangeText={(text) => setForm({ ...form, tags: text })}
               placeholder="aventure, mystère, équipe"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
               autoCapitalize="none"
             />
           </View>
@@ -337,8 +338,8 @@ export const ActivityEditScreen: React.FC = () => {
 
           {/* Publication toggle */}
           <View style={styles.toggleField}>
-            <View>
-              <Text style={styles.label}>Publier l'activité</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleLabel}>Publier l'activité</Text>
               <Text style={styles.hint}>
                 Une fois publiée, l'activité sera visible par tous
               </Text>
@@ -346,8 +347,8 @@ export const ActivityEditScreen: React.FC = () => {
             <Switch
               value={form.isPublished}
               onValueChange={(value) => setForm({ ...form, isPublished: value })}
-              trackColor={{ false: '#ddd', true: '#2ecc71' }}
-              thumbColor="#fff"
+              trackColor={{ false: colors.border.strong, true: colors.success.main }}
+              thumbColor={colors.primary.contrast}
             />
           </View>
         </View>
@@ -360,7 +361,7 @@ export const ActivityEditScreen: React.FC = () => {
           disabled={isSaving}
         >
           {isSaving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.primary.contrast} />
           ) : (
             <Text style={styles.saveButtonText}>Enregistrer</Text>
           )}
@@ -373,7 +374,7 @@ export const ActivityEditScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   scrollView: {
     flex: 1,
@@ -382,97 +383,99 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background.primary,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
   },
   form: {
-    padding: 20,
+    padding: spacing.xl,
+    backgroundColor: colors.background.primary,
   },
   field: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg - 2,
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   textArea: {
     minHeight: 100,
-    paddingTop: 14,
+    paddingTop: spacing.lg - 2,
   },
   hint: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 6,
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs + 2,
   },
   pickerButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg - 2,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   pickerButtonText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   pickerArrow: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
   },
   pickerOptions: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    marginTop: 4,
+    borderColor: colors.border.default,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.xs,
     overflow: 'hidden',
   },
   pickerOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border.subtle,
   },
   pickerOptionActive: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: colors.primary.main + '15',
   },
   pickerOptionText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   pickerOptionTextActive: {
-    color: '#3498db',
-    fontWeight: '600',
+    color: colors.primary.main,
+    fontWeight: typography.weight.semibold,
   },
   separator: {
     height: 1,
-    backgroundColor: '#ddd',
-    marginVertical: 24,
+    backgroundColor: colors.border.default,
+    marginVertical: spacing['2xl'],
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
   },
   row: {
     flexDirection: 'row',
@@ -481,30 +484,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border.default,
+  },
+  toggleLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
   footer: {
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border.default,
   },
   saveButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary.dark,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#95a5a6',
+    backgroundColor: colors.neutral[700],
   },
   saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: colors.primary.contrast,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
   },
 });
