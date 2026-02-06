@@ -11,6 +11,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { adminApi } from '../../api/admin';
 import { AdminStats, ACTIVITY_TYPE_LABELS } from '../../types';
+import { colors, borderRadius, spacing, shadows, typography } from '../../theme';
 
 export const AdminDashboardScreen: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -48,7 +49,7 @@ export const AdminDashboardScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -60,7 +61,7 @@ export const AdminDashboardScreen: React.FC = () => {
         <Text style={styles.errorIcon}>⚠️</Text>
         <Text style={styles.errorText}>{error || 'Erreur'}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchStats}>
-          <Text style={styles.retryButtonText}>Réessayer</Text>
+          <Text style={styles.retryButtonText}>Reessayer</Text>
         </TouchableOpacity>
       </View>
     );
@@ -73,7 +74,7 @@ export const AdminDashboardScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#3498db"
+          tintColor={colors.primary.main}
         />
       }
     >
@@ -85,20 +86,20 @@ export const AdminDashboardScreen: React.FC = () => {
 
       {/* Main Stats */}
       <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: '#3498db' }]}>
-          <Text style={styles.statValue}>{stats.counts.totalUsers}</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.primary.main + '15' }]}>
+          <Text style={[styles.statValue, { color: colors.primary.main }]}>{stats.counts.totalUsers}</Text>
           <Text style={styles.statLabel}>Utilisateurs</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#2ecc71' }]}>
-          <Text style={styles.statValue}>{stats.counts.totalEstablishments}</Text>
-          <Text style={styles.statLabel}>Établissements</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.success.main + '15' }]}>
+          <Text style={[styles.statValue, { color: colors.success.main }]}>{stats.counts.totalEstablishments}</Text>
+          <Text style={styles.statLabel}>Etablissements</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#9b59b6' }]}>
-          <Text style={styles.statValue}>{stats.counts.publishedActivities}</Text>
-          <Text style={styles.statLabel}>Activités publiées</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.secondary.main + '15' }]}>
+          <Text style={[styles.statValue, { color: colors.secondary.main }]}>{stats.counts.publishedActivities}</Text>
+          <Text style={styles.statLabel}>Activites publiees</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#f39c12' }]}>
-          <Text style={styles.statValue}>{stats.counts.draftActivities}</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.warning.main + '15' }]}>
+          <Text style={[styles.statValue, { color: colors.warning.main }]}>{stats.counts.draftActivities}</Text>
           <Text style={styles.statLabel}>Brouillons</Text>
         </View>
       </View>
@@ -131,14 +132,14 @@ export const AdminDashboardScreen: React.FC = () => {
           <View style={styles.recentDivider} />
           <View style={styles.recentItem}>
             <Text style={styles.recentValue}>+{stats.recent.activitiesLast7Days}</Text>
-            <Text style={styles.recentLabel}>Nouvelles activités</Text>
+            <Text style={styles.recentLabel}>Nouvelles activites</Text>
           </View>
         </View>
       </View>
 
       {/* Top Activities */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Top 5 Activités</Text>
+        <Text style={styles.cardTitle}>Top 5 Activites</Text>
         {stats.topActivities.map((activity, index) => (
           <View key={activity.id} style={styles.topActivityItem}>
             <View style={styles.topActivityRank}>
@@ -159,13 +160,13 @@ export const AdminDashboardScreen: React.FC = () => {
           </View>
         ))}
         {stats.topActivities.length === 0 && (
-          <Text style={styles.emptyText}>Aucune activité</Text>
+          <Text style={styles.emptyText}>Aucune activite</Text>
         )}
       </View>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Données en temps réel • Tirer pour actualiser
+          Donnees en temps reel • Tirer pour actualiser
         </Text>
       </View>
     </ScrollView>
@@ -175,100 +176,94 @@ export const AdminDashboardScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing['2xl'],
+    backgroundColor: colors.background.primary,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
   },
   errorIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   retryButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: spacing['2xl'],
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
   header: {
-    backgroundColor: '#2c3e50',
-    padding: 24,
-    paddingTop: 32,
+    backgroundColor: colors.background.secondary,
+    padding: spacing['2xl'],
+    paddingTop: spacing['3xl'],
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: typography.size['3xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 4,
+    fontSize: typography.size.md,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 8,
+    padding: spacing.sm,
     marginTop: -20,
   },
   statCard: {
     width: '47%',
     margin: '1.5%',
-    padding: 20,
-    borderRadius: 16,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.elevated,
+    ...shadows.md,
   },
   statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: typography.size['4xl'],
+    fontWeight: typography.weight.bold,
   },
   statLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: 4,
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   card: {
-    backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 8,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background.elevated,
+    margin: spacing.lg,
+    marginTop: spacing.sm,
+    padding: spacing.xl,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
   },
   subscriptionRow: {
     flexDirection: 'row',
@@ -281,17 +276,17 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subscriptionLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: typography.size.sm,
+    color: colors.text.secondary,
   },
   subscriptionValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 4,
+    fontSize: typography.size['2xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginTop: spacing.xs,
   },
   recentRow: {
     flexDirection: 'row',
@@ -304,76 +299,76 @@ const styles = StyleSheet.create({
   recentDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#eee',
+    backgroundColor: colors.border.default,
   },
   recentValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2ecc71',
+    fontSize: typography.size['2xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.success.main,
   },
   recentLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
   },
   topActivityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.border.subtle,
   },
   topActivityRank: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.background.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   topActivityRankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#666',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.text.tertiary,
   },
   topActivityInfo: {
     flex: 1,
   },
   topActivityTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.medium,
+    color: colors.text.primary,
   },
   topActivityMeta: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
     marginTop: 2,
   },
   topActivityViews: {
     alignItems: 'flex-end',
   },
   topActivityViewsValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
   },
   topActivityViewsLabel: {
-    fontSize: 11,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
     textAlign: 'center',
-    paddingVertical: 20,
+    paddingVertical: spacing.xl,
   },
   footer: {
-    padding: 20,
+    padding: spacing.xl,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.disabled,
   },
 });

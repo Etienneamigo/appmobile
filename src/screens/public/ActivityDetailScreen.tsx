@@ -1,4 +1,4 @@
-import { withApiBaseUrl } from '../../config/env';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -15,8 +15,11 @@ import {
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { activitiesApi } from '../../api/activities';
 import { favoritesApi } from '../../api/favorites';
+import { withApiBaseUrl } from '../../api/client';
 import { ActivityDetail, ACTIVITY_TYPE_LABELS } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { colors, borderRadius, spacing, shadows, typography } from '../../theme';
+
 
 const { width } = Dimensions.get('window');
 
@@ -83,7 +86,7 @@ export const ActivityDetailScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -108,7 +111,7 @@ export const ActivityDetailScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#3498db"
+          tintColor={colors.primary.main}
         />
       }
     >
@@ -129,9 +132,11 @@ export const ActivityDetailScreen: React.FC = () => {
                 <Image
                   key={media.id}
                   source={{
+
                     uri: media.url.startsWith('http')
                       ? media.url
                       : withApiBaseUrl(media.url),
+
                   }}
                   style={styles.image}
                 />
@@ -313,45 +318,45 @@ export const ActivityDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 24,
+    backgroundColor: colors.background.primary,
+    padding: spacing['2xl'],
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
   },
   errorIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   retryButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: spacing['2xl'],
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.sm,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
   imageContainer: {
     position: 'relative',
     height: 280,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: colors.background.surface,
   },
   image: {
     width,
@@ -363,168 +368,173 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.background.surface,
   },
   placeholderText: {
-    fontSize: 24,
-    color: '#666',
+    fontSize: typography.size['2xl'],
+    color: colors.text.secondary,
   },
   pagination: {
     position: 'absolute',
-    bottom: 16,
+    bottom: spacing.lg,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   paginationDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   paginationDotActive: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.primary.main,
   },
   favoriteButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: spacing.lg,
+    right: spacing.lg,
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: colors.background.elevated,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    ...shadows.md,
   },
   favoriteIcon: {
     fontSize: 24,
   },
   content: {
-    padding: 20,
+    padding: spacing.xl,
+    backgroundColor: colors.background.primary,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   typeTag: {
     alignSelf: 'flex-start',
-    backgroundColor: '#3498db',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 12,
+    backgroundColor: colors.primary.dark,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.md,
   },
   typeTagText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: colors.primary.contrast,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
   },
   title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size['3xl'] - 4,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   establishment: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
   },
   quickInfo: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.lg,
+    marginBottom: spacing['2xl'],
   },
   quickInfoItem: {
     alignItems: 'center',
   },
   quickInfoIcon: {
     fontSize: 24,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
+    color: colors.text.secondary,
   },
   quickInfoText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: typography.size.sm + 1,
+    color: colors.text.primary,
+    fontWeight: typography.weight.medium,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: spacing['2xl'],
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   sectionText: {
-    fontSize: 15,
-    color: '#555',
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
     lineHeight: 22,
   },
   description: {
-    fontSize: 15,
-    color: '#555',
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
     lineHeight: 24,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   tag: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: colors.background.surface,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    paddingHorizontal: spacing.lg - 2,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
   },
   tagText: {
-    fontSize: 14,
-    color: '#555',
+    fontSize: typography.size.sm + 1,
+    color: colors.text.secondary,
   },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 10,
+    backgroundColor: colors.background.elevated,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    padding: spacing.lg - 2,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md - 2,
   },
   contactButtonIcon: {
     fontSize: 20,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   contactButtonText: {
-    fontSize: 15,
-    color: '#333',
+    fontSize: typography.size.base,
+    color: colors.text.primary,
   },
   bookingButton: {
-    backgroundColor: '#2ecc71',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.success.dark,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: spacing.sm,
+    marginBottom: spacing['2xl'],
   },
   bookingButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
   },
   stats: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border.default,
   },
   statsText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: typography.size.sm + 1,
+    color: colors.text.tertiary,
   },
 });
