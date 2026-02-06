@@ -13,7 +13,6 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { activitiesApi, ActivitiesSearchParams } from '../../api/activities';
@@ -219,19 +218,14 @@ export const SearchScreen: React.FC = () => {
   });
 
   const renderHero = () => (
-    <LinearGradient
-      colors={colors.gradients.hero as [string, string, string]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.heroContainer}
-    >
+    <View style={styles.heroContainer}>
       <View style={styles.heroContent}>
         <Text style={styles.heroTitle}>Qu'est-ce qu'on{'\n'}fait ce soir ?</Text>
         <Text style={styles.heroSubtitle}>
           Decouvrez les meilleures activites pres de chez vous
         </Text>
 
-        {/* Search card with glassmorphism effect */}
+        {/* Search card */}
         <View style={styles.searchCard}>
           <View style={styles.searchInputContainer}>
             <Text style={styles.searchIcon}>🔍</Text>
@@ -252,7 +246,7 @@ export const SearchScreen: React.FC = () => {
           </View>
         </View>
       </View>
-    </LinearGradient>
+    </View>
   );
 
   const renderCategories = () => (
@@ -400,6 +394,22 @@ export const SearchScreen: React.FC = () => {
     </>
   );
 
+  const renderItem = useCallback(
+    ({ item }: { item: ActivityListItem }) => (
+      <ActivityCard
+        activity={item}
+        onPress={() =>
+          navigation.navigate('ActivityDetail', { activityId: item.id })
+        }
+        onFavoriteToggle={
+          isAuthenticated ? () => handleFavoriteToggle(item) : undefined
+        }
+        showFavorite={isAuthenticated}
+      />
+    ),
+    [isAuthenticated, navigation]
+  );
+
   // Error state
   if (error && !isRefreshing) {
     return (
@@ -446,18 +456,7 @@ export const SearchScreen: React.FC = () => {
         <FlatList
           data={isSearching ? activities : []}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ActivityCard
-              activity={item}
-              onPress={() =>
-                navigation.navigate('ActivityDetail', { activityId: item.id })
-              }
-              onFavoriteToggle={
-                isAuthenticated ? () => handleFavoriteToggle(item) : undefined
-              }
-              showFavorite={isAuthenticated}
-            />
-          )}
+          renderItem={renderItem}
           ListHeaderComponent={renderListHeader}
           ListEmptyComponent={isSearching ? renderEmptyState : null}
           ListFooterComponent={renderFooter}
@@ -477,6 +476,10 @@ export const SearchScreen: React.FC = () => {
           )}
           scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
         />
       )}
     </View>
@@ -489,8 +492,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
 
-  // Hero section
+  // Hero section - solid dark header
   heroContainer: {
+    backgroundColor: colors.background.secondary,
     paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight || 40,
     paddingBottom: spacing['4xl'],
     paddingHorizontal: spacing.lg,
@@ -499,18 +503,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroTitle: {
-    fontSize: typography.size['4xl'],
-    fontWeight: typography.weight.extrabold,
-    color: colors.text.inverse,
+    fontSize: typography.size['2xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: spacing.md,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   heroSubtitle: {
-    fontSize: typography.size.lg,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: spacing['3xl'],
   },
@@ -518,15 +519,16 @@ const styles = StyleSheet.create({
   // Search card
   searchCard: {
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: colors.background.elevated,
     borderRadius: borderRadius['2xl'],
     padding: spacing.md,
-    ...shadows.xl,
+    borderWidth: 1,
+    borderColor: colors.border.default,
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.elevated,
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     height: 50,
@@ -555,7 +557,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: colors.background.elevated,
+    backgroundColor: colors.background.tertiary,
     paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 30,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
@@ -564,7 +566,7 @@ const styles = StyleSheet.create({
   stickySearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     height: 44,
@@ -578,7 +580,7 @@ const styles = StyleSheet.create({
   // Categories section
   categoriesSection: {
     paddingVertical: spacing.xl,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background.primary,
   },
   sectionTitle: {
     fontSize: typography.size.xl,
@@ -600,17 +602,16 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     borderWidth: 2,
     borderColor: 'transparent',
-    ...shadows.sm,
   },
   categoryCardSelected: {
     borderColor: colors.primary.main,
-    backgroundColor: colors.primary.main + '10',
+    backgroundColor: colors.primary.main + '15',
   },
   categoryIconContainer: {
     width: 48,
     height: 48,
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
@@ -673,7 +674,7 @@ const styles = StyleSheet.create({
   clearFiltersButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.elevated,
     borderRadius: borderRadius.full,
   },
   clearFiltersText: {

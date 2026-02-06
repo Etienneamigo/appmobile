@@ -17,6 +17,7 @@ import {
   typography,
   getActivityEmoji,
 } from '../theme';
+import { withApiBaseUrl } from '../api/client';
 
 const { width } = Dimensions.get('window');
 
@@ -28,7 +29,7 @@ interface ActivityCardProps {
   variant?: 'horizontal' | 'vertical';
 }
 
-export const ActivityCard: React.FC<ActivityCardProps> = ({
+const ActivityCardComponent: React.FC<ActivityCardProps> = ({
   activity,
   onPress,
   onFavoriteToggle,
@@ -38,11 +39,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const heartAnim = useRef(new Animated.Value(1)).current;
 
-  const imageUri = activity.imageUrl
-    ? activity.imageUrl.startsWith('http')
-      ? activity.imageUrl
-      : `https://maisonapee.com${activity.imageUrl}`
-    : null;
+  const imageUri = activity.imageUrl ? withApiBaseUrl(activity.imageUrl) : null;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -111,7 +108,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             {/* Type badge */}
             <View style={styles.verticalBadge}>
               <Text style={styles.badgeEmoji}>{emoji}</Text>
-              <Text style={styles.badgeText}>
+              <Text style={styles.verticalBadgeText}>
                 {ACTIVITY_TYPE_LABELS[activity.type]}
               </Text>
             </View>
@@ -149,7 +146,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 <Text style={styles.infoText}>{activity.city}</Text>
               </View>
               {activity.priceFrom !== null && (
-                <View style={styles.infoItem}>
+                <View style={styles.priceContainer}>
                   <Text style={styles.priceText}>{activity.priceFrom}€</Text>
                 </View>
               )}
@@ -283,7 +280,7 @@ const styles = StyleSheet.create({
   placeholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -312,7 +309,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: typography.size.xs,
-    color: colors.primary.dark,
+    color: colors.primary.light,
     fontWeight: typography.weight.semibold,
   },
   title: {
@@ -353,7 +350,7 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: typography.size.sm,
-    color: colors.success.dark,
+    color: colors.success.main,
     fontWeight: typography.weight.bold,
   },
   peopleInfo: {
@@ -369,7 +366,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.background.elevated,
+    backgroundColor: colors.background.surface + 'E6',
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.md,
@@ -399,7 +396,7 @@ const styles = StyleSheet.create({
   verticalPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -413,11 +410,16 @@ const styles = StyleSheet.create({
     left: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     gap: spacing.xs,
+  },
+  verticalBadgeText: {
+    fontSize: typography.size.xs,
+    color: colors.text.primary,
+    fontWeight: typography.weight.semibold,
   },
   favoriteButton: {
     position: 'absolute',
@@ -426,7 +428,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.background.surface + 'E6',
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.sm,
@@ -436,4 +438,5 @@ const styles = StyleSheet.create({
   },
 });
 
+export const ActivityCard = React.memo(ActivityCardComponent);
 export default ActivityCard;

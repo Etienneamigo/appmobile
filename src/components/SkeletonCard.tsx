@@ -37,7 +37,7 @@ export const SkeletonCard: React.FC<SkeletonCardProps> = ({ variant = 'horizonta
 
   const opacity = shimmerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
+    outputRange: [0.2, 0.5],
   });
 
   if (variant === 'vertical') {
@@ -113,7 +113,7 @@ export const SkeletonCategories: React.FC = () => {
 
   const opacity = shimmerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
+    outputRange: [0.2, 0.5],
   });
 
   return (
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   image: {
     width: 120,
     height: 120,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.lg,
     margin: spacing.md,
   },
@@ -151,21 +151,21 @@ const styles = StyleSheet.create({
   badge: {
     width: 80,
     height: 24,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.full,
     marginBottom: spacing.sm,
   },
   titleLine: {
     width: '90%',
     height: 18,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.sm,
     marginBottom: spacing.sm,
   },
   subtitleLine: {
     width: '60%',
     height: 14,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.sm,
     marginBottom: spacing.md,
   },
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   infoItem: {
     width: 50,
     height: 12,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.sm,
   },
   // Vertical card styles
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   verticalImage: {
     width: '100%',
     height: 180,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
   },
   verticalContent: {
     padding: spacing.lg,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: 80,
     height: 90,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.lg,
   },
 });
