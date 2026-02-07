@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -551,14 +551,22 @@ export const SearchScreen: React.FC = () => {
     );
   };
 
-  const renderListHeader = () => (
-    <>
+  const listHeaderComponent = useMemo(() => (
+    <View>
       {renderHero()}
       {renderCategories()}
       {renderDiscover()}
       {renderSearchResults()}
-    </>
-  );
+    </View>
+  ), [
+    filters,
+    hasSearched,
+    isSearching,
+    isLoadingDiscover,
+    discoverActivities,
+    activities.length,
+    geolocation.isLoading,
+  ]);
 
   const renderItem = useCallback(
     ({ item }: { item: ActivityListItem }) => (
@@ -615,7 +623,7 @@ export const SearchScreen: React.FC = () => {
 
       {isLoading && !isRefreshing ? (
         <ScrollView style={styles.loadingContainer}>
-          {renderListHeader()}
+          {listHeaderComponent}
           <View style={styles.loadingList}>
             <SkeletonList count={3} />
           </View>
@@ -625,10 +633,11 @@ export const SearchScreen: React.FC = () => {
           data={isSearching && hasSearched ? activities : []}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          ListHeaderComponent={renderListHeader}
+          ListHeaderComponent={listHeaderComponent}
           ListEmptyComponent={isSearching && hasSearched ? renderEmptyState : null}
-
           ListFooterComponent={renderFooter}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
