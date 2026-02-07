@@ -378,10 +378,10 @@ export const SearchScreen: React.FC = () => {
             onPress={handleSearchPress}
             activeOpacity={0.8}
           >
-            <View style={styles.heroGradient}>
-  ...
-</View>
-
+            <View style={styles.searchButtonInner}>
+              <Text style={styles.searchButtonIcon}>🔍</Text>
+              <Text style={styles.searchButtonText}>Rechercher</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -684,15 +684,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing['2xl'],
   },
-  heroGradient: {
-  backgroundColor: colors.background.surface, // ou colors.background.surface / elevated
-  paddingHorizontal: spacing.lg,
-  paddingTop: spacing.xl,
-  paddingBottom: spacing.lg,
-},
+  searchButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary.dark,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    height: 50,
+  },
 
-
-  // Search card (V4 - glassmorphism)
+  // Search card
   searchCard: {
     width: '100%',
     backgroundColor: colors.background.elevated,
@@ -715,15 +717,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.md,
   },
-  searchButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.surface,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.md,
-    height: 50,
-
-  },
   searchButtonIcon: {
     fontSize: 18,
     marginRight: spacing.sm,
@@ -731,7 +724,7 @@ const styles = StyleSheet.create({
   searchButtonText: {
     fontSize: typography.size.md,
     fontWeight: typography.weight.bold,
-    color: colors.text.inverse,
+    color: colors.primary.contrast,
   },
 
   // Sticky header
