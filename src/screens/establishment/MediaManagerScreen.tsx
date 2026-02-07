@@ -198,11 +198,7 @@ export const MediaManagerScreen: React.FC = () => {
             {images.map((media) => (
               <View key={media.id} style={styles.mediaItem}>
                 <Image
-                  source={{
-                    uri: media.url.startsWith('http')
-                      ? media.url
-                      : withApiBaseUrl(media.url),
-                  }}
+                  source={{ uri: withApiBaseUrl(media.url) }}
                   style={styles.mediaImage}
                 />
                 <TouchableOpacity

@@ -5,7 +5,7 @@ import { ApiError } from '../types';
 // Centralized API base URL (changeable per environment/build)
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ||
-  'https://maisonapee.com';
+  'https://wadelo.com';
 
 
 

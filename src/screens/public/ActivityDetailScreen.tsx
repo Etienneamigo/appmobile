@@ -131,13 +131,7 @@ export const ActivityDetailScreen: React.FC = () => {
               {images.map((media, index) => (
                 <Image
                   key={media.id}
-                  source={{
-
-                    uri: media.url.startsWith('http')
-                      ? media.url
-                      : withApiBaseUrl(media.url),
-
-                  }}
+                  source={{ uri: withApiBaseUrl(media.url) }}
                   style={styles.image}
                 />
               ))}
