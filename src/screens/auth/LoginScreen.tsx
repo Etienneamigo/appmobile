@@ -63,7 +63,7 @@ export const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Maison Apée</Text>
+        <Text style={styles.title}>Wadelo</Text>
         <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
 
         <View style={styles.form}>
@@ -132,10 +132,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing['2xl'],
   },
   title: {
-    fontSize: typography.size['3xl'],
+    fontSize: typography.size['2xl'],
     fontWeight: typography.weight.bold,
-    color: colors.text.primary,
+    color: colors.primary.light,
     textAlign: 'center',
+    letterSpacing: 2,
     marginBottom: spacing.sm,
   },
   subtitle: {
