@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.elevated,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border.strong,
     paddingHorizontal: spacing.md,
     height: 48,
   },
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   closeButton: {
     marginTop: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.background.surface,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
   },
