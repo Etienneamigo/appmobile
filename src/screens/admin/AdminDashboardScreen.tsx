@@ -87,19 +87,19 @@ export const AdminDashboardScreen: React.FC = () => {
       {/* Main Stats */}
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: colors.primary.main + '15' }]}>
-          <Text style={[styles.statValue, { color: colors.primary.main }]}>{stats.counts.totalUsers}</Text>
+          <Text style={[styles.statValue, { color: colors.primary.main }]}>{stats.counts?.totalUsers ?? 0}</Text>
           <Text style={styles.statLabel}>Utilisateurs</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.success.main + '15' }]}>
-          <Text style={[styles.statValue, { color: colors.success.main }]}>{stats.counts.totalEstablishments}</Text>
+          <Text style={[styles.statValue, { color: colors.success.main }]}>{stats.counts?.totalEstablishments ?? 0}</Text>
           <Text style={styles.statLabel}>Etablissements</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.secondary.main + '15' }]}>
-          <Text style={[styles.statValue, { color: colors.secondary.main }]}>{stats.counts.publishedActivities}</Text>
+          <Text style={[styles.statValue, { color: colors.secondary.main }]}>{stats.counts?.publishedActivities ?? 0}</Text>
           <Text style={styles.statLabel}>Activites publiees</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.warning.main + '15' }]}>
-          <Text style={[styles.statValue, { color: colors.warning.main }]}>{stats.counts.draftActivities}</Text>
+          <Text style={[styles.statValue, { color: colors.warning.main }]}>{stats.counts?.draftActivities ?? 0}</Text>
           <Text style={styles.statLabel}>Brouillons</Text>
         </View>
       </View>
@@ -111,12 +111,12 @@ export const AdminDashboardScreen: React.FC = () => {
           <View style={styles.subscriptionItem}>
             <View style={[styles.subscriptionDot, { backgroundColor: '#2ecc71' }]} />
             <Text style={styles.subscriptionLabel}>Actifs</Text>
-            <Text style={styles.subscriptionValue}>{stats.counts.activeSubscriptions}</Text>
+            <Text style={styles.subscriptionValue}>{stats.counts?.activeSubscriptions ?? 0}</Text>
           </View>
           <View style={styles.subscriptionItem}>
             <View style={[styles.subscriptionDot, { backgroundColor: '#f39c12' }]} />
             <Text style={styles.subscriptionLabel}>En essai</Text>
-            <Text style={styles.subscriptionValue}>{stats.counts.trialingSubscriptions}</Text>
+            <Text style={styles.subscriptionValue}>{stats.counts?.trialingSubscriptions ?? 0}</Text>
           </View>
         </View>
       </View>
@@ -126,12 +126,12 @@ export const AdminDashboardScreen: React.FC = () => {
         <Text style={styles.cardTitle}>7 derniers jours</Text>
         <View style={styles.recentRow}>
           <View style={styles.recentItem}>
-            <Text style={styles.recentValue}>+{stats.recent.usersLast7Days}</Text>
+            <Text style={styles.recentValue}>+{stats.recent?.usersLast7Days ?? 0}</Text>
             <Text style={styles.recentLabel}>Nouveaux utilisateurs</Text>
           </View>
           <View style={styles.recentDivider} />
           <View style={styles.recentItem}>
-            <Text style={styles.recentValue}>+{stats.recent.activitiesLast7Days}</Text>
+            <Text style={styles.recentValue}>+{stats.recent?.activitiesLast7Days ?? 0}</Text>
             <Text style={styles.recentLabel}>Nouvelles activites</Text>
           </View>
         </View>
@@ -140,7 +140,7 @@ export const AdminDashboardScreen: React.FC = () => {
       {/* Top Activities */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Top 5 Activites</Text>
-        {stats.topActivities.map((activity, index) => (
+        {(stats.topActivities ?? []).map((activity, index) => (
           <View key={activity.id} style={styles.topActivityItem}>
             <View style={styles.topActivityRank}>
               <Text style={styles.topActivityRankText}>#{index + 1}</Text>
@@ -159,7 +159,7 @@ export const AdminDashboardScreen: React.FC = () => {
             </View>
           </View>
         ))}
-        {stats.topActivities.length === 0 && (
+        {(stats.topActivities ?? []).length === 0 && (
           <Text style={styles.emptyText}>Aucune activite</Text>
         )}
       </View>
