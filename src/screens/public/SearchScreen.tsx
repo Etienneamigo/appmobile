@@ -378,15 +378,10 @@ export const SearchScreen: React.FC = () => {
             onPress={handleSearchPress}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={[colors.primary.main, colors.primary.dark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.searchButtonGradient}
-            >
-              <Text style={styles.searchButtonIcon}>🔍</Text>
-              <Text style={styles.searchButtonText}>Rechercher des activites</Text>
-            </LinearGradient>
+            <View style={styles.heroGradient}>
+  ...
+</View>
+
           </TouchableOpacity>
         </View>
       </View>
@@ -689,6 +684,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing['2xl'],
   },
+  heroGradient: {
+  backgroundColor: colors.background.surface, // ou colors.background.surface / elevated
+  paddingHorizontal: spacing.lg,
+  paddingTop: spacing.xl,
+  paddingBottom: spacing.lg,
+},
+
 
   // Search card (V4 - glassmorphism)
   searchCard: {
