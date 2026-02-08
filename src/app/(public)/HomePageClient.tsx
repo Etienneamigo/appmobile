@@ -14,11 +14,19 @@ import {
 import { ACTIVITY_TYPE_OPTIONS, DISTANCE_OPTIONS } from "@/lib/constants"
 import { MapPin, Search, Navigation, Loader2 } from "lucide-react"
 
+interface ActivityTypeOption {
+  value: string
+  label: string
+  emoji?: string
+  iconUrl?: string | null
+}
+
 interface HomePageClientProps {
   heroVideoDesktopUrl?: string | null
   heroVideoMobileUrl?: string | null
   heroImageDesktopUrl?: string | null
   heroImageMobileUrl?: string | null
+  activityTypeOptions?: ActivityTypeOption[]
 }
 
 // Normalize upload URLs to use API route for proper MIME type handling
@@ -34,7 +42,11 @@ export function HomePageClient({
   heroVideoMobileUrl,
   heroImageDesktopUrl,
   heroImageMobileUrl,
+  activityTypeOptions,
 }: HomePageClientProps) {
+  const typeOptions = activityTypeOptions && activityTypeOptions.length > 0
+    ? activityTypeOptions
+    : ACTIVITY_TYPE_OPTIONS
   const router = useRouter()
   const [city, setCity] = useState("")
   const [type, setType] = useState("")
@@ -145,12 +157,9 @@ export function HomePageClient({
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center text-white">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">
-              Qu&apos;est-ce qu&apos;on fait ce soir ?
+            <h1 className="text-4xl md:text-6xl font-bold mb-10 drop-shadow-lg">
+              découvrez quoi faire, simplement
             </h1>
-            <p className="text-xl md:text-2xl mb-10 text-white/90 drop-shadow-md">
-              Decouvrez les meilleures activites pres de chez vous
-            </p>
 
             {/* Search Card - Glassmorphism */}
             <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/30 p-6 md:p-8 text-left">
@@ -170,7 +179,7 @@ export function HomePageClient({
                           setCity(e.target.value)
                           setUserLocation(null)
                         }}
-                        className="pl-10 bg-white/80 border-gray-200/50 focus:bg-white transition-colors"
+                        className="pl-10 bg-white/80 border-gray-200/50 focus:bg-white transition-colors text-gray-900 placeholder:text-gray-400"
                       />
                     </div>
                     <Button
@@ -204,12 +213,12 @@ export function HomePageClient({
                       Type d&apos;activite
                     </label>
                     <Select value={type} onValueChange={setType}>
-                      <SelectTrigger className="bg-white/80 border-gray-200/50 focus:bg-white">
+                      <SelectTrigger className="bg-white/80 border-gray-200/50 focus:bg-white text-gray-900">
                         <SelectValue placeholder="Toutes les activites" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Toutes les activites</SelectItem>
-                        {ACTIVITY_TYPE_OPTIONS.map((option) => (
+                        {typeOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -223,7 +232,7 @@ export function HomePageClient({
                       Rayon de recherche
                     </label>
                     <Select value={radius} onValueChange={setRadius}>
-                      <SelectTrigger className="bg-white/80 border-gray-200/50 focus:bg-white">
+                      <SelectTrigger className="bg-white/80 border-gray-200/50 focus:bg-white text-gray-900">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -255,18 +264,33 @@ export function HomePageClient({
             Decouvrez nos categories
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            {ACTIVITY_TYPE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => router.push(`/recherche?type=${option.value}`)}
-                className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border hover:border-primary"
-              >
-                <span className="text-4xl mb-2">{option.label.split(" ")[0]}</span>
-                <span className="text-sm text-center font-medium">
-                  {option.label.split(" ").slice(1).join(" ")}
-                </span>
-              </button>
-            ))}
+            {typeOptions.map((option) => {
+              const opt = option as ActivityTypeOption
+              const emoji = opt.emoji || option.label.split(" ")[0]
+              const labelText = opt.emoji
+                ? option.label.replace(/^[^\s]+\s/, "")
+                : option.label.split(" ").slice(1).join(" ")
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => router.push(`/recherche?type=${option.value}`)}
+                  className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border hover:border-primary"
+                >
+                  {opt.iconUrl ? (
+                    <img
+                      src={normalizeUploadUrl(opt.iconUrl)}
+                      alt=""
+                      className="h-10 w-10 object-contain mb-2"
+                    />
+                  ) : (
+                    <span className="text-4xl mb-2">{emoji}</span>
+                  )}
+                  <span className="text-sm text-center font-medium">
+                    {labelText}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       </section>

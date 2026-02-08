@@ -111,7 +111,7 @@ export function SearchResults({ params }: SearchResultsProps) {
       lat,
       lng,
       city: params.city,
-      type: params.type as "BOWLING" | "ESCAPE_GAME" | "BAR_DANSANT" | "KARAOKE" | "LASER_GAME" | "CINEMA" | "TRAMPOLINE_PARK" | undefined,
+      type: params.type,
       radius: params.radius ? parseInt(params.radius) : 10,
       minPeople: params.minPeople ? parseInt(params.minPeople) : undefined,
       maxPeople: params.maxPeople ? parseInt(params.maxPeople) : undefined,

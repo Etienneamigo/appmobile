@@ -42,9 +42,9 @@ services:
     environment:
       AUTH_SECRET: "${AUTH_SECRET:-}"
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: "https://maisonapee.com"
+      AUTH_URL: "https://wadelo.com"
       DATABASE_URL: "postgresql://activite_user:activite_password@db:5432/activite_db?schema=public"
-      NEXTAUTH_URL: "https://maisonapee.com"
+      NEXTAUTH_URL: "https://wadelo.com"
       NODE_ENV: production
     expose:
       - "3000"

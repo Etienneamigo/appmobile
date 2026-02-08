@@ -41,6 +41,12 @@ const MP4_FTYP_MARKER = [0x66, 0x74, 0x79, 0x70] // 'ftyp' ASCII
  * Validate file magic bytes match the claimed MIME type
  */
 export function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
+  // SVG is text-based XML - check for <svg or <?xml markers
+  if (mimeType === "image/svg+xml") {
+    const head = buffer.subarray(0, Math.min(buffer.length, 1000)).toString("utf-8").trim().toLowerCase()
+    return head.startsWith("<svg") || head.startsWith("<?xml") || head.includes("<svg")
+  }
+
   const signatures = MAGIC_BYTES[mimeType]
 
   if (!signatures) {
@@ -81,8 +87,8 @@ export function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
  */
 export const ALLOWED_TYPES = {
   image: {
-    mimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"] as string[],
-    extensions: ["jpg", "jpeg", "png", "webp", "gif"] as string[],
+    mimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"] as string[],
+    extensions: ["jpg", "jpeg", "png", "webp", "gif", "svg"] as string[],
     maxSize: 5 * 1024 * 1024, // 5MB
   },
   video: {

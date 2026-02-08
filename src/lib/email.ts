@@ -72,7 +72,7 @@ export async function sendVerificationEmail(
   token: string,
   name?: string
 ): Promise<boolean> {
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+  const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
   const verificationUrl = `${baseUrl}/auth/verification?token=${token}`
 
   const html = `
@@ -85,7 +85,7 @@ export async function sendVerificationEmail(
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #333; margin-bottom: 10px;">🎯 Activites</h1>
+        <h1 style="color: #333; margin-bottom: 10px;">WADELO</h1>
       </div>
 
       <h2 style="color: #333;">Bienvenue${name ? ` ${name}` : ""} !</h2>
@@ -117,7 +117,7 @@ export async function sendVerificationEmail(
 
   return sendEmail({
     to: email,
-    subject: "Verifiez votre email - Activites",
+    subject: "Verifiez votre email - Wadelo",
     html,
   })
 }

@@ -38,7 +38,7 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
   const router = useRouter()
 
   const images = medias.filter((m) => m.kind === "IMAGE")
-  const uploadedVideo = medias.find((m) => m.kind === "VIDEO_UPLOAD")
+  const uploadedVideos = medias.filter((m) => m.kind === "VIDEO_UPLOAD")
   const externalVideos = medias.filter((m) => m.kind === "VIDEO")
 
   // Vérifier la durée de la vidéo côté client
@@ -101,77 +101,78 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
   }
 
   async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Vérifier la taille
-    const sizeMB = file.size / (1024 * 1024)
-    if (sizeMB > MAX_VIDEO_SIZE_MB) {
-      toast.error(`La vidéo est trop volumineuse. Maximum: ${MAX_VIDEO_SIZE_MB}MB`)
-      return
-    }
-
-    // Vérifier le type
-    if (!["video/mp4", "video/webm"].includes(file.type)) {
-      toast.error("Format non supporté. Utilisez MP4 ou WebM.")
-      return
-    }
-
-    // Vérifier la durée (optionnel - warning seulement)
-    setUploadProgress("Vérification de la vidéo...")
-    const duration = await checkVideoDuration(file)
-    if (duration !== null) {
-      if (duration < RECOMMENDED_VIDEO_DURATION.min) {
-        toast.warning(`Vidéo très courte (${Math.round(duration)}s). Durée recommandée: ${RECOMMENDED_VIDEO_DURATION.min}-${RECOMMENDED_VIDEO_DURATION.max}s`)
-      } else if (duration > RECOMMENDED_VIDEO_DURATION.max) {
-        toast.warning(`Vidéo longue (${Math.round(duration)}s). Durée recommandée: ${RECOMMENDED_VIDEO_DURATION.min}-${RECOMMENDED_VIDEO_DURATION.max}s`)
-      }
-    }
+    const files = e.target.files
+    if (!files?.length) return
 
     setIsUploadingVideo(true)
-    setUploadProgress("Upload en cours...")
 
-    const formData = new FormData()
-    formData.append("file", file)
-    formData.append("type", "video")
-
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        toast.error(data.error || "Erreur lors de l'upload")
-        setIsUploadingVideo(false)
-        setUploadProgress(null)
-        return
+    for (const file of Array.from(files)) {
+      // Vérifier la taille
+      const sizeMB = file.size / (1024 * 1024)
+      if (sizeMB > MAX_VIDEO_SIZE_MB) {
+        toast.error(`La vidéo "${file.name}" est trop volumineuse. Maximum: ${MAX_VIDEO_SIZE_MB}MB`)
+        continue
       }
 
-      setUploadProgress("Enregistrement...")
-
-      const result = await addMediaToActivity(
-        activityId,
-        data.url,
-        "VIDEO_UPLOAD",
-        data.fileName,
-        data.fileSize
-      )
-
-      if (result.error) {
-        toast.error(result.error)
-      } else {
-        toast.success("Vidéo uploadée avec succès")
-        router.refresh()
+      // Vérifier le type
+      if (!["video/mp4", "video/webm"].includes(file.type)) {
+        toast.error(`Format non supporté pour "${file.name}". Utilisez MP4 ou WebM.`)
+        continue
       }
-    } catch {
-      toast.error("Erreur lors de l'upload")
+
+      // Vérifier la durée (optionnel - warning seulement)
+      setUploadProgress(`Vérification de ${file.name}...`)
+      const duration = await checkVideoDuration(file)
+      if (duration !== null) {
+        if (duration < RECOMMENDED_VIDEO_DURATION.min) {
+          toast.warning(`Vidéo "${file.name}" très courte (${Math.round(duration)}s). Durée recommandée: ${RECOMMENDED_VIDEO_DURATION.min}-${RECOMMENDED_VIDEO_DURATION.max}s`)
+        } else if (duration > RECOMMENDED_VIDEO_DURATION.max) {
+          toast.warning(`Vidéo "${file.name}" longue (${Math.round(duration)}s). Durée recommandée: ${RECOMMENDED_VIDEO_DURATION.min}-${RECOMMENDED_VIDEO_DURATION.max}s`)
+        }
+      }
+
+      setUploadProgress(`Upload de ${file.name}...`)
+
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("type", "video")
+
+      try {
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          toast.error(data.error || `Erreur lors de l'upload de ${file.name}`)
+          continue
+        }
+
+        setUploadProgress(`Enregistrement de ${file.name}...`)
+
+        const result = await addMediaToActivity(
+          activityId,
+          data.url,
+          "VIDEO_UPLOAD",
+          data.fileName,
+          data.fileSize
+        )
+
+        if (result.error) {
+          toast.error(result.error)
+        } else {
+          toast.success(`Vidéo "${file.name}" uploadée`)
+        }
+      } catch {
+        toast.error(`Erreur lors de l'upload de ${file.name}`)
+      }
     }
 
     setIsUploadingVideo(false)
     setUploadProgress(null)
+    router.refresh()
 
     if (videoInputRef.current) {
       videoInputRef.current.value = ""
@@ -262,38 +263,37 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
         )}
       </div>
 
-      {/* Vidéo uploadée */}
+      {/* Vidéos uploadées */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-base font-semibold flex items-center gap-2">
             <FileVideo className="h-4 w-4" />
-            Vidéo de présentation
+            Vidéos ({uploadedVideos.length})
           </Label>
-          {!uploadedVideo && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => videoInputRef.current?.click()}
-              disabled={isUploadingVideo}
-            >
-              {isUploadingVideo ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {uploadProgress || "Upload..."}
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Uploader une vidéo
-                </>
-              )}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => videoInputRef.current?.click()}
+            disabled={isUploadingVideo}
+          >
+            {isUploadingVideo ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {uploadProgress || "Upload..."}
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Ajouter des vidéos
+              </>
+            )}
+          </Button>
           <input
             ref={videoInputRef}
             type="file"
             accept="video/mp4,video/webm"
+            multiple
             className="hidden"
             onChange={handleVideoUpload}
           />
@@ -304,47 +304,40 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
           Formats: MP4, WebM | Max: {MAX_VIDEO_SIZE_MB}MB | Durée recommandée: {RECOMMENDED_VIDEO_DURATION.min}-{RECOMMENDED_VIDEO_DURATION.max}s
         </div>
 
-        {uploadedVideo ? (
-          <div className="space-y-2">
-            <div className="relative rounded-lg overflow-hidden bg-black">
-              <video
-                src={normalizeUploadUrl(uploadedVideo.url)}
-                controls
-                className="w-full max-h-64"
-                preload="metadata"
-              >
-                Votre navigateur ne supporte pas la lecture de vidéos.
-              </video>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {uploadedVideo.fileName || "Vidéo uploadée"}
-                {uploadedVideo.fileSize && (
-                  <span className="ml-2">
-                    ({(uploadedVideo.fileSize / (1024 * 1024)).toFixed(1)}MB)
+        {uploadedVideos.length > 0 ? (
+          <div className="space-y-4">
+            {uploadedVideos.map((video) => (
+              <div key={video.id} className="space-y-2">
+                <div className="relative rounded-lg overflow-hidden bg-black">
+                  <video
+                    src={normalizeUploadUrl(video.url)}
+                    controls
+                    className="w-full max-h-64"
+                    preload="metadata"
+                  >
+                    Votre navigateur ne supporte pas la lecture de vidéos.
+                  </video>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {video.fileName || "Vidéo uploadée"}
+                    {video.fileSize && (
+                      <span className="ml-2">
+                        ({(video.fileSize / (1024 * 1024)).toFixed(1)}MB)
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => videoInputRef.current?.click()}
-                  disabled={isUploadingVideo}
-                >
-                  Remplacer
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteMedia(uploadedVideo.id)}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteMedia(video.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         ) : (
           <div
@@ -360,7 +353,7 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
               <div className="space-y-2">
                 <FileVideo className="h-8 w-8 mx-auto text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Cliquez ou déposez une vidéo ici
+                  Cliquez ou déposez des vidéos ici
                 </p>
               </div>
             )}

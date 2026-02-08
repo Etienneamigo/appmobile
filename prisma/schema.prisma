@@ -17,29 +17,8 @@ enum UserRole {
   ADMIN
 }
 
-// Types d'activités
-enum ActivityType {
-  BOWLING
-  ESCAPE_GAME
-  BAR_DANSANT
-  KARAOKE
-  LASER_GAME
-  CINEMA
-  TRAMPOLINE_PARK
-  KARTING
-  REALITE_VIRTUELLE
-  QUIZ_GAME
-  MINIGOLF
-  ESCALADE
-  PATINOIRE
-  SPA_BIEN_ETRE
-  ATELIER
-  DEGUSTATION
-  COMEDY_CLUB
-  MUSEE_EXPO
-  CONCERT_SPECTACLE
-
-}
+// Types d'activités - gérés dynamiquement via la table ActivityTypeConfig
+// (Ancien enum supprimé au profit d'un champ String + table de référence)
 
 // Statut d'activité
 enum ActivityStatus {
@@ -126,7 +105,7 @@ model Establishment {
 model Activity {
   id              String         @id @default(cuid())
   establishmentId String         @unique // Contrainte 1:1
-  type            ActivityType
+  type            String         // Slug du type d'activité (ex: "BOWLING", "ROLLER_CLUB")
   title           String
   description     String         @db.Text
   address         String
@@ -161,16 +140,23 @@ model Activity {
 
 // Modèle Média
 model Media {
-  id         String    @id @default(cuid())
-  activityId String
-  kind       MediaKind
-  url        String
-  fileName   String?   // Nom du fichier original (pour vidéos uploadées)
-  fileSize   Int?      // Taille en bytes (pour vidéos uploadées)
-  createdAt  DateTime  @default(now())
+  id            String    @id @default(cuid())
+  activityId    String
+  kind          MediaKind
+  url           String
+  fileName      String?   // Nom du fichier original (pour vidéos uploadées)
+  fileSize      Int?      // Taille en bytes (pour vidéos uploadées)
+  videoCategory String?   // Catégorie vidéo : "teaser", "ambiance", "cours", etc.
+  title         String?   // Titre optionnel du média
+  thumbnailUrl  String?   // URL de la vignette (pour vidéos)
+  duration      Int?      // Durée en secondes (pour vidéos)
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
 
   // Relations
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, kind])
 }
 
 // Modèle Favoris
@@ -252,4 +238,28 @@ model Event {
 
   @@index([activityId, startAt])
   @@index([startAt])
+}
+
+// Configuration des types d'activités (géré par l'admin)
+model ActivityTypeConfig {
+  id        String   @id @default(cuid())
+  slug      String   @unique  // Identifiant unique (ex: "BOWLING", "ROLLER_CLUB")
+  label     String            // Nom affiché (ex: "Bowling", "Club de roller")
+  emoji     String   @default("🎯") // Emoji ou icône (fallback si pas d'iconUrl)
+  iconUrl   String?           // URL de l'icône uploadée (png/svg)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Configuration des catégories de vidéos (géré par l'admin)
+model VideoCategoryConfig {
+  id        String   @id @default(cuid())
+  slug      String   @unique  // Identifiant unique (ex: "teaser", "ambiance")
+  label     String            // Nom affiché (ex: "Teaser", "Ambiance")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

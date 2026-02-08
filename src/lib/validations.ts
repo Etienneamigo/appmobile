@@ -25,21 +25,13 @@ export const registerEstablishmentSchema = z.object({
   promoCode: z.string().optional(), // Code promo optionnel à l'inscription
 })
 
-// Activity schemas
-export const activityTypeEnum = z.enum([
-  "BOWLING",
-  "ESCAPE_GAME",
-  "BAR_DANSANT",
-  "KARAOKE",
-  "LASER_GAME",
-  "CINEMA",
-  "TRAMPOLINE_PARK",
-])
+// Activity schemas - type is now a free-form string (validated against DB)
+export const activityTypeSchema = z.string().min(1, "Le type d'activité est requis")
 
 export const activityStatusEnum = z.enum(["DRAFT", "PUBLISHED"])
 
 export const createActivitySchema = z.object({
-  type: activityTypeEnum,
+  type: activityTypeSchema,
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères"),
   description: z.string().min(10, "La description doit contenir au moins 10 caractères"),
   address: z.string().min(5, "L'adresse doit contenir au moins 5 caractères"),
@@ -64,7 +56,7 @@ export const searchSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   radius: z.number().positive().default(10), // km
-  type: activityTypeEnum.optional(),
+  type: z.string().optional(),
   city: z.string().optional(),
   minPeople: z.number().int().positive().optional(),
   maxPeople: z.number().int().positive().optional(),
@@ -86,6 +78,19 @@ export const createPromoCodeSchema = z.object({
 
 export const updatePromoCodeSchema = createPromoCodeSchema.partial()
 
+// Activity type config schemas
+export const createActivityTypeConfigSchema = z.object({
+  slug: z.string().min(2, "Le slug doit contenir au moins 2 caractères").max(50)
+    .regex(/^[A-Z0-9_]+$/, "Le slug doit contenir uniquement des majuscules, chiffres et underscores"),
+  label: z.string().min(2, "Le label doit contenir au moins 2 caractères").max(100),
+  emoji: z.string().min(1, "L'emoji est requis").max(10),
+  iconUrl: z.string().url("URL d'icône invalide").optional().nullable(),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).default(0),
+})
+
+export const updateActivityTypeConfigSchema = createActivityTypeConfigSchema.partial()
+
 // Types
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterUserInput = z.infer<typeof registerUserSchema>
@@ -93,7 +98,9 @@ export type RegisterEstablishmentInput = z.infer<typeof registerEstablishmentSch
 export type CreateActivityInput = z.infer<typeof createActivitySchema>
 export type UpdateActivityInput = z.infer<typeof updateActivitySchema>
 export type SearchInput = z.infer<typeof searchSchema>
-export type ActivityType = z.infer<typeof activityTypeEnum>
+export type ActivityType = string
 export type ActivityStatus = z.infer<typeof activityStatusEnum>
 export type CreatePromoCodeInput = z.infer<typeof createPromoCodeSchema>
 export type UpdatePromoCodeInput = z.infer<typeof updatePromoCodeSchema>
+export type CreateActivityTypeConfigInput = z.infer<typeof createActivityTypeConfigSchema>
+export type UpdateActivityTypeConfigInput = z.infer<typeof updateActivityTypeConfigSchema>

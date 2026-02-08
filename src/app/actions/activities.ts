@@ -166,7 +166,9 @@ export async function addMediaToActivity(
   url: string,
   kind: "IMAGE" | "VIDEO" | "VIDEO_UPLOAD",
   fileName?: string,
-  fileSize?: number
+  fileSize?: number,
+  videoCategory?: string,
+  title?: string,
 ) {
   const session = await auth()
 
@@ -186,16 +188,7 @@ export async function addMediaToActivity(
     return { error: "Activité non trouvée" }
   }
 
-  // Pour les vidéos uploadées, supprimer l'ancienne vidéo uploadée s'il y en a une
-  if (kind === "VIDEO_UPLOAD") {
-    await prisma.media.deleteMany({
-      where: {
-        activityId,
-        kind: "VIDEO_UPLOAD",
-      },
-    })
-  }
-
+  // Multiple videos are now allowed per activity
   const media = await prisma.media.create({
     data: {
       activityId,
@@ -203,6 +196,8 @@ export async function addMediaToActivity(
       kind,
       fileName,
       fileSize,
+      videoCategory: kind !== "IMAGE" ? videoCategory : null,
+      title,
     },
   })
 

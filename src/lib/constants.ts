@@ -1,4 +1,6 @@
-export const ACTIVITY_TYPES = {
+// Fallback activity types (used when DB is unavailable)
+// The source of truth is the ActivityTypeConfig table in the database
+export const ACTIVITY_TYPES: Record<string, { label: string; emoji: string }> = {
   BOWLING: { label: "Bowling", emoji: "🎳" },
   ESCAPE_GAME: { label: "Escape Game", emoji: "🔐" },
   BAR_DANSANT: { label: "Bar dansant", emoji: "💃" },
@@ -18,10 +20,9 @@ export const ACTIVITY_TYPES = {
   COMEDY_CLUB: { label: "Comedy Club", emoji: "🎭" },
   MUSEE_EXPO: { label: "Musée & Expo", emoji: "🏛️" },
   CONCERT_SPECTACLE: { label: "Concert & Spectacle", emoji: "🎵" },
+}
 
-} as const
-
-export type ActivityTypeKey = keyof typeof ACTIVITY_TYPES
+export type ActivityTypeKey = string
 
 export const ACTIVITY_TYPE_OPTIONS = Object.entries(ACTIVITY_TYPES).map(([key, value]) => ({
   value: key,
@@ -34,4 +35,12 @@ export const DISTANCE_OPTIONS = [
   { value: 10, label: "10 km" },
   { value: 25, label: "25 km" },
   { value: 50, label: "50 km" },
+]
+
+export const VIDEO_CATEGORIES = [
+  { value: "teaser", label: "Teaser" },
+  { value: "ambiance", label: "Ambiance" },
+  { value: "cours", label: "Cours / Tutorial" },
+  { value: "evenement", label: "Événement" },
+  { value: "autre", label: "Autre" },
 ]

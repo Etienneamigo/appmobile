@@ -31,13 +31,15 @@ export function Header() {
     <header className="border-b bg-white sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center space-x-2">
-          <span className="text-2xl">🎯</span>
-          <span className="font-bold text-xl">Activités</span>
+          <span className="font-bold text-xl">WADELO</span>
         </Link>
 
         <nav className="hidden md:flex items-center space-x-6">
           <Link href="/recherche" className="text-gray-600 hover:text-gray-900">
             Rechercher
+          </Link>
+          <Link href="/feed" className="text-gray-600 hover:text-gray-900">
+            Feed
           </Link>
           {session?.user?.role === "ESTABLISHMENT" && (
             <>
@@ -152,6 +154,9 @@ export function Header() {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem asChild>
                 <Link href="/recherche">Rechercher</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/feed">Feed</Link>
               </DropdownMenuItem>
               {session?.user?.role === "ESTABLISHMENT" && (
                 <>

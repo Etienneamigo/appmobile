@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Activités - Qu'est-ce qu'on fait ce soir ?",
-  description: "Trouvez des activités près de chez vous : bowling, escape game, karaoké, et plus encore !",
+  title: "Wadelo - découvrez quoi faire, simplement",
+  description: "Trouvez des activites pres de chez vous : bowling, escape game, karaoke, et plus encore !",
 };
 
 export default function RootLayout({
