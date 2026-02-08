@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ACTIVITY_TYPE_OPTIONS } from "@/lib/constants"
+import { ACTIVITY_TYPE_OPTIONS_PLAIN } from "@/lib/constants"
 import { createActivity, updateActivity } from "@/app/actions/activities"
 import { geocodeAddress } from "@/lib/geo"
 import { toast } from "sonner"
@@ -28,7 +28,7 @@ interface ActivityFormProps {
 }
 
 export function ActivityForm({ activity, mode, activityTypeOptions }: ActivityFormProps) {
-  const typeOptions = activityTypeOptions || ACTIVITY_TYPE_OPTIONS
+  const typeOptions = activityTypeOptions || ACTIVITY_TYPE_OPTIONS_PLAIN
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)

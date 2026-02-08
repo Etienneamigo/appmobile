@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { createActivityTypeConfigSchema, updateActivityTypeConfigSchema } from "@/lib/validations"
+import { ACTIVITY_TYPES } from "@/lib/constants"
 
 // Helper to check admin role
 async function requireAdmin() {
@@ -40,48 +41,63 @@ export async function getAllActivityTypes() {
   }
 }
 
-// Backfill: create ActivityTypeConfig for Activity.type values that don't have one
+// Sync defaults + backfill: ensures ALL preconfigured types from constants
+// AND all existing Activity.type values have a matching ActivityTypeConfig entry.
+// Idempotent - safe to call on every page load.
 export async function backfillActivityTypes() {
   try {
-    // Get all distinct type values from activities
-    const distinctTypes = await prisma.activity.groupBy({
-      by: ["type"],
-    })
-
     // Get existing config slugs
     const existingConfigs = await prisma.activityTypeConfig.findMany({
       select: { slug: true },
     })
     const existingSlugs = new Set(existingConfigs.map((c) => c.slug))
 
-    // Find missing types
-    const missingTypes = distinctTypes
+    // 1. Sync preconfigured defaults from ACTIVITY_TYPES constant
+    const defaultEntries = Object.entries(ACTIVITY_TYPES)
+    const missingDefaults = defaultEntries.filter(([slug]) => !existingSlugs.has(slug))
+
+    // 2. Backfill from existing Activity.type values in DB
+    const distinctTypes = await prisma.activity.groupBy({ by: ["type"] })
+    const missingFromDb = distinctTypes
       .map((t) => t.type)
       .filter((type) => type && !existingSlugs.has(type))
+      // Also exclude types we're about to create from defaults
+      .filter((type) => !missingDefaults.some(([slug]) => slug === type))
 
-    if (missingTypes.length === 0) return { created: 0 }
+    const totalMissing = missingDefaults.length + missingFromDb.length
+    if (totalMissing === 0) return { created: 0 }
 
-    // Get max sort order
+    // Get max sort order for appending
     const maxOrder = await prisma.activityTypeConfig.aggregate({
       _max: { sortOrder: true },
     })
     let nextOrder = (maxOrder._max.sortOrder ?? 0) + 1
 
-    // Create missing types
-    await prisma.activityTypeConfig.createMany({
-      data: missingTypes.map((slug) => ({
+    const toCreate = [
+      // Defaults get their proper label/emoji from the constants
+      ...missingDefaults.map(([slug, info]) => ({
+        slug,
+        label: info.label,
+        emoji: info.emoji,
+        isActive: true,
+        sortOrder: nextOrder++,
+      })),
+      // DB-only types get a generated label
+      ...missingFromDb.map((slug) => ({
         slug,
         label: slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase().replace(/_/g, " "),
         emoji: "🎯",
         isActive: true,
         sortOrder: nextOrder++,
       })),
-    })
+    ]
+
+    await prisma.activityTypeConfig.createMany({ data: toCreate })
 
     revalidatePath("/admin/types-activite")
     revalidatePath("/")
     revalidatePath("/recherche")
-    return { created: missingTypes.length }
+    return { created: totalMissing }
   } catch {
     return { created: 0 }
   }

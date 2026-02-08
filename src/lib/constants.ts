@@ -29,6 +29,12 @@ export const ACTIVITY_TYPE_OPTIONS = Object.entries(ACTIVITY_TYPES).map(([key, v
   label: `${value.emoji} ${value.label}`,
 }))
 
+// Options sans emojis/icônes pour les dropdowns
+export const ACTIVITY_TYPE_OPTIONS_PLAIN = Object.entries(ACTIVITY_TYPES).map(([key, value]) => ({
+  value: key,
+  label: value.label,
+}))
+
 export const DISTANCE_OPTIONS = [
   { value: 1, label: "1 km" },
   { value: 5, label: "5 km" },

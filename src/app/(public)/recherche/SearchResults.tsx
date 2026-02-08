@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -15,17 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { searchActivities, geocodeCity, ActivityWithDistance } from "@/app/actions/search"
 import { trackImpressions } from "@/app/actions/analytics"
-import { ACTIVITY_TYPE_OPTIONS, DISTANCE_OPTIONS, ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
+import { ACTIVITY_TYPE_OPTIONS_PLAIN, DISTANCE_OPTIONS, ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
 import { formatDistance } from "@/lib/geo"
-import { MapPin, Heart, Users, Clock, Euro, Search, Filter, List, Map } from "lucide-react"
+import { MapPin, Clock, Euro, Users, Search, SlidersHorizontal, List, Map as MapIcon, ChevronRight } from "lucide-react"
 
 // Dynamic import for the map to avoid SSR issues
 const ActivityMap = dynamic(
   () => import("@/components/map/ActivityMap").then((mod) => mod.ActivityMap),
-  { ssr: false, loading: () => <div className="h-96 bg-gray-200 rounded-lg animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-96 bg-gray-100 rounded-lg animate-pulse" /> }
 )
 
 interface SearchResultsProps {
@@ -166,169 +163,181 @@ export function SearchResults({ params }: SearchResultsProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between py-5 border-b border-gray-100">
         <div>
-          <h1 className="text-2xl font-bold">
-            {isLoading ? "Recherche..." : `${total} activité${total > 1 ? "s" : ""} trouvée${total > 1 ? "s" : ""}`}
+          <h1 className="text-xl font-semibold text-gray-900">
+            {isLoading ? "Recherche..." : `${total} résultat${total > 1 ? "s" : ""}`}
           </h1>
-          {params.city && <p className="text-muted-foreground">à {params.city}</p>}
+          {params.city && (
+            <p className="text-sm text-gray-500 mt-0.5">{params.city}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant={showFilters ? "default" : "outline"}
-            size="sm"
+          <button
             onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              showFilters
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+            }`}
           >
-            <Filter className="h-4 w-4 mr-2" />
+            <SlidersHorizontal className="h-3.5 w-3.5" />
             Filtres
-          </Button>
-          <div className="flex border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              className="rounded-none"
+          </button>
+          <div className="flex border border-gray-200 rounded-full overflow-hidden">
+            <button
               onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 text-sm transition-colors ${
+                viewMode === "list" ? "bg-gray-900 text-white" : "bg-white text-gray-500 hover:text-gray-700"
+              }`}
             >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "map" ? "default" : "ghost"}
-              size="sm"
-              className="rounded-none"
+              <List className="h-3.5 w-3.5" />
+            </button>
+            <button
               onClick={() => setViewMode("map")}
+              className={`px-3 py-1.5 text-sm transition-colors ${
+                viewMode === "map" ? "bg-gray-900 text-white" : "bg-white text-gray-500 hover:text-gray-700"
+              }`}
             >
-              <Map className="h-4 w-4" />
-            </Button>
+              <MapIcon className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Filters */}
       {showFilters && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Ville</label>
-                <Input
-                  placeholder="Paris, Lyon..."
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type d&apos;activité</label>
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Toutes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toutes les activités</SelectItem>
-                    {ACTIVITY_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Rayon</label>
-                <Select value={radius} onValueChange={setRadius}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DISTANCE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value.toString()}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Trier par</label>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="distance">Distance</SelectItem>
-                    <SelectItem value="popularity">Popularité</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Min personnes</label>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="1"
-                  value={minPeople}
-                  onChange={(e) => setMinPeople(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Max personnes</label>
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="10"
-                  value={maxPeople}
-                  onChange={(e) => setMaxPeople(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Prix max (€)</label>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="50"
-                  value={priceMax}
-                  onChange={(e) => setPriceMax(e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-end">
-                <Button onClick={handleSearch} className="w-full">
-                  <Search className="h-4 w-4 mr-2" />
-                  Rechercher
-                </Button>
-              </div>
+        <div className="py-4 border-b border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ville</label>
+              <Input
+                placeholder="Paris, Lyon..."
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="h-9 text-sm border-gray-200 focus:border-gray-400 focus:ring-0"
+              />
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Type</label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger className="h-9 text-sm border-gray-200">
+                  <SelectValue placeholder="Toutes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les activités</SelectItem>
+                  {ACTIVITY_TYPE_OPTIONS_PLAIN.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Rayon</label>
+              <Select value={radius} onValueChange={setRadius}>
+                <SelectTrigger className="h-9 text-sm border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DISTANCE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tri</label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-9 text-sm border-gray-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="distance">Distance</SelectItem>
+                  <SelectItem value="popularity">Popularité</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Min pers.</label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="1"
+                value={minPeople}
+                onChange={(e) => setMinPeople(e.target.value)}
+                className="h-9 text-sm border-gray-200 focus:border-gray-400 focus:ring-0"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Max pers.</label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="10"
+                value={maxPeople}
+                onChange={(e) => setMaxPeople(e.target.value)}
+                className="h-9 text-sm border-gray-200 focus:border-gray-400 focus:ring-0"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Prix max</label>
+              <Input
+                type="number"
+                min="0"
+                placeholder="50€"
+                value={priceMax}
+                onChange={(e) => setPriceMax(e.target.value)}
+                className="h-9 text-sm border-gray-200 focus:border-gray-400 focus:ring-0"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <Button onClick={handleSearch} size="sm" className="w-full h-9">
+                <Search className="h-3.5 w-3.5 mr-1.5" />
+                Rechercher
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Results */}
       <div ref={resultsRef}>
       {isLoading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-gray-200 rounded-lg animate-pulse" />
+        <div className="divide-y divide-gray-100">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-start gap-4 py-4 px-2">
+              <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl bg-gray-100 animate-pulse flex-shrink-0" />
+              <div className="flex-1 space-y-2 pt-1">
+                <div className="h-3 bg-gray-100 rounded w-20 animate-pulse" />
+                <div className="h-4 bg-gray-100 rounded w-48 animate-pulse" />
+                <div className="h-3 bg-gray-100 rounded w-32 animate-pulse" />
+              </div>
+            </div>
           ))}
         </div>
       ) : activities.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">Aucune activité trouvée</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Essayez d&apos;élargir votre recherche ou de modifier les filtres
-            </p>
-          </CardContent>
-        </Card>
+        <div className="py-16 text-center">
+          <p className="text-gray-400 text-sm">Aucune activité trouvée</p>
+          <p className="text-gray-400 text-xs mt-1">
+            Essayez d&apos;élargir votre recherche ou de modifier les filtres
+          </p>
+        </div>
       ) : viewMode === "map" ? (
-        <div className="h-[600px] rounded-lg overflow-hidden border">
+        <div className="h-[600px] rounded-xl overflow-hidden border border-gray-100 mt-4">
           <ActivityMap
             activities={activities}
             center={center}
@@ -336,17 +345,17 @@ export function SearchResults({ params }: SearchResultsProps) {
           />
         </div>
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-0">
           {/* Activity List */}
-          <div className="space-y-4">
+          <div className="divide-y divide-gray-100">
             {activities.map((activity) => (
               <ActivityCard key={activity.id} activity={activity} />
             ))}
           </div>
 
           {/* Map (desktop only) */}
-          <div className="hidden lg:block sticky top-24 h-[calc(100vh-8rem)]">
-            <div className="h-full rounded-lg overflow-hidden border">
+          <div className="hidden lg:block sticky top-20 h-[calc(100vh-6rem)] pl-6">
+            <div className="h-full rounded-xl overflow-hidden border border-gray-100">
               <ActivityMap
                 activities={activities}
                 center={center}
@@ -367,73 +376,68 @@ function ActivityCard({ activity }: { activity: ActivityWithDistance }) {
 
   return (
     <Link href={`/activite/${activity.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer">
-        <CardContent className="p-0">
-          <div className="flex">
-            {/* Image */}
-            <div className="w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0 bg-gray-200">
-              {firstImage ? (
-                <img
-                  src={normalizeUploadUrl(firstImage.url)}
-                  alt={activity.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl">
-                  {typeInfo?.emoji || "🎯"}
-                </div>
-              )}
+      <div className="flex items-start gap-4 py-4 px-2 hover:bg-gray-50/70 transition-colors cursor-pointer group">
+        {/* Thumbnail */}
+        <div className="w-18 h-18 sm:w-20 sm:h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+          {firstImage ? (
+            <img
+              src={normalizeUploadUrl(firstImage.url)}
+              alt={activity.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-2xl bg-gray-50">
+              {typeInfo?.emoji || "🎯"}
             </div>
+          )}
+        </div>
 
-            {/* Info */}
-            <div className="flex-1 p-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <Badge variant="secondary" className="mb-2">
-                      {typeInfo?.emoji} {typeInfo?.label || activity.type}
-                    </Badge>
-                    <h3 className="font-semibold line-clamp-1">{activity.title}</h3>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                  {activity.description}
-                </p>
-              </div>
+        {/* Content */}
+        <div className="flex-1 min-w-0 py-0.5">
+          <p className="text-xs text-gray-400 mb-0.5">
+            {typeInfo?.label || activity.type}
+          </p>
+          <h3 className="font-semibold text-[15px] text-gray-900 line-clamp-1 group-hover:text-black">
+            {activity.title}
+          </h3>
+          <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">
+            {activity.description}
+          </p>
 
-              <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  {activity.city}
-                </span>
-                {activity.distance !== undefined && (
-                  <span className="font-medium text-primary">
-                    {formatDistance(activity.distance)}
-                  </span>
-                )}
-                {activity.durationMinutes && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {activity.durationMinutes} min
-                  </span>
-                )}
-                {activity.priceFrom && (
-                  <span className="flex items-center gap-1">
-                    <Euro className="h-4 w-4" />
-                    à partir de {activity.priceFrom}€
-                  </span>
-                )}
-                {(activity.minPeople || activity.maxPeople) && (
-                  <span className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {activity.minPeople || 1}-{activity.maxPeople || "∞"} pers.
-                  </span>
-                )}
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-gray-400">
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {activity.city}
+            </span>
+            {activity.distance !== undefined && (
+              <span className="font-medium text-gray-600">
+                {formatDistance(activity.distance)}
+              </span>
+            )}
+            {activity.durationMinutes && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {activity.durationMinutes} min
+              </span>
+            )}
+            {activity.priceFrom && (
+              <span className="inline-flex items-center gap-1">
+                <Euro className="h-3 w-3" />
+                dès {activity.priceFrom}€
+              </span>
+            )}
+            {(activity.minPeople || activity.maxPeople) && (
+              <span className="inline-flex items-center gap-1">
+                <Users className="h-3 w-3" />
+                {activity.minPeople || 1}-{activity.maxPeople || "∞"}
+              </span>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Arrow */}
+        <ChevronRight className="h-4 w-4 text-gray-300 mt-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
     </Link>
   )
 }
