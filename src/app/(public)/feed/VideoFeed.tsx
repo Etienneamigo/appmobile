@@ -201,7 +201,7 @@ export function VideoFeed() {
 
   if (isLoading && videos.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center feed-height">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <p className="text-muted-foreground">Chargement du feed...</p>
@@ -212,7 +212,7 @@ export function VideoFeed() {
 
   if (!isLoading && videos.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center feed-height">
         <div className="text-center space-y-4 max-w-md mx-auto px-4">
           <p className="text-xl font-bold">Aucune video disponible</p>
           <p className="text-muted-foreground">
@@ -231,9 +231,12 @@ export function VideoFeed() {
   }
 
   return (
-    <div className="relative h-[calc(100vh-4rem)]">
-      {/* Filters overlay */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+    <div className="relative feed-height">
+      {/* Filters overlay — respects safe-area-inset-top */}
+      <div
+        className="absolute left-4 right-4 z-20 flex items-center justify-between pointer-events-none"
+        style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
+      >
         <div className="flex items-center gap-2 pointer-events-auto">
           <Button
             variant="secondary"
@@ -279,8 +282,11 @@ export function VideoFeed() {
         </div>
       </div>
 
-      {/* Navigation buttons */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
+      {/* Navigation buttons — centered vertically, safe right inset */}
+      <div
+        className="absolute top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2"
+        style={{ right: "calc(1rem + env(safe-area-inset-right, 0px))" }}
+      >
         <Button
           variant="secondary"
           size="icon"
@@ -325,20 +331,23 @@ export function VideoFeed() {
               preload={Math.abs(index - currentIndex) <= 1 ? "auto" : "none"}
             />
 
-            {/* Video info overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pb-8">
+            {/* Video info overlay — sits above bottom nav on mobile */}
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 sm:p-6"
+              style={{ paddingBottom: "1rem" }}
+            >
               <div className="max-w-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
                     {video.establishment.name}
                   </Badge>
                   {video.videoCategory && (
-                    <Badge variant="outline" className="text-white border-white/30">
+                    <Badge variant="outline" className="text-white border-white/30 text-xs">
                       {video.videoCategory}
                     </Badge>
                   )}
                 </div>
-                <h3 className="text-white text-lg font-bold mb-1">
+                <h3 className="text-white text-base sm:text-lg font-bold mb-1 line-clamp-2">
                   {video.title || video.activity.title}
                 </h3>
                 <div className="flex items-center gap-2 text-white/80 text-sm">
@@ -366,6 +375,7 @@ export function VideoFeed() {
           </div>
         )}
       </div>
+
     </div>
   )
 }
