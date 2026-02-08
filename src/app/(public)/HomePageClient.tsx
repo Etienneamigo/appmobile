@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ACTIVITY_TYPE_OPTIONS, DISTANCE_OPTIONS } from "@/lib/constants"
+import { ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_OPTIONS_PLAIN, DISTANCE_OPTIONS } from "@/lib/constants"
 import { MapPin, Search, Navigation, Loader2 } from "lucide-react"
 
 interface ActivityTypeOption {
@@ -44,9 +44,14 @@ export function HomePageClient({
   heroImageMobileUrl,
   activityTypeOptions,
 }: HomePageClientProps) {
+  // Options with emojis/icons for the category grid
   const typeOptions = activityTypeOptions && activityTypeOptions.length > 0
     ? activityTypeOptions
     : ACTIVITY_TYPE_OPTIONS
+  // Options without emojis for the dropdown
+  const dropdownOptions = activityTypeOptions && activityTypeOptions.length > 0
+    ? activityTypeOptions.map(o => ({ value: o.value, label: o.label }))
+    : ACTIVITY_TYPE_OPTIONS_PLAIN
   const router = useRouter()
   const [city, setCity] = useState("")
   const [type, setType] = useState("")
@@ -218,7 +223,7 @@ export function HomePageClient({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Toutes les activites</SelectItem>
-                        {typeOptions.map((option) => (
+                        {dropdownOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>

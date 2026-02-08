@@ -4,9 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
 import { toggleFavorite } from "@/app/actions/favorites"
 import { toast } from "sonner"
@@ -22,15 +19,14 @@ import {
   Calendar,
   CalendarCheck,
   ChevronLeft,
-  ChevronRight,
+  Play,
 } from "lucide-react"
 import type { Activity, Media, Establishment, Event } from "@prisma/client"
 import { EventsCarousel } from "./EventsCarousel"
-import { VideoGallery } from "./VideoGallery"
+import { MediaGrid } from "./MediaGrid"
 
 // Normalize upload URLs to use the API serving route
 function normalizeUploadUrl(url: string): string {
-  // If it's an old /uploads/ path, convert to /api/uploads/
   if (url.startsWith("/uploads/")) {
     return url.replace("/uploads/", "/api/uploads/")
   }
@@ -39,7 +35,7 @@ function normalizeUploadUrl(url: string): string {
 
 const ActivityMap = dynamic(
   () => import("@/components/map/ActivityMap").then((mod) => mod.ActivityMap),
-  { ssr: false, loading: () => <div className="h-64 bg-gray-200 rounded-lg animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
 )
 
 interface ActivityDetailProps {
@@ -58,15 +54,14 @@ export function ActivityDetail({
   activity,
   isFavorited: initialFavorited,
   isAuthenticated,
-  userId,
 }: ActivityDetailProps) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFavorited, setIsFavorited] = useState(initialFavorited)
   const [isLoading, setIsLoading] = useState(false)
 
   const typeInfo = ACTIVITY_TYPES[activity.type as ActivityTypeKey]
-  const images = activity.medias.filter((m) => m.kind === "IMAGE")
-  const allVideos = activity.medias.filter((m) => m.kind === "VIDEO_UPLOAD" || m.kind === "VIDEO")
+  const allMedia = activity.medias
+  const coverMedia = allMedia[0] // First media as cover
+  const coverIsVideo = coverMedia?.kind === "VIDEO_UPLOAD" || coverMedia?.kind === "VIDEO"
 
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${activity.lat},${activity.lng}`
   const osmUrl = `https://www.openstreetmap.org/directions?route=;${activity.lat},${activity.lng}`
@@ -91,293 +86,228 @@ export function ActivityDetail({
     }
   }
 
-  function nextImage() {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length)
-  }
-
-  function prevImage() {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Breadcrumb */}
-        <div className="mb-6">
-          <Link
-            href="/recherche"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Retour à la recherche
-          </Link>
-        </div>
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      {/* Breadcrumb */}
+      <div className="mb-4">
+        <Link
+          href="/recherche"
+          className="text-sm text-gray-400 hover:text-gray-600 inline-flex items-center gap-1 transition-colors"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Retour
+        </Link>
+      </div>
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-          <div>
-            <Badge variant="secondary" className="mb-2">
-              {typeInfo?.emoji} {typeInfo?.label || activity.type}
-            </Badge>
-            <h1 className="text-3xl font-bold">{activity.title}</h1>
-            <p className="text-muted-foreground flex items-center gap-1 mt-1">
-              <MapPin className="h-4 w-4" />
-              {activity.address}, {activity.zipCode} {activity.city}
-            </p>
-          </div>
-          <Button
-            variant={isFavorited ? "default" : "outline"}
-            onClick={handleToggleFavorite}
-            disabled={isLoading}
-          >
-            <Heart
-              className={`h-4 w-4 mr-2 ${isFavorited ? "fill-current" : ""}`}
-            />
-            {isFavorited ? "Favori" : "Ajouter aux favoris"}
-          </Button>
-        </div>
-
-        {/* Image Gallery */}
-        {images.length > 0 && (
-          <div className="relative mb-8">
-            <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
+      {/* Cover + Title */}
+      <div className="relative rounded-xl overflow-hidden mb-6 bg-gray-100">
+        {coverMedia ? (
+          coverIsVideo ? (
+            <div className="aspect-[16/9] sm:aspect-[21/9]">
+              <video
+                src={normalizeUploadUrl(coverMedia.url)}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Play className="h-12 w-12 text-white/60" />
+              </div>
+            </div>
+          ) : (
+            <div className="aspect-[16/9] sm:aspect-[21/9]">
               <img
-                src={normalizeUploadUrl(images[currentImageIndex].url)}
-                alt={`${activity.title} - Image ${currentImageIndex + 1}`}
+                src={normalizeUploadUrl(coverMedia.url)}
+                alt={activity.title}
                 className="w-full h-full object-cover"
               />
             </div>
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={prevImage}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full hover:bg-white"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                <button
-                  onClick={nextImage}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full hover:bg-white"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                  {images.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`w-2 h-2 rounded-full ${
-                        index === currentImageIndex
-                          ? "bg-white"
-                          : "bg-white/50"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+          )
+        ) : (
+          <div className="aspect-[16/9] sm:aspect-[21/9] bg-gradient-to-br from-gray-200 to-gray-100 flex items-center justify-center">
+            <span className="text-6xl">{typeInfo?.emoji || "🎯"}</span>
+          </div>
+        )}
+        {/* Title overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 bg-gradient-to-t from-black/70 via-black/30 to-transparent">
+          <p className="text-xs sm:text-sm text-white/70 mb-1">
+            {typeInfo?.label || activity.type}
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            {activity.title}
+          </h1>
+          <p className="text-white/70 text-sm mt-1 flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5" />
+            {activity.address}, {activity.zipCode} {activity.city}
+          </p>
+        </div>
+      </div>
+
+      {/* Action buttons row */}
+      <div className="flex flex-wrap items-center gap-2 mb-8">
+        {activity.establishment.bookingUrl && (
+          <Button asChild size="sm" className="bg-gray-900 hover:bg-black text-white">
+            <a href={activity.establishment.bookingUrl} target="_blank" rel="noopener noreferrer">
+              <CalendarCheck className="h-3.5 w-3.5 mr-1.5" />
+              Réserver
+            </a>
+          </Button>
+        )}
+        <Button asChild variant="outline" size="sm" className="border-gray-200 text-gray-700">
+          <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+            <Navigation className="h-3.5 w-3.5 mr-1.5" />
+            Itinéraire
+          </a>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-gray-200 text-gray-700"
+          onClick={handleToggleFavorite}
+          disabled={isLoading}
+        >
+          <Heart
+            className={`h-3.5 w-3.5 mr-1.5 ${isFavorited ? "fill-current text-red-500" : ""}`}
+          />
+          {isFavorited ? "Favori" : "Favoris"}
+        </Button>
+      </div>
+
+      {/* Description */}
+      <div className="mb-10">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Description</h2>
+        <p className="text-gray-600 whitespace-pre-wrap leading-relaxed">
+          {activity.description}
+        </p>
+      </div>
+
+      {/* Media Grid - TikTok profile style (all images + videos) */}
+      {allMedia.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            Médias
+            <span className="text-sm font-normal text-gray-400 ml-2">{allMedia.length}</span>
+          </h2>
+          <MediaGrid medias={allMedia} />
+        </div>
+      )}
+
+      {/* Upcoming Events */}
+      {activity.events.length > 0 && (
+        <div className="mb-10">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Événements à venir</h2>
+          <EventsCarousel events={activity.events} />
+        </div>
+      )}
+
+      {/* Infos pratiques */}
+      <div className="mb-10">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Infos pratiques</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {activity.durationMinutes && (
+            <div className="flex items-start gap-3">
+              <Clock className="h-4 w-4 text-gray-400 mt-0.5" />
+              <div>
+                <p className="text-xs text-gray-400">Durée</p>
+                <p className="text-sm font-medium text-gray-900">{activity.durationMinutes} min</p>
+              </div>
+            </div>
+          )}
+
+          {activity.priceFrom && (
+            <div className="flex items-start gap-3">
+              <Euro className="h-4 w-4 text-gray-400 mt-0.5" />
+              <div>
+                <p className="text-xs text-gray-400">Prix</p>
+                <p className="text-sm font-medium text-gray-900">Dès {activity.priceFrom}€</p>
+              </div>
+            </div>
+          )}
+
+          {(activity.minPeople || activity.maxPeople) && (
+            <div className="flex items-start gap-3">
+              <Users className="h-4 w-4 text-gray-400 mt-0.5" />
+              <div>
+                <p className="text-xs text-gray-400">Personnes</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {activity.minPeople || 1} - {activity.maxPeople || "∞"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {activity.scheduleText && (
+          <div className="flex items-start gap-3 mt-4 pt-4 border-t border-gray-100">
+            <Calendar className="h-4 w-4 text-gray-400 mt-0.5" />
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Horaires</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{activity.scheduleText}</p>
+            </div>
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="md:col-span-2 space-y-8">
-            {/* Description */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{activity.description}</p>
-              </CardContent>
-            </Card>
-
-            {/* Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Informations pratiques</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {activity.durationMinutes && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Durée</p>
-                        <p className="font-medium">{activity.durationMinutes} minutes</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {activity.priceFrom && (
-                    <div className="flex items-center gap-2">
-                      <Euro className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Prix</p>
-                        <p className="font-medium">À partir de {activity.priceFrom}€</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {(activity.minPeople || activity.maxPeople) && (
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Personnes</p>
-                        <p className="font-medium">
-                          {activity.minPeople || 1} - {activity.maxPeople || "∞"} personnes
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {activity.scheduleText && (
-                  <>
-                    <Separator />
-                    <div className="flex items-start gap-2">
-                      <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Horaires</p>
-                        <p className="whitespace-pre-wrap">{activity.scheduleText}</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {activity.tags.length > 0 && (
-                  <>
-                    <Separator />
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Tags</p>
-                      <div className="flex flex-wrap gap-2">
-                        {activity.tags.map((tag) => (
-                          <Badge key={tag} variant="outline">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Videos - TikTok-style grid with modal viewer */}
-            {allVideos.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vidéos ({allVideos.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <VideoGallery videos={allVideos} />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Map */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Localisation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 rounded-lg overflow-hidden mb-4">
-                  <ActivityMap
-                    activities={[{ ...activity, _count: { favorites: 0 } } as never]}
-                    center={{ lat: activity.lat, lng: activity.lng }}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                      <Navigation className="h-4 w-4 mr-2" />
-                      Google Maps
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href={osmUrl} target="_blank" rel="noopener noreferrer">
-                      <Navigation className="h-4 w-4 mr-2" />
-                      OpenStreetMap
-                    </a>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        {activity.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-gray-100">
+            {activity.tags.map((tag) => (
+              <span key={tag} className="px-2.5 py-1 text-xs text-gray-500 bg-gray-100 rounded-full">
+                {tag}
+              </span>
+            ))}
           </div>
+        )}
+      </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Upcoming Events */}
-            {activity.events.length > 0 && (
-              <EventsCarousel events={activity.events} />
-            )}
+      {/* Localisation */}
+      <div className="mb-10">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Localisation</h2>
+        <div className="h-56 rounded-xl overflow-hidden mb-3 border border-gray-100">
+          <ActivityMap
+            activities={[{ ...activity, _count: { favorites: 0 } } as never]}
+            center={{ lat: activity.lat, lng: activity.lng }}
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="text-xs border-gray-200">
+            <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+              Google Maps
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="text-xs border-gray-200">
+            <a href={osmUrl} target="_blank" rel="noopener noreferrer">
+              OpenStreetMap
+            </a>
+          </Button>
+        </div>
+      </div>
 
-            {/* Establishment Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Etablissement</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="font-semibold">{activity.establishment.name}</p>
-
-                {activity.establishment.phone && (
-                  <a
-                    href={`tel:${activity.establishment.phone}`}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <Phone className="h-4 w-4" />
-                    {activity.establishment.phone}
-                  </a>
-                )}
-
-                {activity.establishment.website && (
-                  <a
-                    href={activity.establishment.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <Globe className="h-4 w-4" />
-                    Site web
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {activity.establishment.bookingUrl && (
-                  <Button asChild className="w-full bg-green-600 hover:bg-green-700">
-                    <a href={activity.establishment.bookingUrl} target="_blank" rel="noopener noreferrer">
-                      <CalendarCheck className="h-4 w-4 mr-2" />
-                      Reserver
-                    </a>
-                  </Button>
-                )}
-                <Button asChild variant={activity.establishment.bookingUrl ? "outline" : "default"} className="w-full">
-                  <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                    <Navigation className="h-4 w-4 mr-2" />
-                    Itineraire
-                  </a>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleToggleFavorite}
-                  disabled={isLoading}
-                >
-                  <Heart
-                    className={`h-4 w-4 mr-2 ${isFavorited ? "fill-current" : ""}`}
-                  />
-                  {isFavorited ? "Retirer des favoris" : "Ajouter aux favoris"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+      {/* Établissement */}
+      <div className="mb-10 p-5 bg-gray-50 rounded-xl">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Établissement</h2>
+        <p className="font-medium text-gray-900">{activity.establishment.name}</p>
+        <div className="flex flex-wrap items-center gap-4 mt-2">
+          {activity.establishment.phone && (
+            <a
+              href={`tel:${activity.establishment.phone}`}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              {activity.establishment.phone}
+            </a>
+          )}
+          {activity.establishment.website && (
+            <a
+              href={activity.establishment.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              Site web
+            </a>
+          )}
         </div>
       </div>
     </div>
