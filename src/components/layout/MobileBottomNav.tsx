@@ -4,12 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import {
+  Home,
   Play,
   Search,
   Heart,
   User,
   Building2,
-  Settings,
   Shield,
 } from "lucide-react"
 
@@ -19,31 +19,33 @@ interface NavItem {
   icon: React.ReactNode
 }
 
-function getNavItems(role?: string): NavItem[] {
+function getNavItems(role?: string, isAuthenticated?: boolean): NavItem[] {
   const iconClass = "h-5 w-5"
 
   switch (role) {
     case "ESTABLISHMENT":
       return [
+        { href: "/", label: "Accueil", icon: <Home className={iconClass} /> },
         { href: "/feed", label: "Feed", icon: <Play className={iconClass} /> },
         { href: "/etablissement/dashboard", label: "Activité", icon: <Building2 className={iconClass} /> },
-        { href: "/etablissement/parametres", label: "Profil", icon: <Settings className={iconClass} /> },
-        { href: "/etablissement/abonnement", label: "Compte", icon: <User className={iconClass} /> },
+        { href: "/recherche", label: "Recherche", icon: <Search className={iconClass} /> },
+        { href: "/compte", label: "Compte", icon: <User className={iconClass} /> },
       ]
     case "ADMIN":
       return [
+        { href: "/", label: "Accueil", icon: <Home className={iconClass} /> },
         { href: "/admin", label: "Admin", icon: <Shield className={iconClass} /> },
         { href: "/feed", label: "Feed", icon: <Play className={iconClass} /> },
         { href: "/recherche", label: "Recherche", icon: <Search className={iconClass} /> },
-        { href: "/admin/parametres", label: "Compte", icon: <User className={iconClass} /> },
+        { href: "/compte", label: "Compte", icon: <User className={iconClass} /> },
       ]
     default:
-      // USER or unauthenticated
       return [
+        { href: "/", label: "Accueil", icon: <Home className={iconClass} /> },
         { href: "/feed", label: "Feed", icon: <Play className={iconClass} /> },
         { href: "/recherche", label: "Recherche", icon: <Search className={iconClass} /> },
         { href: "/favoris", label: "Favoris", icon: <Heart className={iconClass} /> },
-        { href: "/auth/connexion", label: "Compte", icon: <User className={iconClass} /> },
+        { href: isAuthenticated ? "/compte" : "/auth/connexion", label: "Compte", icon: <User className={iconClass} /> },
       ]
   }
 }
@@ -53,15 +55,7 @@ export function MobileBottomNav() {
   const { data: session } = useSession()
 
   const role = session?.user?.role
-  const items = getNavItems(role)
-
-  // If user is authenticated, replace "Compte" link for USER role
-  if (role === "USER") {
-    const compteItem = items.find(i => i.label === "Compte")
-    if (compteItem) {
-      compteItem.href = "/favoris"
-    }
-  }
+  const items = getNavItems(role, !!session)
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/"

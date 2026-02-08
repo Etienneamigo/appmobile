@@ -44,6 +44,9 @@ export function Header() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center space-x-6">
+          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            Accueil
+          </Link>
           <Link href="/recherche" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
             Rechercher
           </Link>

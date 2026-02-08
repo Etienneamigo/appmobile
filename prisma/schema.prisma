@@ -120,6 +120,7 @@ model Activity {
   priceFrom       Float?
   scheduleText    String?        @db.Text
   tags            String[]
+  coverMediaId    String?        // ID du média choisi comme couverture
   status          ActivityStatus @default(DRAFT)
   viewCount       Int            @default(0)
   createdAt       DateTime       @default(now())

@@ -4,15 +4,16 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addMediaToActivity, deleteMedia } from "@/app/actions/activities"
+import { addMediaToActivity, deleteMedia, setCoverMedia } from "@/app/actions/activities"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { Upload, Trash2, Image, Video, Loader2, Link as LinkIcon, FileVideo, AlertCircle } from "lucide-react"
+import { Upload, Trash2, Image, Video, Loader2, Link as LinkIcon, FileVideo, AlertCircle, Star } from "lucide-react"
 import type { Media } from "@prisma/client"
 
 interface MediaManagerProps {
   activityId: string
   medias: Media[]
+  coverMediaId?: string | null
 }
 
 const MAX_VIDEO_SIZE_MB = 30
@@ -27,7 +28,7 @@ function normalizeUploadUrl(url: string): string {
   return url
 }
 
-export function MediaManager({ activityId, medias }: MediaManagerProps) {
+export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isUploadingVideo, setIsUploadingVideo] = useState(false)
   const [videoUrl, setVideoUrl] = useState("")
@@ -195,6 +196,17 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
     }
   }
 
+  async function handleSetCover(mediaId: string) {
+    const result = await setCoverMedia(activityId, mediaId)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Couverture définie")
+      router.refresh()
+    }
+  }
+
   async function handleDeleteMedia(id: string) {
     const result = await deleteMedia(id)
 
@@ -241,22 +253,43 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
 
         {images.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {images.map((media) => (
-              <div key={media.id} className="relative group">
-                <img
-                  src={normalizeUploadUrl(media.url)}
-                  alt=""
-                  className="w-full h-24 object-cover rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteMedia(media.id)}
-                  className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+            {images.map((media) => {
+              const isCover = coverMediaId === media.id
+              return (
+                <div key={media.id} className={`relative group rounded-lg overflow-hidden ${isCover ? "ring-2 ring-yellow-400" : ""}`}>
+                  <img
+                    src={normalizeUploadUrl(media.url)}
+                    alt=""
+                    className="w-full h-24 object-cover"
+                  />
+                  {isCover && (
+                    <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] font-semibold rounded">
+                      Couverture
+                    </span>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!isCover && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetCover(media.id)}
+                        className="p-1 bg-yellow-400 text-yellow-900 rounded-full"
+                        title="Définir comme couverture"
+                      >
+                        <Star className="h-3 w-3" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMedia(media.id)}
+                      className="p-1 bg-red-500 text-white rounded-full"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Aucune image</p>
@@ -306,38 +339,59 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
 
         {uploadedVideos.length > 0 ? (
           <div className="space-y-4">
-            {uploadedVideos.map((video) => (
-              <div key={video.id} className="space-y-2">
-                <div className="relative rounded-lg overflow-hidden bg-black">
-                  <video
-                    src={normalizeUploadUrl(video.url)}
-                    controls
-                    className="w-full max-h-64"
-                    preload="metadata"
-                  >
-                    Votre navigateur ne supporte pas la lecture de vidéos.
-                  </video>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {video.fileName || "Vidéo uploadée"}
-                    {video.fileSize && (
-                      <span className="ml-2">
-                        ({(video.fileSize / (1024 * 1024)).toFixed(1)}MB)
+            {uploadedVideos.map((video) => {
+              const isCover = coverMediaId === video.id
+              return (
+                <div key={video.id} className="space-y-2">
+                  <div className={`relative rounded-lg overflow-hidden bg-black ${isCover ? "ring-2 ring-yellow-400" : ""}`}>
+                    <video
+                      src={normalizeUploadUrl(video.url)}
+                      controls
+                      className="w-full max-h-64"
+                      preload="metadata"
+                    >
+                      Votre navigateur ne supporte pas la lecture de vidéos.
+                    </video>
+                    {isCover && (
+                      <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] font-semibold rounded">
+                        Couverture
                       </span>
                     )}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteMedia(video.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {video.fileName || "Vidéo uploadée"}
+                      {video.fileSize && (
+                        <span className="ml-2">
+                          ({(video.fileSize / (1024 * 1024)).toFixed(1)}MB)
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {!isCover && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSetCover(video.id)}
+                          title="Définir comme couverture"
+                        >
+                          <Star className="h-4 w-4 text-yellow-500" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteMedia(video.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div

@@ -58,7 +58,7 @@ export default async function EditActivityPage({ params }: EditActivityPageProps
           <CardTitle>Medias</CardTitle>
         </CardHeader>
         <CardContent>
-          <MediaManager activityId={activity.id} medias={activity.medias} />
+          <MediaManager activityId={activity.id} medias={activity.medias} coverMediaId={activity.coverMediaId} />
         </CardContent>
       </Card>
 
