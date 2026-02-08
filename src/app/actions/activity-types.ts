@@ -40,11 +40,59 @@ export async function getAllActivityTypes() {
   }
 }
 
+// Backfill: create ActivityTypeConfig for Activity.type values that don't have one
+export async function backfillActivityTypes() {
+  try {
+    // Get all distinct type values from activities
+    const distinctTypes = await prisma.activity.groupBy({
+      by: ["type"],
+    })
+
+    // Get existing config slugs
+    const existingConfigs = await prisma.activityTypeConfig.findMany({
+      select: { slug: true },
+    })
+    const existingSlugs = new Set(existingConfigs.map((c) => c.slug))
+
+    // Find missing types
+    const missingTypes = distinctTypes
+      .map((t) => t.type)
+      .filter((type) => type && !existingSlugs.has(type))
+
+    if (missingTypes.length === 0) return { created: 0 }
+
+    // Get max sort order
+    const maxOrder = await prisma.activityTypeConfig.aggregate({
+      _max: { sortOrder: true },
+    })
+    let nextOrder = (maxOrder._max.sortOrder ?? 0) + 1
+
+    // Create missing types
+    await prisma.activityTypeConfig.createMany({
+      data: missingTypes.map((slug) => ({
+        slug,
+        label: slug.charAt(0).toUpperCase() + slug.slice(1).toLowerCase().replace(/_/g, " "),
+        emoji: "🎯",
+        isActive: true,
+        sortOrder: nextOrder++,
+      })),
+    })
+
+    revalidatePath("/admin/types-activite")
+    revalidatePath("/")
+    revalidatePath("/recherche")
+    return { created: missingTypes.length }
+  } catch {
+    return { created: 0 }
+  }
+}
+
 // Create a new activity type
 export async function createActivityType(data: {
   slug: string
   label: string
   emoji: string
+  iconUrl?: string | null
   isActive?: boolean
   sortOrder?: number
 }) {
@@ -70,6 +118,7 @@ export async function createActivityType(data: {
         slug: parsed.data.slug,
         label: parsed.data.label,
         emoji: parsed.data.emoji,
+        iconUrl: parsed.data.iconUrl ?? null,
         isActive: parsed.data.isActive ?? true,
         sortOrder: parsed.data.sortOrder ?? 0,
       },
@@ -91,6 +140,7 @@ export async function updateActivityType(
     slug?: string
     label?: string
     emoji?: string
+    iconUrl?: string | null
     isActive?: boolean
     sortOrder?: number
   }

@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db"
 import { ActivityTypeManager } from "./ActivityTypeManager"
+import { backfillActivityTypes } from "@/app/actions/activity-types"
 
 export default async function ActivityTypesPage() {
+  // Auto-backfill: create ActivityTypeConfig entries for any Activity.type values
+  // that don't have a config entry yet (idempotent, runs every page load)
+  await backfillActivityTypes()
+
   const types = await prisma.activityTypeConfig.findMany({
     orderBy: { sortOrder: "asc" },
   })

@@ -13,7 +13,7 @@ export default async function HomePage() {
   }
 
   // Fetch activity types from DB
-  let activityTypeOptions: { value: string; label: string; emoji: string }[] = []
+  let activityTypeOptions: { value: string; label: string; emoji: string; iconUrl?: string | null }[] = []
   try {
     const types = await prisma.activityTypeConfig.findMany({
       where: { isActive: true },
@@ -23,6 +23,7 @@ export default async function HomePage() {
       value: t.slug,
       label: `${t.emoji} ${t.label}`,
       emoji: t.emoji,
+      iconUrl: t.iconUrl,
     }))
   } catch {
     // Table might not exist yet

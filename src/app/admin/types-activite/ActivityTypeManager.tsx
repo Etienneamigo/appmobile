@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,13 +21,14 @@ import {
   toggleActivityTypeActive,
 } from "@/app/actions/activity-types"
 import { toast } from "sonner"
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react"
+import { Plus, Pencil, Trash2, GripVertical, Upload, X, Loader2 } from "lucide-react"
 
 interface ActivityTypeConfig {
   id: string
   slug: string
   label: string
   emoji: string
+  iconUrl: string | null
   isActive: boolean
   sortOrder: number
   createdAt: Date
@@ -39,18 +40,30 @@ interface ActivityTypeManagerProps {
   typeCounts: Record<string, number>
 }
 
+// Normalize upload URLs to use API route
+function normalizeUploadUrl(url: string): string {
+  if (url.startsWith("/uploads/")) {
+    return url.replace("/uploads/", "/api/uploads/")
+  }
+  return url
+}
+
 export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeManagerProps) {
   const [types, setTypes] = useState(initialTypes)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingType, setEditingType] = useState<ActivityTypeConfig | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<ActivityTypeConfig | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false)
+  const createIconInputRef = useRef<HTMLInputElement>(null)
+  const editIconInputRef = useRef<HTMLInputElement>(null)
 
   // Create form state
   const [createForm, setCreateForm] = useState({
     slug: "",
     label: "",
     emoji: "🎯",
+    iconUrl: null as string | null,
     sortOrder: types.length + 1,
   })
 
@@ -58,8 +71,53 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
   const [editForm, setEditForm] = useState({
     label: "",
     emoji: "",
+    iconUrl: null as string | null,
     sortOrder: 0,
   })
+
+  async function uploadIcon(file: File): Promise<string | null> {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      setIsUploadingIcon(true)
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        toast.error(data.error || "Erreur lors de l'upload de l'icone")
+        return null
+      }
+      return data.url
+    } catch {
+      toast.error("Erreur lors de l'upload de l'icone")
+      return null
+    } finally {
+      setIsUploadingIcon(false)
+    }
+  }
+
+  async function handleCreateIconUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = await uploadIcon(file)
+    if (url) {
+      setCreateForm({ ...createForm, iconUrl: url })
+    }
+    if (createIconInputRef.current) createIconInputRef.current.value = ""
+  }
+
+  async function handleEditIconUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = await uploadIcon(file)
+    if (url) {
+      setEditForm({ ...editForm, iconUrl: url })
+    }
+    if (editIconInputRef.current) editIconInputRef.current.value = ""
+  }
 
   async function handleCreate() {
     setIsLoading(true)
@@ -67,6 +125,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
       slug: createForm.slug.toUpperCase().replace(/\s+/g, "_"),
       label: createForm.label,
       emoji: createForm.emoji,
+      iconUrl: createForm.iconUrl,
       sortOrder: createForm.sortOrder,
     })
     setIsLoading(false)
@@ -77,7 +136,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
       toast.success("Type cree avec succes")
       setTypes([...types, result.activityType])
       setIsCreateOpen(false)
-      setCreateForm({ slug: "", label: "", emoji: "🎯", sortOrder: types.length + 2 })
+      setCreateForm({ slug: "", label: "", emoji: "🎯", iconUrl: null, sortOrder: types.length + 2 })
     }
   }
 
@@ -87,6 +146,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
     const result = await updateActivityType(editingType.id, {
       label: editForm.label,
       emoji: editForm.emoji,
+      iconUrl: editForm.iconUrl,
       sortOrder: editForm.sortOrder,
     })
     setIsLoading(false)
@@ -129,9 +189,25 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
     setEditForm({
       label: type.label,
       emoji: type.emoji,
+      iconUrl: type.iconUrl,
       sortOrder: type.sortOrder,
     })
     setEditingType(type)
+  }
+
+  // Helper to render icon or emoji
+  function renderTypeIcon(type: { emoji: string; iconUrl: string | null }, size: "sm" | "lg" = "sm") {
+    const sizeClass = size === "lg" ? "h-8 w-8" : "h-6 w-6"
+    if (type.iconUrl) {
+      return (
+        <img
+          src={normalizeUploadUrl(type.iconUrl)}
+          alt=""
+          className={`${sizeClass} object-contain`}
+        />
+      )
+    }
+    return <span className={size === "lg" ? "text-2xl" : "text-xl"}>{type.emoji}</span>
   }
 
   return (
@@ -176,7 +252,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Emoji</Label>
+                  <Label>Emoji (fallback)</Label>
                   <Input
                     placeholder="🎯"
                     value={createForm.emoji}
@@ -192,6 +268,53 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
                     onChange={(e) => setCreateForm({ ...createForm, sortOrder: parseInt(e.target.value) || 0 })}
                   />
                 </div>
+              </div>
+              {/* Icon upload */}
+              <div className="space-y-2">
+                <Label>Icone (png/svg)</Label>
+                {createForm.iconUrl ? (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={normalizeUploadUrl(createForm.iconUrl)}
+                      alt="Icone"
+                      className="h-10 w-10 object-contain rounded border p-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCreateForm({ ...createForm, iconUrl: null })}
+                    >
+                      <X className="h-4 w-4" />
+                      Retirer
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => createIconInputRef.current?.click()}
+                    disabled={isUploadingIcon}
+                  >
+                    {isUploadingIcon ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    Uploader une icone
+                  </Button>
+                )}
+                <input
+                  ref={createIconInputRef}
+                  type="file"
+                  accept="image/png,image/svg+xml,image/webp,image/jpeg"
+                  className="hidden"
+                  onChange={handleCreateIconUpload}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optionnel. Si aucune icone, l&apos;emoji sera utilise.
+                </p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -222,7 +345,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
                 >
                   <div className="flex items-center gap-3">
                     <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-2xl">{type.emoji}</span>
+                    {renderTypeIcon(type)}
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{type.label}</span>
@@ -237,6 +360,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {count} activite{count !== 1 ? "s" : ""} &middot; Ordre: {type.sortOrder}
+                        {type.iconUrl && " · Icone personnalisee"}
                       </p>
                     </div>
                   </div>
@@ -295,7 +419,7 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Emoji</Label>
+                <Label>Emoji (fallback)</Label>
                 <Input
                   value={editForm.emoji}
                   onChange={(e) => setEditForm({ ...editForm, emoji: e.target.value })}
@@ -310,6 +434,67 @@ export function ActivityTypeManager({ initialTypes, typeCounts }: ActivityTypeMa
                   onChange={(e) => setEditForm({ ...editForm, sortOrder: parseInt(e.target.value) || 0 })}
                 />
               </div>
+            </div>
+            {/* Icon upload */}
+            <div className="space-y-2">
+              <Label>Icone (png/svg)</Label>
+              {editForm.iconUrl ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={normalizeUploadUrl(editForm.iconUrl)}
+                    alt="Icone"
+                    className="h-10 w-10 object-contain rounded border p-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditForm({ ...editForm, iconUrl: null })}
+                  >
+                    <X className="h-4 w-4" />
+                    Retirer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => editIconInputRef.current?.click()}
+                    disabled={isUploadingIcon}
+                  >
+                    {isUploadingIcon ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    Remplacer
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => editIconInputRef.current?.click()}
+                  disabled={isUploadingIcon}
+                >
+                  {isUploadingIcon ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Uploader une icone
+                </Button>
+              )}
+              <input
+                ref={editIconInputRef}
+                type="file"
+                accept="image/png,image/svg+xml,image/webp,image/jpeg"
+                className="hidden"
+                onChange={handleEditIconUpload}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optionnel. Si aucune icone, l&apos;emoji sera utilise.
+              </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditingType(null)}>

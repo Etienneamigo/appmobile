@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Wadelo - Qu'est-ce qu'on fait ce soir ?",
+  title: "Wadelo - découvrez quoi faire, simplement",
   description: "Trouvez des activites pres de chez vous : bowling, escape game, karaoke, et plus encore !",
 };
 

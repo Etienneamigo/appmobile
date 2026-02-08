@@ -18,6 +18,7 @@ interface ActivityTypeOption {
   value: string
   label: string
   emoji?: string
+  iconUrl?: string | null
 }
 
 interface HomePageClientProps {
@@ -156,12 +157,9 @@ export function HomePageClient({
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-3xl mx-auto text-center text-white">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">
-              Qu&apos;est-ce qu&apos;on fait ce soir ?
+            <h1 className="text-4xl md:text-6xl font-bold mb-10 drop-shadow-lg">
+              découvrez quoi faire, simplement
             </h1>
-            <p className="text-xl md:text-2xl mb-10 text-white/90 drop-shadow-md">
-              Decouvrez les meilleures activites pres de chez vous
-            </p>
 
             {/* Search Card - Glassmorphism */}
             <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/30 p-6 md:p-8 text-left">
@@ -267,8 +265,9 @@ export function HomePageClient({
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {typeOptions.map((option) => {
-              const emoji = (option as ActivityTypeOption).emoji || option.label.split(" ")[0]
-              const labelText = (option as ActivityTypeOption).emoji
+              const opt = option as ActivityTypeOption
+              const emoji = opt.emoji || option.label.split(" ")[0]
+              const labelText = opt.emoji
                 ? option.label.replace(/^[^\s]+\s/, "")
                 : option.label.split(" ").slice(1).join(" ")
               return (
@@ -277,7 +276,15 @@ export function HomePageClient({
                   onClick={() => router.push(`/recherche?type=${option.value}`)}
                   className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border hover:border-primary"
                 >
-                  <span className="text-4xl mb-2">{emoji}</span>
+                  {opt.iconUrl ? (
+                    <img
+                      src={normalizeUploadUrl(opt.iconUrl)}
+                      alt=""
+                      className="h-10 w-10 object-contain mb-2"
+                    />
+                  ) : (
+                    <span className="text-4xl mb-2">{emoji}</span>
+                  )}
                   <span className="text-sm text-center font-medium">
                     {labelText}
                   </span>

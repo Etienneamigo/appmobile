@@ -245,7 +245,8 @@ model ActivityTypeConfig {
   id        String   @id @default(cuid())
   slug      String   @unique  // Identifiant unique (ex: "BOWLING", "ROLLER_CLUB")
   label     String            // Nom affiché (ex: "Bowling", "Club de roller")
-  emoji     String   @default("🎯") // Emoji ou icône
+  emoji     String   @default("🎯") // Emoji ou icône (fallback si pas d'iconUrl)
+  iconUrl   String?           // URL de l'icône uploadée (png/svg)
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
