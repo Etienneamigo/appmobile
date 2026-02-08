@@ -84,7 +84,7 @@ export const createActivityTypeConfigSchema = z.object({
     .regex(/^[A-Z0-9_]+$/, "Le slug doit contenir uniquement des majuscules, chiffres et underscores"),
   label: z.string().min(2, "Le label doit contenir au moins 2 caractères").max(100),
   emoji: z.string().min(1, "L'emoji est requis").max(10),
-  iconUrl: z.string().url("URL d'icône invalide").optional().nullable(),
+  iconUrl: z.string().min(1, "URL d'icône requise").optional().nullable(),
   isActive: z.boolean().default(true),
   sortOrder: z.number().int().min(0).default(0),
 })

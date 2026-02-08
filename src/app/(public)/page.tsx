@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/db"
 import { HomePageClient } from "./HomePageClient"
+import { backfillActivityTypes } from "@/app/actions/activity-types"
 
 export default async function HomePage() {
+  // Ensure all preconfigured + DB types exist in ActivityTypeConfig
+  await backfillActivityTypes()
+
   // Fetch site settings for hero media (video or image)
   let settings = null
   try {

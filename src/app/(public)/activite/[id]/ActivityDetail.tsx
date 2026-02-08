@@ -23,10 +23,10 @@ import {
   CalendarCheck,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
 } from "lucide-react"
 import type { Activity, Media, Establishment, Event } from "@prisma/client"
 import { EventsCarousel } from "./EventsCarousel"
+import { VideoGallery } from "./VideoGallery"
 
 // Normalize upload URLs to use the API serving route
 function normalizeUploadUrl(url: string): string {
@@ -66,9 +66,7 @@ export function ActivityDetail({
 
   const typeInfo = ACTIVITY_TYPES[activity.type as ActivityTypeKey]
   const images = activity.medias.filter((m) => m.kind === "IMAGE")
-  // Prioritize uploaded video over external video link
-  const uploadedVideo = activity.medias.find((m) => m.kind === "VIDEO_UPLOAD")
-  const externalVideo = activity.medias.find((m) => m.kind === "VIDEO")
+  const allVideos = activity.medias.filter((m) => m.kind === "VIDEO_UPLOAD" || m.kind === "VIDEO")
 
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${activity.lat},${activity.lng}`
   const osmUrl = `https://www.openstreetmap.org/directions?route=;${activity.lat},${activity.lng}`
@@ -265,43 +263,14 @@ export function ActivityDetail({
               </CardContent>
             </Card>
 
-            {/* Video - prioritize uploaded video over external link */}
-            {(uploadedVideo || externalVideo) && (
+            {/* Videos - TikTok-style grid with modal viewer */}
+            {allVideos.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Vidéo</CardTitle>
+                  <CardTitle>Vidéos ({allVideos.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {uploadedVideo ? (
-                    <div className="aspect-video">
-                      <video
-                        src={normalizeUploadUrl(uploadedVideo.url)}
-                        controls
-                        className="w-full h-full rounded-lg bg-black"
-                        preload="metadata"
-                      >
-                        Votre navigateur ne supporte pas la lecture de vidéos.
-                      </video>
-                    </div>
-                  ) : externalVideo?.url.includes("youtube") || externalVideo?.url.includes("youtu.be") ? (
-                    <div className="aspect-video">
-                      <iframe
-                        src={externalVideo.url.replace("watch?v=", "embed/")}
-                        className="w-full h-full rounded-lg"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : externalVideo ? (
-                    <a
-                      href={externalVideo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Voir la vidéo
-                    </a>
-                  ) : null}
+                  <VideoGallery videos={allVideos} />
                 </CardContent>
               </Card>
             )}
