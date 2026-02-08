@@ -70,7 +70,7 @@ export function HomePageClient({
     return () => window.removeEventListener("resize", checkMobile)
   }, [])
 
-  // Determine background media with fallback: video > image > gradient
+  // Determine background media with fallback: video > image > none
   const videoUrl = isMobile ? heroVideoMobileUrl : heroVideoDesktopUrl
   const finalVideoUrl = videoUrl || heroVideoDesktopUrl
   const hasVideo = !!finalVideoUrl
@@ -79,8 +79,7 @@ export function HomePageClient({
   const finalImageUrl = imageUrl || heroImageDesktopUrl
   const hasImage = !hasVideo && !!finalImageUrl
 
-  // No video and no image = show gradient (default)
-  const showGradient = !hasVideo && !hasImage
+  const hasMedia = hasVideo || hasImage
 
   function handleGeolocation() {
     if (!navigator.geolocation) {
@@ -128,9 +127,9 @@ export function HomePageClient({
 
   return (
     <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className={`relative py-20 md:py-32 overflow-hidden min-h-[600px] md:min-h-[700px] ${showGradient ? "bg-gradient-to-br from-primary/90 to-primary" : ""}`}>
-        {/* Video Background */}
+      {/* Hero Section — compact */}
+      <section className="relative overflow-hidden">
+        {/* Background media (if any) */}
         {hasVideo && (
           <>
             <video
@@ -143,119 +142,105 @@ export function HomePageClient({
             >
               <source src={normalizeUploadUrl(finalVideoUrl!)} type="video/mp4" />
             </video>
-            {/* Dark overlay for readability */}
-            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute inset-0 bg-black/40" />
           </>
         )}
-
-        {/* Image Background */}
         {hasImage && (
           <>
             <div
               className="absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: `url(${normalizeUploadUrl(finalImageUrl!)})` }}
             />
-            {/* Dark overlay for readability */}
-            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-black/30" />
           </>
         )}
 
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center text-white">
-            <h1 className="text-4xl md:text-6xl font-bold mb-10 drop-shadow-lg">
-              découvrez quoi faire, simplement
-            </h1>
+        <div className={`relative z-10 ${hasMedia ? "py-12 md:py-20" : "pt-10 pb-8 md:pt-16 md:pb-12"}`}>
+          <div className="container mx-auto px-4">
+            <div className="max-w-2xl mx-auto text-center mb-6 md:mb-8">
+              <h1 className={`text-2xl md:text-4xl font-bold tracking-tight ${hasMedia ? "text-white drop-shadow-md" : "text-gray-900"}`}>
+                découvrez quoi faire, simplement
+              </h1>
+            </div>
 
-            {/* Search Card - Glassmorphism */}
-            <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/30 p-6 md:p-8 text-left">
-              <form onSubmit={handleSearch} className="space-y-5">
-                {/* Location */}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-800">
-                    Ou cherchez-vous ?
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                      <Input
-                        placeholder="Ville ou code postal"
-                        value={city}
-                        onChange={(e) => {
-                          setCity(e.target.value)
-                          setUserLocation(null)
-                        }}
-                        className="pl-10 bg-white/80 border-gray-200/50 focus:bg-white transition-colors text-gray-900 placeholder:text-gray-400"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleGeolocation}
-                      disabled={isGeolocating}
-                      className="shrink-0 bg-white/80 hover:bg-white border-gray-200/50"
-                    >
-                      {isGeolocating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Navigation className="h-4 w-4" />
-                      )}
-                      <span className="hidden sm:inline ml-2">
-                        {userLocation ? "Localise" : "Me localiser"}
-                      </span>
-                    </Button>
+            {/* Search form — compact inline */}
+            <div className={`max-w-3xl mx-auto ${hasMedia ? "bg-white rounded-xl shadow-lg p-4 md:p-5" : ""}`}>
+              <form onSubmit={handleSearch}>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* City input */}
+                  <div className="relative flex-1 min-w-0">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Ville ou code postal"
+                      value={city}
+                      onChange={(e) => {
+                        setCity(e.target.value)
+                        setUserLocation(null)
+                      }}
+                      className="pl-9 h-10 text-sm bg-white border-gray-200 text-gray-900 placeholder:text-gray-400"
+                    />
                   </div>
-                  {userLocation && (
-                    <p className="text-xs text-green-700 font-medium">
-                      Position detectee
-                    </p>
-                  )}
+
+                  {/* Geolocation */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGeolocation}
+                    disabled={isGeolocating}
+                    className="h-10 px-3 border-gray-200 text-gray-600 shrink-0 sm:w-auto w-full"
+                  >
+                    {isGeolocating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Navigation className="h-4 w-4" />
+                    )}
+                    <span className="ml-1.5 text-sm">
+                      {userLocation ? "Localisé" : "Me localiser"}
+                    </span>
+                  </Button>
+
+                  {/* Type */}
+                  <Select value={type} onValueChange={setType}>
+                    <SelectTrigger className="h-10 text-sm border-gray-200 sm:w-44 w-full">
+                      <SelectValue placeholder="Type d'activité" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes</SelectItem>
+                      {dropdownOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Radius */}
+                  <Select value={radius} onValueChange={setRadius}>
+                    <SelectTrigger className="h-10 text-sm border-gray-200 sm:w-28 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DISTANCE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Submit */}
+                  <Button type="submit" className="h-10 px-5 shrink-0 sm:w-auto w-full">
+                    <Search className="h-4 w-4 mr-1.5" />
+                    Rechercher
+                  </Button>
                 </div>
 
-                {/* Type and Radius */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-800">
-                      Type d&apos;activite
-                    </label>
-                    <Select value={type} onValueChange={setType}>
-                      <SelectTrigger className="bg-white/80 border-gray-200/50 focus:bg-white text-gray-900">
-                        <SelectValue placeholder="Toutes les activites" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Toutes les activites</SelectItem>
-                        {dropdownOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-800">
-                      Rayon de recherche
-                    </label>
-                    <Select value={radius} onValueChange={setRadius}>
-                      <SelectTrigger className="bg-white/80 border-gray-200/50 focus:bg-white text-gray-900">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DISTANCE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value.toString()}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Submit */}
-                <Button type="submit" size="lg" className="w-full shadow-lg">
-                  <Search className="mr-2 h-5 w-5" />
-                  Rechercher des activites
-                </Button>
+                {userLocation && (
+                  <p className="text-xs text-green-600 mt-1.5 ml-1">
+                    Position détectée
+                  </p>
+                )}
               </form>
             </div>
           </div>
@@ -263,12 +248,12 @@ export function HomePageClient({
       </section>
 
       {/* Activity Types Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-10 md:py-14">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
-            Decouvrez nos categories
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900 text-center mb-6 md:mb-8">
+            Catégories
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3">
             {typeOptions.map((option) => {
               const opt = option as ActivityTypeOption
               const emoji = opt.emoji || option.label.split(" ")[0]
@@ -279,18 +264,18 @@ export function HomePageClient({
                 <button
                   key={option.value}
                   onClick={() => router.push(`/recherche?type=${option.value}`)}
-                  className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border hover:border-primary"
+                  className="flex flex-col items-center py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   {opt.iconUrl ? (
                     <img
                       src={normalizeUploadUrl(opt.iconUrl)}
                       alt=""
-                      className="h-10 w-10 object-contain mb-2"
+                      className="h-8 w-8 object-contain mb-1.5"
                     />
                   ) : (
-                    <span className="text-4xl mb-2">{emoji}</span>
+                    <span className="text-2xl mb-1.5">{emoji}</span>
                   )}
-                  <span className="text-sm text-center font-medium">
+                  <span className="text-xs text-gray-600 text-center font-medium leading-tight group-hover:text-gray-900">
                     {labelText}
                   </span>
                 </button>
@@ -301,22 +286,22 @@ export function HomePageClient({
       </section>
 
       {/* CTA Section */}
-      <section className="py-16">
+      <section className="py-10 md:py-14 border-t border-gray-100">
         <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">
-              Vous etes un etablissement ?
+          <div className="max-w-xl mx-auto text-center">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">
+              Vous êtes un établissement ?
             </h2>
-            <p className="text-muted-foreground mb-6">
-              Rejoignez notre plateforme et faites decouvrir vos activites a des
-              milliers d&apos;utilisateurs.
+            <p className="text-sm text-gray-500 mb-5">
+              Rejoignez notre plateforme et faites découvrir vos activités.
             </p>
             <Button
-              size="lg"
               variant="outline"
+              size="sm"
+              className="border-gray-300 text-gray-700"
               onClick={() => router.push("/auth/inscription")}
             >
-              Creer un compte etablissement
+              Créer un compte établissement
             </Button>
           </div>
         </div>

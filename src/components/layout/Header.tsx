@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logoutAction } from "@/app/actions/auth"
-import { User, LogOut, Building2, Heart, Menu, Shield, CreditCard, Settings } from "lucide-react"
+import { User, LogOut, Building2, Heart, Shield, CreditCard, Settings } from "lucide-react"
 
 export function Header() {
   const { data: session, status } = useSession()
@@ -28,45 +28,55 @@ export function Header() {
   }
 
   return (
-    <header className="border-b bg-white sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center space-x-2">
-          <span className="font-bold text-xl">WADELO</span>
+    <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
+      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+        {/* Desktop: logo left */}
+        <Link href="/" className="hidden md:flex items-center">
+          <span className="font-bold text-xl tracking-tight">WADELO</span>
         </Link>
 
+        {/* Mobile: logo centered — use flex trick with invisible spacers */}
+        <div className="flex md:hidden items-center justify-center flex-1">
+          <Link href="/">
+            <span className="font-bold text-xl tracking-tight">WADELO</span>
+          </Link>
+        </div>
+
+        {/* Desktop nav */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/recherche" className="text-gray-600 hover:text-gray-900">
+          <Link href="/recherche" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
             Rechercher
           </Link>
-          <Link href="/feed" className="text-gray-600 hover:text-gray-900">
+          <Link href="/feed" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
             Feed
           </Link>
           {session?.user?.role === "ESTABLISHMENT" && (
             <>
-              <Link href="/etablissement/dashboard" className="text-gray-600 hover:text-gray-900">
+              <Link href="/etablissement/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
                 Mon établissement
               </Link>
-              <Link href="/etablissement/abonnement" className="text-gray-600 hover:text-gray-900">
+              <Link href="/etablissement/abonnement" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
                 Abonnement
               </Link>
             </>
           )}
           {session?.user?.role === "ADMIN" && (
-            <Link href="/admin" className="text-gray-600 hover:text-gray-900">
+            <Link href="/admin" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
               Administration
             </Link>
           )}
         </nav>
 
-        <div className="flex items-center space-x-4">
+        {/* Auth / avatar — desktop only */}
+        <div className="hidden md:flex items-center space-x-3">
           {status === "loading" ? (
-            <div className="h-10 w-10 bg-gray-200 rounded-full animate-pulse" />
+            <div className="h-8 w-8 bg-gray-100 rounded-full animate-pulse" />
           ) : session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">
                       {getInitials(session.user.name, session.user.email)}
                     </AvatarFallback>
                   </Avatar>
@@ -76,9 +86,9 @@ export function Header() {
                 <div className="flex items-center justify-start gap-2 p-2">
                   <div className="flex flex-col space-y-1 leading-none">
                     {session.user.name && (
-                      <p className="font-medium">{session.user.name}</p>
+                      <p className="font-medium text-sm">{session.user.name}</p>
                     )}
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {session.user.email}
                     </p>
                   </div>
@@ -103,7 +113,7 @@ export function Header() {
                     <DropdownMenuItem asChild>
                       <Link href="/etablissement/parametres" className="cursor-pointer">
                         <Settings className="mr-2 h-4 w-4" />
-                        Parametres
+                        Paramètres
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -135,46 +145,14 @@ export function Header() {
             </DropdownMenu>
           ) : (
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" size="sm" asChild>
                 <Link href="/auth/connexion">Connexion</Link>
               </Button>
-              <Button asChild>
+              <Button size="sm" asChild>
                 <Link href="/auth/inscription">Inscription</Link>
               </Button>
             </div>
           )}
-
-          {/* Mobile menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link href="/recherche">Rechercher</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/feed">Feed</Link>
-              </DropdownMenuItem>
-              {session?.user?.role === "ESTABLISHMENT" && (
-                <>
-                  <DropdownMenuItem asChild>
-                    <Link href="/etablissement/dashboard">Mon établissement</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/etablissement/abonnement">Abonnement</Link>
-                  </DropdownMenuItem>
-                </>
-              )}
-              {session?.user?.role === "ADMIN" && (
-                <DropdownMenuItem asChild>
-                  <Link href="/admin">Administration</Link>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </header>

@@ -126,7 +126,7 @@
 
 /* Bottom nav spacing */
 :root {
-  --header-h: 4rem;
+  --header-h: 3.5rem;
   --bottom-nav-h: 0px;
 }
 
