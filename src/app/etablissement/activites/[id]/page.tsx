@@ -35,6 +35,16 @@ export default async function EditActivityPage({ params }: EditActivityPageProps
     notFound()
   }
 
+  // Load activity types from DB
+  const activityTypes = await prisma.activityTypeConfig.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: "asc" },
+  })
+  const typeOptions = activityTypes.map((t) => ({
+    value: t.slug,
+    label: `${t.emoji} ${t.label}`,
+  }))
+
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div>
@@ -66,7 +76,7 @@ export default async function EditActivityPage({ params }: EditActivityPageProps
       </Card>
 
       {/* Formulaire d'édition */}
-      <ActivityForm activity={activity} mode="edit" />
+      <ActivityForm activity={activity} mode="edit" activityTypeOptions={typeOptions} />
     </div>
   )
 }

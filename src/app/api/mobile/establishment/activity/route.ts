@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { requireMobileAuth } from "@/lib/mobile-auth"
 import { enforceApiRateLimit } from "../../_helpers/rl"
-import { ActivityStatus, ActivityType, UserRole } from "@prisma/client"
+import { ActivityStatus, UserRole } from "@prisma/client"
 
 function isEnumValue<T extends Record<string,string>>(enm: T, v: any): v is T[keyof T] {
   return Object.values(enm).includes(v)
@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest) {
     if (k in body) data[k] = body[k]
   }
 
-  if ("type" in data && !isEnumValue(ActivityType as any, data.type)) return NextResponse.json({ error: "Invalid type" }, { status: 400 })
+  if ("type" in data && typeof data.type !== "string") return NextResponse.json({ error: "Invalid type" }, { status: 400 })
   if ("status" in data && !isEnumValue(ActivityStatus as any, data.status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 })
   if ("tags" in data) {
     if (!Array.isArray(data.tags) || !data.tags.every((x: any) => typeof x === "string")) {

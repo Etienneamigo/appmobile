@@ -24,9 +24,11 @@ import type { Activity, Media } from "@prisma/client"
 interface ActivityFormProps {
   activity?: Activity & { medias: Media[] }
   mode: "create" | "edit"
+  activityTypeOptions?: { value: string; label: string }[]
 }
 
-export function ActivityForm({ activity, mode }: ActivityFormProps) {
+export function ActivityForm({ activity, mode, activityTypeOptions }: ActivityFormProps) {
+  const typeOptions = activityTypeOptions || ACTIVITY_TYPE_OPTIONS
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
@@ -82,7 +84,7 @@ export function ActivityForm({ activity, mode }: ActivityFormProps) {
     setIsLoading(true)
 
     const data = {
-      type: formData.type as "BOWLING" | "ESCAPE_GAME" | "BAR_DANSANT" | "KARAOKE" | "LASER_GAME" | "CINEMA" | "TRAMPOLINE_PARK",
+      type: formData.type,
       title: formData.title,
       description: formData.description,
       address: formData.address,
@@ -140,7 +142,7 @@ export function ActivityForm({ activity, mode }: ActivityFormProps) {
                   <SelectValue placeholder="Sélectionner un type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ACTIVITY_TYPE_OPTIONS.map((option) => (
+                  {typeOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

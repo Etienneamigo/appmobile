@@ -1,4 +1,4 @@
-import { PrismaClient, ActivityType, ActivityStatus, MediaKind } from "@prisma/client"
+import { PrismaClient, ActivityStatus, MediaKind } from "@prisma/client"
 import bcrypt from "bcryptjs"
 
 const prisma = new PrismaClient()
@@ -14,6 +14,50 @@ async function main() {
   await prisma.establishment.deleteMany()
   await prisma.user.deleteMany()
   await prisma.promoCode.deleteMany()
+  await prisma.activityTypeConfig.deleteMany()
+  await prisma.videoCategoryConfig.deleteMany()
+
+  // Seed activity types
+  const activityTypes = [
+    { slug: "BOWLING", label: "Bowling", emoji: "🎳", sortOrder: 1 },
+    { slug: "ESCAPE_GAME", label: "Escape Game", emoji: "🔐", sortOrder: 2 },
+    { slug: "BAR_DANSANT", label: "Bar dansant", emoji: "💃", sortOrder: 3 },
+    { slug: "KARAOKE", label: "Karaoké", emoji: "🎤", sortOrder: 4 },
+    { slug: "LASER_GAME", label: "Laser Game", emoji: "🔫", sortOrder: 5 },
+    { slug: "CINEMA", label: "Cinéma", emoji: "🎬", sortOrder: 6 },
+    { slug: "TRAMPOLINE_PARK", label: "Trampoline Park", emoji: "🤸", sortOrder: 7 },
+    { slug: "KARTING", label: "Karting", emoji: "🏎️", sortOrder: 8 },
+    { slug: "REALITE_VIRTUELLE", label: "Réalité virtuelle", emoji: "🥽", sortOrder: 9 },
+    { slug: "QUIZ_GAME", label: "Quiz Game", emoji: "🧩", sortOrder: 10 },
+    { slug: "MINIGOLF", label: "Minigolf", emoji: "⛳", sortOrder: 11 },
+    { slug: "ESCALADE", label: "Escalade", emoji: "🧗", sortOrder: 12 },
+    { slug: "PATINOIRE", label: "Patinoire", emoji: "⛸️", sortOrder: 13 },
+    { slug: "SPA_BIEN_ETRE", label: "Spa & Bien-être", emoji: "🧖", sortOrder: 14 },
+    { slug: "ATELIER", label: "Atelier", emoji: "🎨", sortOrder: 15 },
+    { slug: "DEGUSTATION", label: "Dégustation", emoji: "🍷", sortOrder: 16 },
+    { slug: "COMEDY_CLUB", label: "Comedy Club", emoji: "🎭", sortOrder: 17 },
+    { slug: "MUSEE_EXPO", label: "Musée & Expo", emoji: "🏛️", sortOrder: 18 },
+    { slug: "CONCERT_SPECTACLE", label: "Concert & Spectacle", emoji: "🎵", sortOrder: 19 },
+  ]
+
+  for (const at of activityTypes) {
+    await prisma.activityTypeConfig.create({ data: at })
+  }
+  console.log("🏷️  Seeded", activityTypes.length, "activity types")
+
+  // Seed video categories
+  const videoCategories = [
+    { slug: "teaser", label: "Teaser", sortOrder: 1 },
+    { slug: "ambiance", label: "Ambiance", sortOrder: 2 },
+    { slug: "cours", label: "Cours / Tutorial", sortOrder: 3 },
+    { slug: "evenement", label: "Événement", sortOrder: 4 },
+    { slug: "autre", label: "Autre", sortOrder: 5 },
+  ]
+
+  for (const vc of videoCategories) {
+    await prisma.videoCategoryConfig.create({ data: vc })
+  }
+  console.log("🎬 Seeded", videoCategories.length, "video categories")
 
   console.log("🧹 Cleaned existing data")
 
@@ -171,7 +215,7 @@ async function main() {
   const activity1 = await prisma.activity.create({
     data: {
       establishmentId: establishment1.establishment!.id,
-      type: ActivityType.BOWLING,
+      type: "BOWLING",
       title: "Bowling Stadium Paris - 16 pistes",
       description:
         "Venez découvrir notre bowling moderne avec 16 pistes professionnelles, éclairages néon et système de score automatique. Parfait pour des soirées entre amis ou des anniversaires. Bar et restauration sur place.",
@@ -207,7 +251,7 @@ async function main() {
   const activity2 = await prisma.activity.create({
     data: {
       establishmentId: establishment2.establishment!.id,
-      type: ActivityType.LASER_GAME,
+      type: "LASER_GAME",
       title: "Laser Quest Boulogne",
       description:
         "Le plus grand labyrinthe laser de l'Ouest parisien ! 800m² de parcours avec effets spéciaux, fumée et musique. Parties de 20 minutes intenses. Idéal pour enterrements de vie de célibataire et team building.",
@@ -243,7 +287,7 @@ async function main() {
   const activity3 = await prisma.activity.create({
     data: {
       establishmentId: establishment3.establishment!.id,
-      type: ActivityType.ESCAPE_GAME,
+      type: "ESCAPE_GAME",
       title: "L'Enigme du Vieux Lyon",
       description:
         "Plongez dans les mystères du Vieux Lyon ! Résolvez les énigmes cachées dans les traboules et découvrez le secret de la Renaissance lyonnaise. Scénario immersif avec décors historiques.",

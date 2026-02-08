@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { optionalMobileAuth } from "@/lib/mobile-auth"
 import { enforceApiRateLimit } from "../_helpers/rl"
-import { ActivityStatus, ActivityType, UserRole } from "@prisma/client"
+import { ActivityStatus, UserRole } from "@prisma/client"
 
 function parseIntSafe(v: string | null, def: number) {
   const n = v ? Number(v) : NaN
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
   where.status = ActivityStatus.PUBLISHED
 
   // Optional filters
-  if (type && Object.values(ActivityType).includes(type as any)) {
-    where.type = type as ActivityType
+  if (type) {
+    where.type = type
   }
   if (city) {
     where.city = { contains: city, mode: "insensitive" }

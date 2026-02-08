@@ -20,6 +20,16 @@ export default async function NewActivityPage() {
     redirect(`/etablissement/activites/${existingActivity.id}`)
   }
 
+  // Load activity types from DB
+  const activityTypes = await prisma.activityTypeConfig.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: "asc" },
+  })
+  const typeOptions = activityTypes.map((t) => ({
+    value: t.slug,
+    label: `${t.emoji} ${t.label}`,
+  }))
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
@@ -28,7 +38,7 @@ export default async function NewActivityPage() {
           Configurez l&apos;activité de votre établissement
         </p>
       </div>
-      <ActivityForm mode="create" />
+      <ActivityForm mode="create" activityTypeOptions={typeOptions} />
     </div>
   )
 }

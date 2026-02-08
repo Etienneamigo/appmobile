@@ -254,7 +254,7 @@ MOBILE_JWT_SECRET="<générer avec: openssl rand -hex 32>"
 Authentification et obtention du token JWT.
 
 ```bash
-curl -X POST https://maisonapee.com/api/mobile/login \
+curl -X POST https://wadelo.com/api/mobile/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "secret"}'
 ```
@@ -283,7 +283,7 @@ Réponse erreur (401) :
 Récupère le profil de l'utilisateur connecté.
 
 ```bash
-curl https://maisonapee.com/api/mobile/me \
+curl https://wadelo.com/api/mobile/me \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -292,7 +292,7 @@ curl https://maisonapee.com/api/mobile/me \
 Endpoint de test pour valider l'authentification.
 
 ```bash
-curl https://maisonapee.com/api/mobile/ping \
+curl https://wadelo.com/api/mobile/ping \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -310,7 +310,7 @@ Réponse :
 
 ```typescript
 // Exemple React Native / Expo
-const API_URL = "https://maisonapee.com"
+const API_URL = "https://wadelo.com"
 
 async function login(email: string, password: string) {
   const res = await fetch(`${API_URL}/api/mobile/login`, {
