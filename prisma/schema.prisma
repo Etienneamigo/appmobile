@@ -121,6 +121,9 @@ model Activity {
   scheduleText    String?        @db.Text
   tags            String[]
   coverMediaId    String?        // ID du média choisi comme couverture
+  zone1Tags       String[]       // Mood social: en-couple, en-famille, entre-amis, en-solo
+  zone2Tags       String[]       // Ambiance/format: detente-chill, immersif, ludique, after-work, soiree
+  zone3Tags       String[]       // Profil d'intérêt: sportif, creatifs, gourmands, culture
   status          ActivityStatus @default(DRAFT)
   viewCount       Int            @default(0)
   createdAt       DateTime       @default(now())

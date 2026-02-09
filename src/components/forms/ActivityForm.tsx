@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ACTIVITY_TYPE_OPTIONS_PLAIN } from "@/lib/constants"
+import { ACTIVITY_TYPE_OPTIONS_PLAIN, ZONE1_OPTIONS, ZONE2_OPTIONS, ZONE3_OPTIONS } from "@/lib/constants"
 import { createActivity, updateActivity } from "@/app/actions/activities"
 import { geocodeAddress } from "@/lib/geo"
 import { toast } from "sonner"
@@ -48,11 +48,24 @@ export function ActivityForm({ activity, mode, activityTypeOptions }: ActivityFo
     priceFrom: activity?.priceFrom?.toString() || "",
     scheduleText: activity?.scheduleText || "",
     tags: activity?.tags?.join(", ") || "",
+    zone1Tags: activity?.zone1Tags || [],
+    zone2Tags: activity?.zone2Tags || [],
+    zone3Tags: activity?.zone3Tags || [],
     status: activity?.status || "DRAFT",
   })
 
   function handleChange(field: string, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function toggleZoneTag(field: "zone1Tags" | "zone2Tags" | "zone3Tags", tag: string) {
+    setFormData((prev) => {
+      const current = prev[field]
+      const next = current.includes(tag)
+        ? current.filter((t) => t !== tag)
+        : [...current, tag]
+      return { ...prev, [field]: next }
+    })
   }
 
   async function handleGeocode() {
@@ -99,6 +112,9 @@ export function ActivityForm({ activity, mode, activityTypeOptions }: ActivityFo
       priceFrom: formData.priceFrom ? parseFloat(formData.priceFrom) : null,
       scheduleText: formData.scheduleText || null,
       tags: formData.tags ? formData.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      zone1Tags: formData.zone1Tags,
+      zone2Tags: formData.zone2Tags,
+      zone3Tags: formData.zone3Tags,
       status: formData.status as "DRAFT" | "PUBLISHED",
     }
 
@@ -360,6 +376,74 @@ export function ActivityForm({ activity, mode, activityTypeOptions }: ActivityFo
               onChange={(e) => handleChange("tags", e.target.value)}
               placeholder="famille, amis, soirée"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sous-catégories (zones) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sous-catégories</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label>Pour qui ?</Label>
+            <div className="flex flex-wrap gap-2">
+              {ZONE1_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleZoneTag("zone1Tags", opt.value)}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                    formData.zone1Tags.includes(opt.value)
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ambiance &amp; format</Label>
+            <div className="flex flex-wrap gap-2">
+              {ZONE2_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleZoneTag("zone2Tags", opt.value)}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                    formData.zone2Tags.includes(opt.value)
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Profil d&apos;intérêt</Label>
+            <div className="flex flex-wrap gap-2">
+              {ZONE3_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleZoneTag("zone3Tags", opt.value)}
+                  className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                    formData.zone3Tags.includes(opt.value)
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
