@@ -66,16 +66,6 @@ export const ZONE3_OPTIONS = [
   { value: "culture", label: "Pour les amateurs de culture" },
 ]
 
-export const ZONE_CONFIGS = [
-  { key: "zone1" as const, title: "Pour qui ?", field: "zone1Tags" as const, options: ZONE1_OPTIONS },
-  { key: "zone2" as const, title: "Ambiance & format", field: "zone2Tags" as const, options: ZONE2_OPTIONS },
-  { key: "zone3" as const, title: "Profils", field: "zone3Tags" as const, options: ZONE3_OPTIONS },
-]
-
-export const ZONE4_OPTIONS = [
-  { value: "nouveautes", label: "Nouveautés" },
-  { value: "coup-de-coeur", label: "Coup de coeur" },
-]
 
 export function getCategoryLabel(slug: string): string {
   const all = [...ZONE1_OPTIONS, ...ZONE2_OPTIONS, ...ZONE3_OPTIONS]
