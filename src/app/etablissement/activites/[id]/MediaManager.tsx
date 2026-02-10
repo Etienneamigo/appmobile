@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { Upload, Trash2, Image, Video, Loader2, Link as LinkIcon, FileVideo, AlertCircle, Star } from "lucide-react"
 import type { Media } from "@prisma/client"
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
 
 interface MediaManagerProps {
   activityId: string
@@ -469,14 +470,12 @@ export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerP
               return (
                 <div key={video.id} className="space-y-2">
                   <div className={`relative rounded-lg overflow-hidden bg-black ${isCover ? "ring-2 ring-yellow-400" : ""}`}>
-                    <video
-                      src={normalizeUploadUrl(video.url)}
-                      controls
-                      className="w-full max-h-64"
-                      preload="metadata"
-                    >
-                      Votre navigateur ne supporte pas la lecture de vidéos.
-                    </video>
+                    <StreamHlsVideo
+                        src={normalizeUploadUrl(video.url)}
+                        controls
+                        className="w-full max-h-64"
+                        preload="metadata"
+                      />
                     {isCover && (
                       <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] font-semibold rounded">
                         Couverture
