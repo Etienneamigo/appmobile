@@ -1,19 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_OPTIONS_PLAIN, ZONE_CONFIGS, ZONE4_OPTIONS } from "@/lib/constants"
-import { MapPin, Search, Navigation, Loader2, ChevronRight, Heart, Sparkles } from "lucide-react"
+import { ACTIVITY_TYPE_OPTIONS } from "@/lib/constants"
+import { MapPin, Clock, Euro, Users, Star, Moon, Award } from "lucide-react"
+import { SearchHero } from "@/components/search/SearchHero"
+import { useGeolocation } from "@/components/providers/GeolocationProvider"
+import { getPopularActivities, getEveningActivities, getAdminPickActivities, type HomeActivity } from "@/app/actions/home-sections"
+import { formatDistance } from "@/lib/geo"
 
 interface ActivityTypeOption {
   value: string
@@ -38,25 +34,6 @@ function normalizeUploadUrl(url: string): string {
   return url
 }
 
-// Icons for zone cards
-const ZONE_ICONS: Record<string, string> = {
-  "en-couple": "💑",
-  "en-famille": "👨‍👩‍👧‍👦",
-  "entre-amis": "🎉",
-  "en-solo": "🧘",
-  "detente-chill": "🍃",
-  "immersif": "🌀",
-  "ludique": "🎲",
-  "after-work": "🍻",
-  "soiree": "🌙",
-  "sportif": "💪",
-  "creatifs": "🎨",
-  "gourmands": "🍽️",
-  "culture": "📚",
-  "nouveautes": "✨",
-  "coup-de-coeur": "❤️",
-}
-
 export function HomePageClient({
   heroVideoDesktopUrl,
   heroVideoMobileUrl,
@@ -64,30 +41,50 @@ export function HomePageClient({
   heroImageMobileUrl,
   activityTypeOptions,
 }: HomePageClientProps) {
-  // Options with emojis/icons for the category grid
   const typeOptions = activityTypeOptions && activityTypeOptions.length > 0
     ? activityTypeOptions
     : ACTIVITY_TYPE_OPTIONS
-  // Options without emojis for the dropdown
-  const dropdownOptions = activityTypeOptions && activityTypeOptions.length > 0
-    ? activityTypeOptions.map(o => ({ value: o.value, label: o.label }))
-    : ACTIVITY_TYPE_OPTIONS_PLAIN
   const router = useRouter()
-  const [city, setCity] = useState("")
-  const [type, setType] = useState("")
-  const [isGeolocating, setIsGeolocating] = useState(false)
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const { location } = useGeolocation()
   const [isMobile, setIsMobile] = useState(false)
+
+  // Dynamic sections state
+  const [popularActivities, setPopularActivities] = useState<HomeActivity[]>([])
+  const [popularCity, setPopularCity] = useState("Marseille")
+  const [eveningActivities, setEveningActivities] = useState<HomeActivity[]>([])
+  const [adminPickActivities, setAdminPickActivities] = useState<HomeActivity[]>([])
+  const [sectionsLoaded, setSectionsLoaded] = useState(false)
 
   // Detect mobile device
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener("resize", checkMobile)
     return () => window.removeEventListener("resize", checkMobile)
   }, [])
+
+  // Fetch dynamic sections when location changes
+  const fetchSections = useCallback(async () => {
+    const locInput = location
+      ? { lat: location.lat, lng: location.lng, cityName: location.cityName }
+      : undefined
+
+    const [popular, evening, picks] = await Promise.all([
+      getPopularActivities(locInput),
+      getEveningActivities(locInput),
+      getAdminPickActivities(locInput),
+    ])
+
+    setPopularActivities(popular.activities)
+    setPopularCity(popular.cityName)
+    setEveningActivities(evening.activities)
+    setAdminPickActivities(picks.activities)
+    setSectionsLoaded(true)
+  }, [location])
+
+  useEffect(() => {
+    fetchSections()
+  }, [fetchSections])
 
   // Determine background media with fallback: video > image > none
   const videoUrl = isMobile ? heroVideoMobileUrl : heroVideoDesktopUrl
@@ -100,56 +97,11 @@ export function HomePageClient({
 
   const hasMedia = hasVideo || hasImage
 
-  function handleGeolocation() {
-    if (!navigator.geolocation) {
-      alert("La geolocalisation n'est pas supportee par votre navigateur")
-      return
-    }
-
-    setIsGeolocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        })
-        setIsGeolocating(false)
-        setCity("") // Clear city when using geolocation
-      },
-      () => {
-        alert("Impossible d'obtenir votre position")
-        setIsGeolocating(false)
-      }
-    )
-  }
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-
-    const params = new URLSearchParams()
-
-    if (userLocation) {
-      params.set("lat", userLocation.lat.toString())
-      params.set("lng", userLocation.lng.toString())
-    } else if (city) {
-      params.set("city", city)
-    }
-
-    if (type && type !== "all") {
-      params.set("type", type)
-    }
-
-    // Default radius 20km (no UI dropdown)
-    params.set("radius", "20")
-
-    router.push(`/recherche?${params.toString()}`)
-  }
-
   return (
     <div className="flex flex-col">
       {/* Hero Section — compact */}
       <section className="relative overflow-hidden">
-        {/* Background media (if any) */}
+        {/* Background media */}
         {hasVideo && (
           <>
             <video
@@ -183,135 +135,41 @@ export function HomePageClient({
               </h1>
             </div>
 
-            {/* Search form — compact inline */}
-            <div className={`max-w-3xl mx-auto ${hasMedia ? "bg-white rounded-xl shadow-lg p-4 md:p-5" : ""}`}>
-              <form onSubmit={handleSearch}>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {/* Row 1 mobile: city input (50%) + geolocate (50%) */}
-                  <div className="flex gap-2 sm:contents">
-                    <div className="relative flex-1 min-w-0 sm:flex-1">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Ville ou code postal"
-                        value={city}
-                        onChange={(e) => {
-                          setCity(e.target.value)
-                          setUserLocation(null)
-                        }}
-                        className="pl-9 h-10 text-sm bg-white border-gray-200 text-gray-900 placeholder:text-gray-400"
-                      />
-                    </div>
-
-                    {/* Geolocation — same row on mobile */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGeolocation}
-                      disabled={isGeolocating}
-                      className="h-10 px-3 border-gray-200 text-gray-600 shrink-0 flex-1 sm:flex-none sm:w-auto"
-                    >
-                      {isGeolocating ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Navigation className="h-4 w-4" />
-                      )}
-                      <span className="ml-1.5 text-sm">
-                        {userLocation ? "Localisé" : "Me localiser"}
-                      </span>
-                    </Button>
-                  </div>
-
-                  {/* Type */}
-                  <Select value={type} onValueChange={setType}>
-                    <SelectTrigger className="h-10 text-sm border-gray-200 sm:w-44 w-full">
-                      <SelectValue placeholder="Type d'activité" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Toutes</SelectItem>
-                      {dropdownOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Submit */}
-                  <Button type="submit" className="h-10 px-5 shrink-0 sm:w-auto w-full">
-                    <Search className="h-4 w-4 mr-1.5" />
-                    Rechercher
-                  </Button>
-                </div>
-
-                {userLocation && (
-                  <p className="text-xs text-green-600 mt-1.5 ml-1">
-                    Position détectée
-                  </p>
-                )}
-              </form>
-            </div>
+            {/* Search form — shared component */}
+            <SearchHero
+              activityTypeOptions={activityTypeOptions}
+              hasBackground={hasMedia}
+            />
           </div>
         </div>
       </section>
 
-      {/* Zone sections — horizontal scrollable cards */}
-      {ZONE_CONFIGS.map((zone) => (
-        <section key={zone.key} className="py-6 md:py-8">
-          <div className="container mx-auto px-4">
-            <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">
-              {zone.title}
-            </h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-              {zone.options.map((opt) => (
-                <Link
-                  key={opt.value}
-                  href={`/categories/${opt.value}`}
-                  className="flex-shrink-0 w-36 md:w-44"
-                >
-                  <div className="bg-gray-50 hover:bg-gray-100 rounded-xl p-4 md:p-5 transition-colors group h-full">
-                    <span className="text-2xl md:text-3xl block mb-2">
-                      {ZONE_ICONS[opt.value] || "🏷️"}
-                    </span>
-                    <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900 leading-tight">
-                      {opt.label}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      ))}
+      {/* Section A: Activités populaires */}
+      <HomeSection
+        title={`Activités populaires à ${popularCity}`}
+        icon={<Star className="h-5 w-5 text-amber-500" />}
+        activities={popularActivities}
+        loading={!sectionsLoaded}
+        emptyMessage="Aucune activité populaire pour le moment"
+      />
 
-      {/* Zone 4 — dynamic: Nouveautés + Coup de coeur */}
-      <section className="py-6 md:py-8">
-        <div className="container mx-auto px-4">
-          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">
-            À découvrir
-          </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-            <Link href="/categories/nouveautes" className="flex-shrink-0 w-44 md:w-52">
-              <div className="bg-gradient-to-br from-violet-50 to-purple-50 hover:from-violet-100 hover:to-purple-100 rounded-xl p-5 transition-colors group h-full">
-                <Sparkles className="h-6 w-6 text-violet-500 mb-2" />
-                <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
-                  Nouveautés
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Les plus récentes</p>
-              </div>
-            </Link>
-            <Link href="/categories/coup-de-coeur" className="flex-shrink-0 w-44 md:w-52">
-              <div className="bg-gradient-to-br from-rose-50 to-pink-50 hover:from-rose-100 hover:to-pink-100 rounded-xl p-5 transition-colors group h-full">
-                <Heart className="h-6 w-6 text-rose-500 mb-2" />
-                <p className="text-sm font-medium text-gray-800 group-hover:text-gray-900">
-                  Coup de coeur
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Les plus aimées</p>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Section B: Quoi faire ce soir */}
+      <HomeSection
+        title="Quoi faire ce soir"
+        icon={<Moon className="h-5 w-5 text-indigo-500" />}
+        activities={eveningActivities}
+        loading={!sectionsLoaded}
+        emptyMessage="Pas d'activités de soirée trouvées"
+      />
+
+      {/* Section C: Validé par Wadelo */}
+      <HomeSection
+        title="Validé par Wadelo"
+        icon={<Award className="h-5 w-5 text-emerald-500" />}
+        activities={adminPickActivities}
+        loading={!sectionsLoaded}
+        emptyMessage="Bientôt des sélections Wadelo"
+      />
 
       {/* Activity Types Section — existing categories */}
       <section className="py-8 md:py-10 border-t border-gray-100">
@@ -373,5 +231,128 @@ export function HomePageClient({
         </div>
       </section>
     </div>
+  )
+}
+
+// ─── Activity Card for Home sections ───────────────────────────────────────────
+
+function HomeActivityCard({ activity }: { activity: HomeActivity }) {
+  const firstImage = activity.medias[0]
+
+  return (
+    <Link
+      href={`/activite/${activity.id}`}
+      className="flex-shrink-0 w-64 md:w-72 group"
+    >
+      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow h-full">
+        {/* Image */}
+        <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+          {firstImage ? (
+            <img
+              src={normalizeUploadUrl(firstImage.url)}
+              alt={activity.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-4xl bg-gray-50">
+              🎯
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-3">
+          <h3 className="font-semibold text-sm text-gray-900 line-clamp-1 group-hover:text-black">
+            {activity.title}
+          </h3>
+          <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">
+            {activity.description}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-gray-400">
+            <span className="inline-flex items-center gap-0.5">
+              <MapPin className="h-3 w-3" />
+              {activity.city}
+            </span>
+            {activity.distance !== undefined && (
+              <span className="font-medium text-gray-600">
+                {formatDistance(activity.distance)}
+              </span>
+            )}
+            {activity.priceFrom != null && (
+              <span className="inline-flex items-center gap-0.5">
+                <Euro className="h-3 w-3" />
+                dès {activity.priceFrom}€
+              </span>
+            )}
+            {activity.durationMinutes != null && (
+              <span className="inline-flex items-center gap-0.5">
+                <Clock className="h-3 w-3" />
+                {activity.durationMinutes} min
+              </span>
+            )}
+            {(activity.minPeople || activity.maxPeople) && (
+              <span className="inline-flex items-center gap-0.5">
+                <Users className="h-3 w-3" />
+                {activity.minPeople || 1}-{activity.maxPeople || "∞"}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// ─── Reusable horizontal section ────────────────────────────────────────────────
+
+function HomeSection({
+  title,
+  icon,
+  activities,
+  loading,
+  emptyMessage,
+}: {
+  title: string
+  icon: React.ReactNode
+  activities: HomeActivity[]
+  loading: boolean
+  emptyMessage: string
+}) {
+  if (!loading && activities.length === 0) return null
+
+  return (
+    <section className="py-6 md:py-8">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center gap-2 mb-3 md:mb-4">
+          {icon}
+          <h2 className="text-base md:text-lg font-semibold text-gray-900">
+            {title}
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="flex gap-4 overflow-hidden">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex-shrink-0 w-64 md:w-72">
+                <div className="rounded-xl border border-gray-100 overflow-hidden">
+                  <div className="aspect-[4/3] bg-gray-100 animate-pulse" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+            {activities.map((activity) => (
+              <HomeActivityCard key={activity.id} activity={activity} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
