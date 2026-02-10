@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { STRIPE_CONFIG } from "@/lib/stripe"
 import { SubscriptionActions } from "./SubscriptionActions"
 import { Check } from "lucide-react"
+import { getSubscriptionDisplayState, isSubscriptionActive } from "@/lib/subscription"
 
 export default async function SubscriptionPage() {
   const session = await auth()
@@ -21,38 +22,49 @@ export default async function SubscriptionPage() {
     return null
   }
 
-  const isTrialing = establishment.subscriptionStatus === "TRIALING" ||
-    (establishment.trialEndsAt && new Date(establishment.trialEndsAt) > new Date() && !establishment.subscriptionStatus)
+  const displayState = getSubscriptionDisplayState({
+    subscriptionStatus: establishment.subscriptionStatus,
+    trialEndsAt: establishment.trialEndsAt,
+    currentPeriodEnd: establishment.currentPeriodEnd,
+  })
 
-  const isActive = establishment.subscriptionStatus === "ACTIVE" || isTrialing
+  const active = isSubscriptionActive({
+    subscriptionStatus: establishment.subscriptionStatus,
+    trialEndsAt: establishment.trialEndsAt,
+    currentPeriodEnd: establishment.currentPeriodEnd,
+  })
 
-  const daysRemaining = establishment.trialEndsAt
-    ? Math.max(0, Math.ceil((establishment.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
-    : 0
-
-  function getStatusBadge() {
-    switch (establishment?.subscriptionStatus) {
-      case "ACTIVE":
-        return <Badge className="bg-green-500">Actif</Badge>
-      case "TRIALING":
-        return <Badge className="bg-blue-500">Periode d&apos;essai</Badge>
-      case "PAST_DUE":
-        return <Badge className="bg-orange-500">Paiement en retard</Badge>
-      case "CANCELED":
-        return <Badge variant="destructive">Annule</Badge>
-      default:
-        if (isTrialing) {
-          return <Badge className="bg-blue-500">Periode d&apos;essai</Badge>
-        }
-        return <Badge variant="secondary">Non configure</Badge>
-    }
+  const badgeVariantMap = {
+    success: "default" as const,
+    info: "default" as const,
+    warning: "default" as const,
+    destructive: "destructive" as const,
+    secondary: "secondary" as const,
   }
 
+  const badgeColorMap = {
+    success: "bg-green-500",
+    info: "bg-blue-500",
+    warning: "bg-orange-500",
+    destructive: "",
+    secondary: "",
+  }
+
+  const alertColorMap = {
+    success: { bg: "bg-green-50", border: "border-green-200", title: "text-green-900", text: "text-green-700" },
+    info: { bg: "bg-blue-50", border: "border-blue-200", title: "text-blue-900", text: "text-blue-700" },
+    warning: { bg: "bg-orange-50", border: "border-orange-200", title: "text-orange-900", text: "text-orange-700" },
+    destructive: { bg: "bg-red-50", border: "border-red-200", title: "text-red-900", text: "text-red-700" },
+    secondary: { bg: "bg-gray-50", border: "border-gray-200", title: "text-gray-900", text: "text-gray-700" },
+  }
+
+  const colors = alertColorMap[displayState.variant]
+
   const features = [
-    "Page activite personnalisee",
-    "Upload d'images et videos",
+    "Page activité personnalisée",
+    "Upload d'images et vidéos",
     "Apparition dans les recherches",
-    "Statistiques detaillees",
+    "Statistiques détaillées",
     "Support prioritaire",
   ]
 
@@ -60,7 +72,7 @@ export default async function SubscriptionPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Abonnement</h1>
-        <p className="text-muted-foreground">Gerez votre abonnement et facturation</p>
+        <p className="text-muted-foreground">Gérez votre abonnement et facturation</p>
       </div>
 
       {/* Current Status */}
@@ -68,58 +80,29 @@ export default async function SubscriptionPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Statut actuel</CardTitle>
-            {getStatusBadge()}
+            <Badge
+              variant={badgeVariantMap[displayState.variant]}
+              className={badgeColorMap[displayState.variant] || undefined}
+            >
+              {displayState.label}
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isTrialing && daysRemaining > 0 && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="font-medium text-blue-900">
-                Periode d&apos;essai gratuite
-              </p>
-              <p className="text-blue-700">
-                Il vous reste <span className="font-bold">{daysRemaining} jours</span> d&apos;essai gratuit.
-              </p>
-            </div>
-          )}
-
-          {establishment.subscriptionStatus === "ACTIVE" && establishment.currentPeriodEnd && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="font-medium text-green-900">
-                Abonnement actif
-              </p>
-              <p className="text-green-700">
-                Prochain renouvellement le {new Date(establishment.currentPeriodEnd).toLocaleDateString("fr-FR")}
-              </p>
-            </div>
-          )}
-
-          {establishment.subscriptionStatus === "PAST_DUE" && (
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <p className="font-medium text-orange-900">
-                Paiement en retard
-              </p>
-              <p className="text-orange-700">
-                Veuillez mettre a jour votre moyen de paiement pour continuer a utiliser le service.
-              </p>
-            </div>
-          )}
-
-          {establishment.subscriptionStatus === "CANCELED" && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="font-medium text-red-900">
-                Abonnement annule
-              </p>
-              <p className="text-red-700">
-                Votre activite n&apos;est plus visible dans les recherches. Reabonnez-vous pour la reactiver.
-              </p>
-            </div>
-          )}
+          <div className={`p-4 ${colors.bg} border ${colors.border} rounded-lg`}>
+            <p className={`font-medium ${colors.title}`}>
+              {displayState.label}
+            </p>
+            <p className={colors.text}>
+              {displayState.description}
+            </p>
+          </div>
 
           <SubscriptionActions
             hasSubscription={!!establishment.stripeSubscriptionId}
             hasCustomer={!!establishment.stripeCustomerId}
-            isActive={!!isActive}
+            isActive={active}
+            isCanceledWithTrial={displayState.status === "canceled_trial_active"}
           />
         </CardContent>
       </Card>
@@ -129,7 +112,7 @@ export default async function SubscriptionPage() {
         <CardHeader>
           <CardTitle>Tarification</CardTitle>
           <CardDescription>
-            Un seul plan, toutes les fonctionnalites
+            Un seul plan, toutes les fonctionnalités
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,8 +132,8 @@ export default async function SubscriptionPage() {
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              <strong>2 mois d&apos;essai gratuit</strong> inclus a l&apos;inscription.
-              Aucun engagement, annulez a tout moment.
+              <strong>2 mois d&apos;essai gratuit</strong> inclus à l&apos;inscription.
+              Aucun engagement, annulez à tout moment.
             </p>
           </div>
         </CardContent>
