@@ -124,6 +124,7 @@ model Activity {
   zone1Tags       String[]       // Mood social: en-couple, en-famille, entre-amis, en-solo
   zone2Tags       String[]       // Ambiance/format: detente-chill, immersif, ludique, after-work, soiree
   zone3Tags       String[]       // Profil d'intérêt: sportif, creatifs, gourmands, culture
+  adminPick       Boolean        @default(false) // Validé/mis en avant par un admin Wadelo
   status          ActivityStatus @default(DRAFT)
   viewCount       Int            @default(0)
   createdAt       DateTime       @default(now())
