@@ -1,7 +1,8 @@
 // User roles
 export type UserRole = 'USER' | 'ESTABLISHMENT' | 'ADMIN';
 
-// Activity types
+// Activity types - now dynamic (string slugs from ActivityTypeConfig)
+// Keep union for known types, but allow any string for dynamic types
 export type ActivityType =
   | 'BOWLING'
   | 'ESCAPE_GAME'
@@ -9,7 +10,8 @@ export type ActivityType =
   | 'KARAOKE'
   | 'LASER_GAME'
   | 'CINEMA'
-  | 'TRAMPOLINE_PARK';
+  | 'TRAMPOLINE_PARK'
+  | (string & {});
 
 // Activity status
 export type ActivityStatus = 'DRAFT' | 'PUBLISHED';
@@ -62,14 +64,33 @@ export interface Pagination {
   hasMore: boolean;
 }
 
-// Media
+// Media (aligned with Prisma schema - includes Cloudflare fields)
 export interface Media {
   id: string;
   kind: MediaKind;
   url: string;
   fileName: string | null;
   fileSize?: number | null;
+  videoCategory?: string | null;
+  title?: string | null;
+  thumbnailUrl?: string | null;
+  duration?: number | null;
+  cloudflareImageId?: string | null;
+  sortOrder?: number;
   createdAt?: string;
+}
+
+// Event (calendar events per activity)
+export interface Event {
+  id: string;
+  activityId: string;
+  title: string;
+  description: string | null;
+  startAt: string;
+  endAt: string;
+  allDay: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Activity (list view)
@@ -92,7 +113,7 @@ export interface ActivityListItem {
   isFavorite: boolean;
 }
 
-// Activity (detail view)
+// Activity (detail view - aligned with web)
 export interface ActivityDetail {
   id: string;
   title: string;
@@ -110,9 +131,14 @@ export interface ActivityDetail {
   priceFrom: number | null;
   scheduleText: string | null;
   tags: string[];
+  coverMediaId?: string | null;
+  zone1Tags?: string[];
+  zone2Tags?: string[];
+  zone3Tags?: string[];
   viewCount: number;
   createdAt: string;
   medias: Media[];
+  events?: Event[];
   establishment: {
     id: string;
     name: string;
@@ -153,7 +179,7 @@ export interface Establishment {
   } | null;
 }
 
-// My Activity (establishment view with full details)
+// My Activity (establishment view with full details - aligned with web)
 export interface MyActivity {
   id: string;
   title: string;
@@ -171,12 +197,17 @@ export interface MyActivity {
   priceFrom: number | null;
   scheduleText: string | null;
   tags: string[];
+  coverMediaId?: string | null;
+  zone1Tags?: string[];
+  zone2Tags?: string[];
+  zone3Tags?: string[];
   status: ActivityStatus;
   viewCount: number;
   favoritesCount: number;
   createdAt: string;
   updatedAt: string;
   medias: Media[];
+  events?: Event[];
 }
 
 // Admin stats
@@ -218,8 +249,56 @@ export interface UploadResponse {
   mimeType: string;
 }
 
-// Activity type labels (for display)
-export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
+// Cloudflare direct upload responses
+export interface CloudflareImageDirectUpload {
+  uploadURL: string;
+  id: string;
+}
+
+export interface CloudflareStreamDirectUpload {
+  uploadURL: string;
+  uid: string;
+}
+
+// Feed video (for TikTok-style video feed)
+export interface FeedVideo {
+  id: string;
+  url: string;
+  kind: string;
+  title: string | null;
+  videoCategory: string | null;
+  thumbnailUrl: string | null;
+  duration: number | null;
+  fileName: string | null;
+  createdAt: string;
+  activity: {
+    id: string;
+    title: string;
+    type: string;
+    city: string;
+    lat: number;
+    lng: number;
+  };
+  establishment: {
+    id: string;
+    name: string;
+    city: string | null;
+  };
+}
+
+// Activity type config (dynamic types from admin)
+export interface ActivityTypeConfig {
+  id: string;
+  slug: string;
+  label: string;
+  emoji: string;
+  iconUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+// Activity type labels (for display - fallback for known types)
+export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   BOWLING: 'Bowling',
   ESCAPE_GAME: 'Escape Game',
   BAR_DANSANT: 'Bar Dansant',
