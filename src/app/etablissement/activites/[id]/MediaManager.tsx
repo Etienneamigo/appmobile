@@ -65,28 +65,52 @@ export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerP
     setIsUploading(true)
 
     for (const file of Array.from(files)) {
-      const formData = new FormData()
-      formData.append("file", file)
-
       try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
+        // Step 1: Get direct upload URL from Cloudflare Images
+        const duRes = await fetch("/api/cloudflare/images/direct-upload", { method: "POST" })
+        const duData = await duRes.json()
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          toast.error(data.error || "Erreur lors de l'upload")
+        if (!duRes.ok) {
+          // Fallback to local upload if Cloudflare is not configured
+          if (duRes.status === 500 && duData.error?.includes("non configuré")) {
+            await handleLocalImageUpload(file)
+            continue
+          }
+          toast.error(duData.error || "Erreur Cloudflare Images")
           continue
         }
 
-        const result = await addMediaToActivity(activityId, data.url, data.kind, data.fileName, data.fileSize)
+        // Step 2: Upload directly to Cloudflare
+        const uploadForm = new FormData()
+        uploadForm.append("file", file)
 
-        if (result.error) {
-          toast.error(result.error)
-        } else {
+        const uploadRes = await fetch(duData.uploadURL, {
+          method: "POST",
+          body: uploadForm,
+        })
+
+        if (!uploadRes.ok) {
+          toast.error(`Erreur lors de l'upload de ${file.name} vers Cloudflare`)
+          continue
+        }
+
+        // Step 3: Attach the image to the activity in DB
+        const attachRes = await fetch("/api/cloudflare/images/attach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            activityId,
+            id: duData.id,
+            fileName: file.name,
+            fileSize: file.size,
+          }),
+        })
+
+        if (attachRes.ok) {
           toast.success("Image ajoutée")
+        } else {
+          const attachData = await attachRes.json()
+          toast.error(attachData.error || "Erreur enregistrement image")
         }
       } catch {
         toast.error("Erreur lors de l'upload")
@@ -98,6 +122,36 @@ export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerP
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
+    }
+  }
+
+  // Fallback: upload image to local server (when Cloudflare Images is not configured)
+  async function handleLocalImageUpload(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || "Erreur lors de l'upload")
+        return
+      }
+
+      const result = await addMediaToActivity(activityId, data.url, data.kind, data.fileName, data.fileSize)
+
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success("Image ajoutée (local)")
+      }
+    } catch {
+      toast.error("Erreur lors de l'upload")
     }
   }
 
