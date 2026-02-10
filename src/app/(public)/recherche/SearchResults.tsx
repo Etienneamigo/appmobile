@@ -17,6 +17,7 @@ import { searchActivities, geocodeCity, ActivityWithDistance } from "@/app/actio
 import { trackImpressions } from "@/app/actions/analytics"
 import { ACTIVITY_TYPE_OPTIONS_PLAIN, DISTANCE_OPTIONS, ACTIVITY_TYPES, ActivityTypeKey } from "@/lib/constants"
 import { formatDistance } from "@/lib/geo"
+import { useGeolocation } from "@/components/providers/GeolocationProvider"
 import { MapPin, Clock, Euro, Users, Search, SlidersHorizontal, List, Map as MapIcon, ChevronRight } from "lucide-react"
 
 // Dynamic import for the map to avoid SSR issues
@@ -63,6 +64,7 @@ function normalizeUploadUrl(url: string): string {
 export function SearchResults({ params }: SearchResultsProps) {
   const router = useRouter()
   const resultsRef = useRef<HTMLDivElement>(null)
+  const { location: geoLocation } = useGeolocation()
   const [activities, setActivities] = useState<ActivityWithDistance[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [total, setTotal] = useState(0)
@@ -90,6 +92,12 @@ export function SearchResults({ params }: SearchResultsProps) {
 
     let lat = params.lat ? parseFloat(params.lat) : undefined
     let lng = params.lng ? parseFloat(params.lng) : undefined
+
+    // Use persisted geolocation if no URL coordinates
+    if (!lat && !lng && !params.city && geoLocation) {
+      lat = geoLocation.lat
+      lng = geoLocation.lng
+    }
 
     // If city is provided but no coordinates, geocode the city
     if (!lat && !lng && params.city) {
@@ -120,7 +128,7 @@ export function SearchResults({ params }: SearchResultsProps) {
     setActivities(result.activities)
     setTotal(result.total)
     setIsLoading(false)
-  }, [params])
+  }, [params, geoLocation])
 
   useEffect(() => {
     fetchActivities()
