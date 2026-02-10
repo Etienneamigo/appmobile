@@ -48,12 +48,23 @@ export async function backfillActivityTypes() {
   try {
     // Get existing config slugs
     const existingConfigs = await prisma.activityTypeConfig.findMany({
-      select: { slug: true },
+      select: { slug: true, label: true, id: true },
     })
     const existingSlugs = new Set(existingConfigs.map((c) => c.slug))
 
-    // 1. Sync preconfigured defaults from ACTIVITY_TYPES constant
+    // Sync labels for existing preconfigured types (handles renames like "Bar dansant" → "Bar/pub/club")
     const defaultEntries = Object.entries(ACTIVITY_TYPES)
+    for (const [slug, info] of defaultEntries) {
+      const existing = existingConfigs.find((c) => c.slug === slug)
+      if (existing && existing.label !== info.label) {
+        await prisma.activityTypeConfig.update({
+          where: { id: existing.id },
+          data: { label: info.label },
+        })
+      }
+    }
+
+    // 1. Sync preconfigured defaults from ACTIVITY_TYPES constant
     const missingDefaults = defaultEntries.filter(([slug]) => !existingSlugs.has(slug))
 
     // 2. Backfill from existing Activity.type values in DB

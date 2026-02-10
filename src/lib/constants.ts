@@ -3,7 +3,7 @@
 export const ACTIVITY_TYPES: Record<string, { label: string; emoji: string }> = {
   BOWLING: { label: "Bowling", emoji: "🎳" },
   ESCAPE_GAME: { label: "Escape Game", emoji: "🔐" },
-  BAR_DANSANT: { label: "Bar dansant", emoji: "💃" },
+  BAR_DANSANT: { label: "Bar/pub/club", emoji: "💃" },
   KARAOKE: { label: "Karaoké", emoji: "🎤" },
   LASER_GAME: { label: "Laser Game", emoji: "🔫" },
   CINEMA: { label: "Cinéma", emoji: "🎬" },

@@ -21,7 +21,7 @@ async function main() {
   const activityTypes = [
     { slug: "BOWLING", label: "Bowling", emoji: "🎳", sortOrder: 1 },
     { slug: "ESCAPE_GAME", label: "Escape Game", emoji: "🔐", sortOrder: 2 },
-    { slug: "BAR_DANSANT", label: "Bar dansant", emoji: "💃", sortOrder: 3 },
+    { slug: "BAR_DANSANT", label: "Bar/pub/club", emoji: "💃", sortOrder: 3 },
     { slug: "KARAOKE", label: "Karaoké", emoji: "🎤", sortOrder: 4 },
     { slug: "LASER_GAME", label: "Laser Game", emoji: "🔫", sortOrder: 5 },
     { slug: "CINEMA", label: "Cinéma", emoji: "🎬", sortOrder: 6 },
