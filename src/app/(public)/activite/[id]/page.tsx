@@ -34,7 +34,9 @@ export default async function ActivityPage({ params }: ActivityPageProps) {
   const activity = await prisma.activity.findUnique({
     where: { id, status: "PUBLISHED" },
     include: {
-      medias: true,
+      medias: {
+        orderBy: { createdAt: "desc" },
+      },
       establishment: true,
       events: {
         where: {

@@ -20,18 +20,13 @@ import {
   CalendarCheck,
   ChevronLeft,
   Play,
+  ChevronDown,
 } from "lucide-react"
 import type { Activity, Media, Establishment, Event } from "@prisma/client"
 import { EventsCarousel } from "./EventsCarousel"
 import { MediaGrid } from "./MediaGrid"
-
-// Normalize upload URLs to use the API serving route
-function normalizeUploadUrl(url: string): string {
-  if (url.startsWith("/uploads/")) {
-    return url.replace("/uploads/", "/api/uploads/")
-  }
-  return url
-}
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
+import { normalizeUploadUrl, isHlsUrl } from "@/lib/video-utils"
 
 const ActivityMap = dynamic(
   () => import("@/components/map/ActivityMap").then((mod) => mod.ActivityMap),
@@ -57,11 +52,26 @@ export function ActivityDetail({
 }: ActivityDetailProps) {
   const [isFavorited, setIsFavorited] = useState(initialFavorited)
   const [isLoading, setIsLoading] = useState(false)
+  const [visibleMediaCount, setVisibleMediaCount] = useState(9)
 
   const typeInfo = ACTIVITY_TYPES[activity.type as ActivityTypeKey]
+
+  // Medias are already sorted DESC by createdAt from the server
   const allMedia = activity.medias
-  const coverMedia = allMedia[0] // First media as cover
+
+  // Cover: use explicit coverMediaId if set, otherwise first media (= most recent)
+  const coverMediaId = (activity as Activity & { coverMediaId?: string | null }).coverMediaId
+  const coverMedia = coverMediaId
+    ? allMedia.find((m) => m.id === coverMediaId) || allMedia[0]
+    : allMedia[0]
   const coverIsVideo = coverMedia?.kind === "VIDEO_UPLOAD" || coverMedia?.kind === "VIDEO"
+
+  // Grid medias (exclude cover to avoid duplication)
+  const gridMedia = coverMedia
+    ? allMedia.filter((m) => m.id !== coverMedia.id)
+    : allMedia
+  const visibleGridMedia = gridMedia.slice(0, visibleMediaCount)
+  const hasMoreMedia = gridMedia.length > visibleMediaCount
 
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${activity.lat},${activity.lng}`
   const osmUrl = `https://www.openstreetmap.org/directions?route=;${activity.lat},${activity.lng}`
@@ -100,18 +110,30 @@ export function ActivityDetail({
       </div>
 
       {/* Cover + Title */}
-      <div className="relative rounded-xl overflow-hidden mb-6 bg-gray-100">
+      <div className="relative rounded-xl overflow-hidden mb-4 bg-gray-100">
         {coverMedia ? (
           coverIsVideo ? (
             <div className="aspect-[16/9] sm:aspect-[21/9]">
-              <video
-                src={normalizeUploadUrl(coverMedia.url)}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-              />
+              {isHlsUrl(coverMedia.url) ? (
+                <StreamHlsVideo
+                  src={coverMedia.url}
+                  poster={coverMedia.thumbnailUrl ? normalizeUploadUrl(coverMedia.thumbnailUrl) : undefined}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : (
+                <video
+                  src={normalizeUploadUrl(coverMedia.url)}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              )}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <Play className="h-12 w-12 text-white/60" />
               </div>
@@ -145,7 +167,7 @@ export function ActivityDetail({
         </div>
       </div>
 
-      {/* Action buttons row */}
+      {/* Centralized CTA row */}
       <div className="flex flex-wrap items-center gap-2 mb-8">
         {activity.establishment.bookingUrl && (
           <Button asChild size="sm" className="bg-gray-900 hover:bg-black text-white">
@@ -173,6 +195,22 @@ export function ActivityDetail({
           />
           {isFavorited ? "Favori" : "Favoris"}
         </Button>
+        {activity.establishment.website && (
+          <Button asChild variant="outline" size="sm" className="border-gray-200 text-gray-700">
+            <a href={activity.establishment.website} target="_blank" rel="noopener noreferrer">
+              <Globe className="h-3.5 w-3.5 mr-1.5" />
+              Site web
+            </a>
+          </Button>
+        )}
+        {activity.establishment.phone && (
+          <Button asChild variant="outline" size="sm" className="border-gray-200 text-gray-700">
+            <a href={`tel:${activity.establishment.phone}`}>
+              <Phone className="h-3.5 w-3.5 mr-1.5" />
+              {activity.establishment.phone}
+            </a>
+          </Button>
+        )}
       </div>
 
       {/* Description */}
@@ -183,14 +221,23 @@ export function ActivityDetail({
         </p>
       </div>
 
-      {/* Media Grid - TikTok profile style (all images + videos) */}
-      {allMedia.length > 0 && (
+      {/* Media Grid — cover excluded, 9 initial + 3 per click */}
+      {gridMedia.length > 0 && (
         <div className="mb-10">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Médias
-            <span className="text-sm font-normal text-gray-400 ml-2">{allMedia.length}</span>
+            <span className="text-sm font-normal text-gray-400 ml-2">{gridMedia.length}</span>
           </h2>
-          <MediaGrid medias={allMedia} />
+          <MediaGrid medias={visibleGridMedia} />
+          {hasMoreMedia && (
+            <button
+              onClick={() => setVisibleMediaCount((prev) => prev + 3)}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              <ChevronDown className="h-4 w-4" />
+              Voir plus ({gridMedia.length - visibleMediaCount} restant{gridMedia.length - visibleMediaCount > 1 ? "s" : ""})
+            </button>
+          )}
         </div>
       )}
 
@@ -215,7 +262,6 @@ export function ActivityDetail({
               </div>
             </div>
           )}
-
           {activity.priceFrom && (
             <div className="flex items-start gap-3">
               <Euro className="h-4 w-4 text-gray-400 mt-0.5" />
@@ -225,7 +271,6 @@ export function ActivityDetail({
               </div>
             </div>
           )}
-
           {(activity.minPeople || activity.maxPeople) && (
             <div className="flex items-start gap-3">
               <Users className="h-4 w-4 text-gray-400 mt-0.5" />
@@ -238,7 +283,6 @@ export function ActivityDetail({
             </div>
           )}
         </div>
-
         {activity.scheduleText && (
           <div className="flex items-start gap-3 mt-4 pt-4 border-t border-gray-100">
             <Calendar className="h-4 w-4 text-gray-400 mt-0.5" />
@@ -248,7 +292,6 @@ export function ActivityDetail({
             </div>
           </div>
         )}
-
         {activity.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-gray-100">
             {activity.tags.map((tag) => (
@@ -287,28 +330,6 @@ export function ActivityDetail({
       <div className="mb-10 p-5 bg-gray-50 rounded-xl">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Établissement</h2>
         <p className="font-medium text-gray-900">{activity.establishment.name}</p>
-        <div className="flex flex-wrap items-center gap-4 mt-2">
-          {activity.establishment.phone && (
-            <a
-              href={`tel:${activity.establishment.phone}`}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              {activity.establishment.phone}
-            </a>
-          )}
-          {activity.establishment.website && (
-            <a
-              href={activity.establishment.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <Globe className="h-3.5 w-3.5" />
-              Site web
-            </a>
-          )}
-        </div>
       </div>
     </div>
   )

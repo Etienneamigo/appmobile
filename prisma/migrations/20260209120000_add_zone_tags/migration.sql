@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Activity" ADD COLUMN "zone1Tags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Activity" ADD COLUMN "zone2Tags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Activity" ADD COLUMN "zone3Tags" TEXT[] DEFAULT ARRAY[]::TEXT[];

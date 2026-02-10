@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
     "font-src 'self' data: https://fonts.gstatic.com",
 
     // Connect - API calls (self + Stripe + Cloudflare)
-    "connect-src 'self' https://api.stripe.com https://challenges.cloudflare.com wss:",
+    "connect-src 'self' https://api.stripe.com https://challenges.cloudflare.com wss: https://upload.cloudflarestream.com https://upload.videodelivery.net https://*.cloudflarestream.com https://*.videodelivery.net https://upload.imagedelivery.net",
 
     // Frames - Stripe 3DS, Cloudflare Turnstile
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
@@ -50,7 +50,7 @@ export function middleware(request: NextRequest) {
     "object-src 'none'",
 
     // Media - self + blob (for video uploads)
-    "media-src 'self' blob:",
+    "media-src 'self' blob: https://*.cloudflarestream.com https://*.videodelivery.net",
 
     // Worker - self (for service workers if any)
     "worker-src 'self' blob:",

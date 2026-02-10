@@ -46,6 +46,9 @@ export const createActivitySchema = z.object({
   priceFrom: z.number().positive().optional().nullable(),
   scheduleText: z.string().optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
+  zone1Tags: z.array(z.string()).optional().default([]),
+  zone2Tags: z.array(z.string()).optional().default([]),
+  zone3Tags: z.array(z.string()).optional().default([]),
   status: activityStatusEnum.default("DRAFT"),
 })
 

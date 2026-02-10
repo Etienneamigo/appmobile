@@ -123,3 +123,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Bottom nav spacing */
+:root {
+  --header-h: 3.5rem;
+  --bottom-nav-h: 0px;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --bottom-nav-h: 56px;
+  }
+}
+
+/* Feed height: accounts for header + bottom nav + safe areas */
+.feed-height {
+  height: calc(100dvh - var(--header-h) - var(--bottom-nav-h) - env(safe-area-inset-bottom, 0px));
+}
+
+/* Fallback for browsers that don't support dvh */
+@supports not (height: 100dvh) {
+  .feed-height {
+    height: calc(100vh - var(--header-h) - var(--bottom-nav-h));
+  }
+}
+
+/* Mobile bottom padding for pages with bottom nav */
+@media (max-width: 767px) {
+  .pb-mobile-nav {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

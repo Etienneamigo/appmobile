@@ -4,15 +4,17 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addMediaToActivity, deleteMedia } from "@/app/actions/activities"
+import { addMediaToActivity, deleteMedia, setCoverMedia } from "@/app/actions/activities"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { Upload, Trash2, Image, Video, Loader2, Link as LinkIcon, FileVideo, AlertCircle } from "lucide-react"
+import { Upload, Trash2, Image, Video, Loader2, Link as LinkIcon, FileVideo, AlertCircle, Star } from "lucide-react"
 import type { Media } from "@prisma/client"
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
 
 interface MediaManagerProps {
   activityId: string
   medias: Media[]
+  coverMediaId?: string | null
 }
 
 const MAX_VIDEO_SIZE_MB = 30
@@ -27,7 +29,7 @@ function normalizeUploadUrl(url: string): string {
   return url
 }
 
-export function MediaManager({ activityId, medias }: MediaManagerProps) {
+export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isUploadingVideo, setIsUploadingVideo] = useState(false)
   const [videoUrl, setVideoUrl] = useState("")
@@ -64,28 +66,52 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
     setIsUploading(true)
 
     for (const file of Array.from(files)) {
-      const formData = new FormData()
-      formData.append("file", file)
-
       try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
+        // Step 1: Get direct upload URL from Cloudflare Images
+        const duRes = await fetch("/api/cloudflare/images/direct-upload", { method: "POST" })
+        const duData = await duRes.json()
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          toast.error(data.error || "Erreur lors de l'upload")
+        if (!duRes.ok) {
+          // Fallback to local upload if Cloudflare is not configured
+          if (duRes.status === 500 && duData.error?.includes("non configuré")) {
+            await handleLocalImageUpload(file)
+            continue
+          }
+          toast.error(duData.error || "Erreur Cloudflare Images")
           continue
         }
 
-        const result = await addMediaToActivity(activityId, data.url, data.kind, data.fileName, data.fileSize)
+        // Step 2: Upload directly to Cloudflare
+        const uploadForm = new FormData()
+        uploadForm.append("file", file)
 
-        if (result.error) {
-          toast.error(result.error)
-        } else {
+        const uploadRes = await fetch(duData.uploadURL, {
+          method: "POST",
+          body: uploadForm,
+        })
+
+        if (!uploadRes.ok) {
+          toast.error(`Erreur lors de l'upload de ${file.name} vers Cloudflare`)
+          continue
+        }
+
+        // Step 3: Attach the image to the activity in DB
+        const attachRes = await fetch("/api/cloudflare/images/attach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            activityId,
+            id: duData.id,
+            fileName: file.name,
+            fileSize: file.size,
+          }),
+        })
+
+        if (attachRes.ok) {
           toast.success("Image ajoutée")
+        } else {
+          const attachData = await attachRes.json()
+          toast.error(attachData.error || "Erreur enregistrement image")
         }
       } catch {
         toast.error("Erreur lors de l'upload")
@@ -97,6 +123,36 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
+    }
+  }
+
+  // Fallback: upload image to local server (when Cloudflare Images is not configured)
+  async function handleLocalImageUpload(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || "Erreur lors de l'upload")
+        return
+      }
+
+      const result = await addMediaToActivity(activityId, data.url, data.kind, data.fileName, data.fileSize)
+
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success("Image ajoutée (local)")
+      }
+    } catch {
+      toast.error("Erreur lors de l'upload")
     }
   }
 
@@ -131,38 +187,72 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
         }
       }
 
-      setUploadProgress(`Upload de ${file.name}...`)
-
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", "video")
-
       try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
+        // Step 1: Get direct upload URL from Cloudflare Stream
+        setUploadProgress(`Préparation de ${file.name}...`)
+        const duRes = await fetch("/api/cloudflare/stream/direct-upload", { method: "POST" })
+        const duData = await duRes.json()
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          toast.error(data.error || `Erreur lors de l'upload de ${file.name}`)
+        if (!duRes.ok) {
+          // Fallback to local upload if Cloudflare is not configured
+          if (duRes.status === 500 && duData.error?.includes("non configuré")) {
+            setUploadProgress(`Upload local de ${file.name}...`)
+            await handleLocalVideoUpload(file)
+            continue
+          }
+          toast.error(duData.error || `Erreur Cloudflare pour ${file.name}`)
           continue
         }
 
+        // Step 2: Upload directly to Cloudflare
+        setUploadProgress(`Upload de ${file.name}...`)
+        const uploadForm = new FormData()
+        uploadForm.append("file", file)
+
+        const uploadRes = await fetch(duData.uploadURL, {
+          method: "POST",
+          body: uploadForm,
+        })
+
+        if (!uploadRes.ok) {
+          toast.error(`Erreur lors de l'upload de ${file.name} vers Cloudflare`)
+          continue
+        }
+
+        // Step 3: Attach the video to the activity in DB
         setUploadProgress(`Enregistrement de ${file.name}...`)
 
-        const result = await addMediaToActivity(
-          activityId,
-          data.url,
-          "VIDEO_UPLOAD",
-          data.fileName,
-          data.fileSize
-        )
+        // Retry attach (video processing may take a moment)
+        let attachOk = false
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const attachRes = await fetch("/api/cloudflare/stream/attach", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              activityId,
+              uid: duData.uid,
+              fileName: file.name,
+              fileSize: file.size,
+            }),
+          })
 
-        if (result.error) {
-          toast.error(result.error)
-        } else {
+          if (attachRes.ok) {
+            attachOk = true
+            break
+          }
+
+          if (attachRes.status === 202) {
+            setUploadProgress(`Traitement de ${file.name}... (${attempt + 1}/6)`)
+            await new Promise((r) => setTimeout(r, 3000))
+            continue
+          }
+
+          const attachData = await attachRes.json()
+          toast.error(attachData.error || `Erreur enregistrement ${file.name}`)
+          break
+        }
+
+        if (attachOk) {
           toast.success(`Vidéo "${file.name}" uploadée`)
         }
       } catch {
@@ -179,6 +269,43 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
     }
   }
 
+  // Fallback: upload video to local server (when Cloudflare is not configured)
+  async function handleLocalVideoUpload(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("type", "video")
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || `Erreur lors de l'upload de ${file.name}`)
+        return
+      }
+
+      const result = await addMediaToActivity(
+        activityId,
+        data.url,
+        "VIDEO_UPLOAD",
+        data.fileName,
+        data.fileSize
+      )
+
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(`Vidéo "${file.name}" uploadée (local)`)
+      }
+    } catch {
+      toast.error(`Erreur lors de l'upload de ${file.name}`)
+    }
+  }
+
   async function handleAddVideoUrl() {
     if (!videoUrl.trim()) return
 
@@ -191,6 +318,17 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
     } else {
       toast.success("Lien vidéo ajouté")
       setVideoUrl("")
+      router.refresh()
+    }
+  }
+
+  async function handleSetCover(mediaId: string) {
+    const result = await setCoverMedia(activityId, mediaId)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Couverture définie")
       router.refresh()
     }
   }
@@ -241,22 +379,43 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
 
         {images.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {images.map((media) => (
-              <div key={media.id} className="relative group">
-                <img
-                  src={normalizeUploadUrl(media.url)}
-                  alt=""
-                  className="w-full h-24 object-cover rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteMedia(media.id)}
-                  className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+            {images.map((media) => {
+              const isCover = coverMediaId === media.id
+              return (
+                <div key={media.id} className={`relative group rounded-lg overflow-hidden ${isCover ? "ring-2 ring-yellow-400" : ""}`}>
+                  <img
+                    src={normalizeUploadUrl(media.url)}
+                    alt=""
+                    className="w-full h-24 object-cover"
+                  />
+                  {isCover && (
+                    <span className="absolute top-1 left-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] font-semibold rounded">
+                      Couverture
+                    </span>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!isCover && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetCover(media.id)}
+                        className="p-1 bg-yellow-400 text-yellow-900 rounded-full"
+                        title="Définir comme couverture"
+                      >
+                        <Star className="h-3 w-3" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMedia(media.id)}
+                      className="p-1 bg-red-500 text-white rounded-full"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Aucune image</p>
@@ -306,38 +465,57 @@ export function MediaManager({ activityId, medias }: MediaManagerProps) {
 
         {uploadedVideos.length > 0 ? (
           <div className="space-y-4">
-            {uploadedVideos.map((video) => (
-              <div key={video.id} className="space-y-2">
-                <div className="relative rounded-lg overflow-hidden bg-black">
-                  <video
-                    src={normalizeUploadUrl(video.url)}
-                    controls
-                    className="w-full max-h-64"
-                    preload="metadata"
-                  >
-                    Votre navigateur ne supporte pas la lecture de vidéos.
-                  </video>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {video.fileName || "Vidéo uploadée"}
-                    {video.fileSize && (
-                      <span className="ml-2">
-                        ({(video.fileSize / (1024 * 1024)).toFixed(1)}MB)
+            {uploadedVideos.map((video) => {
+              const isCover = coverMediaId === video.id
+              return (
+                <div key={video.id} className="space-y-2">
+                  <div className={`relative rounded-lg overflow-hidden bg-black ${isCover ? "ring-2 ring-yellow-400" : ""}`}>
+                    <StreamHlsVideo
+                        src={normalizeUploadUrl(video.url)}
+                        controls
+                        className="w-full max-h-64"
+                        preload="metadata"
+                      />
+                    {isCover && (
+                      <span className="absolute top-2 left-2 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] font-semibold rounded">
+                        Couverture
                       </span>
                     )}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteMedia(video.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {video.fileName || "Vidéo uploadée"}
+                      {video.fileSize && (
+                        <span className="ml-2">
+                          ({(video.fileSize / (1024 * 1024)).toFixed(1)}MB)
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {!isCover && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSetCover(video.id)}
+                          title="Définir comme couverture"
+                        >
+                          <Star className="h-4 w-4 text-yellow-500" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteMedia(video.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div

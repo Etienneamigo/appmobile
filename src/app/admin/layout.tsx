@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { SessionProvider } from "@/components/providers/SessionProvider"
 import { Header } from "@/components/layout/Header"
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav"
 import Link from "next/link"
 import { Users, Building2, Tag, LayoutDashboard, Settings, Shapes } from "lucide-react"
 
@@ -74,10 +75,11 @@ export default async function AdminLayout({
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 p-8">
+          <main className="flex-1 p-4 md:p-8 pb-mobile-nav">
             {children}
           </main>
         </div>
+        <MobileBottomNav />
       </div>
     </SessionProvider>
   )

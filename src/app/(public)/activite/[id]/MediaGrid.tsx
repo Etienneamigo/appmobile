@@ -2,15 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { X, ChevronLeft, ChevronRight, Play, Volume2, VolumeX } from "lucide-react"
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
+import { normalizeUploadUrl, isHlsUrl } from "@/lib/video-utils"
 import type { Media } from "@prisma/client"
-
-// Normalize upload URLs to use the API serving route
-function normalizeUploadUrl(url: string): string {
-  if (url.startsWith("/uploads/")) {
-    return url.replace("/uploads/", "/api/uploads/")
-  }
-  return url
-}
 
 interface MediaGridProps {
   medias: Media[]
@@ -87,13 +81,24 @@ export function MediaGrid({ medias }: MediaGridProps) {
               className="relative aspect-[9/16] bg-gray-100 overflow-hidden group cursor-pointer"
             >
               {mediaIsVideo ? (
-                <video
-                  src={normalizeUploadUrl(media.url)}
-                  className="w-full h-full object-cover"
-                  preload="metadata"
-                  muted
-                  playsInline
-                />
+                isHlsUrl(media.url) ? (
+                  <StreamHlsVideo
+                    src={media.url}
+                    poster={media.thumbnailUrl ? normalizeUploadUrl(media.thumbnailUrl) : undefined}
+                    className="w-full h-full object-cover"
+                    preload="metadata"
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  <video
+                    src={normalizeUploadUrl(media.url)}
+                    className="w-full h-full object-cover"
+                    preload="metadata"
+                    muted
+                    playsInline
+                  />
+                )
               ) : (
                 <img
                   src={normalizeUploadUrl(media.url)}
@@ -166,18 +171,32 @@ export function MediaGrid({ medias }: MediaGridProps) {
           <div className="w-full max-w-lg mx-auto px-4">
             {isVideo ? (
               selectedMedia.kind === "VIDEO_UPLOAD" ? (
-                <video
-                  ref={videoRef}
-                  key={selectedMedia.id}
-                  src={normalizeUploadUrl(selectedMedia.url)}
-                  controls
-                  autoPlay
-                  muted={isMuted}
-                  playsInline
-                  className="w-full max-h-[85vh] rounded-lg bg-black"
-                >
-                  Votre navigateur ne supporte pas la lecture de vidéos.
-                </video>
+                isHlsUrl(selectedMedia.url) ? (
+                  <StreamHlsVideo
+                    ref={videoRef}
+                    key={selectedMedia.id}
+                    src={selectedMedia.url}
+                    poster={selectedMedia.thumbnailUrl ? normalizeUploadUrl(selectedMedia.thumbnailUrl) : undefined}
+                    controls
+                    autoPlay
+                    muted={isMuted}
+                    playsInline
+                    className="w-full max-h-[85vh] rounded-lg bg-black"
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    key={selectedMedia.id}
+                    src={normalizeUploadUrl(selectedMedia.url)}
+                    controls
+                    autoPlay
+                    muted={isMuted}
+                    playsInline
+                    className="w-full max-h-[85vh] rounded-lg bg-black"
+                  >
+                    Votre navigateur ne supporte pas la lecture de vidéos.
+                  </video>
+                )
               ) : selectedMedia.url.includes("youtube") || selectedMedia.url.includes("youtu.be") ? (
                 <div className="aspect-video">
                   <iframe

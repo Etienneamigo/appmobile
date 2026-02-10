@@ -236,6 +236,45 @@ export async function deleteMedia(id: string) {
   return { success: true }
 }
 
+export async function setCoverMedia(activityId: string, mediaId: string) {
+  const session = await auth()
+
+  if (!session?.user?.establishmentId) {
+    return { error: "Non autorisé" }
+  }
+
+  const activity = await prisma.activity.findFirst({
+    where: {
+      id: activityId,
+      establishmentId: session.user.establishmentId,
+    },
+  })
+
+  if (!activity) {
+    return { error: "Activité non trouvée" }
+  }
+
+  // Verify the media belongs to this activity
+  const media = await prisma.media.findFirst({
+    where: { id: mediaId, activityId },
+  })
+
+  if (!media) {
+    return { error: "Média non trouvé" }
+  }
+
+  await prisma.activity.update({
+    where: { id: activityId },
+    data: { coverMediaId: mediaId },
+  })
+
+  revalidatePath(`/etablissement/activites/${activityId}`)
+  revalidatePath(`/activite/${activityId}`)
+  revalidatePath("/recherche")
+
+  return { success: true }
+}
+
 export async function incrementViewCount(activityId: string) {
   await prisma.activity.update({
     where: { id: activityId },

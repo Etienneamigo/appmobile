@@ -120,6 +120,10 @@ model Activity {
   priceFrom       Float?
   scheduleText    String?        @db.Text
   tags            String[]
+  coverMediaId    String?        // ID du média choisi comme couverture
+  zone1Tags       String[]       // Mood social: en-couple, en-famille, entre-amis, en-solo
+  zone2Tags       String[]       // Ambiance/format: detente-chill, immersif, ludique, after-work, soiree
+  zone3Tags       String[]       // Profil d'intérêt: sportif, creatifs, gourmands, culture
   status          ActivityStatus @default(DRAFT)
   viewCount       Int            @default(0)
   createdAt       DateTime       @default(now())
@@ -140,18 +144,19 @@ model Activity {
 
 // Modèle Média
 model Media {
-  id            String    @id @default(cuid())
-  activityId    String
-  kind          MediaKind
-  url           String
-  fileName      String?   // Nom du fichier original (pour vidéos uploadées)
-  fileSize      Int?      // Taille en bytes (pour vidéos uploadées)
-  videoCategory String?   // Catégorie vidéo : "teaser", "ambiance", "cours", etc.
-  title         String?   // Titre optionnel du média
-  thumbnailUrl  String?   // URL de la vignette (pour vidéos)
-  duration      Int?      // Durée en secondes (pour vidéos)
-  sortOrder     Int       @default(0)
-  createdAt     DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  activityId         String
+  kind               MediaKind
+  url                String
+  fileName           String?   // Nom du fichier original (pour vidéos uploadées)
+  fileSize           Int?      // Taille en bytes (pour vidéos uploadées)
+  videoCategory      String?   // Catégorie vidéo : "teaser", "ambiance", "cours", etc.
+  title              String?   // Titre optionnel du média
+  thumbnailUrl       String?   // URL de la vignette (pour vidéos)
+  duration           Int?      // Durée en secondes (pour vidéos)
+  cloudflareImageId  String?   // ID Cloudflare Images (pour images hébergées sur CF)
+  sortOrder          Int       @default(0)
+  createdAt          DateTime  @default(now())
 
   // Relations
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
