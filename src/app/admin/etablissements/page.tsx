@@ -10,9 +10,11 @@ export default async function EstablishmentsPage() {
       user: { select: { email: true, isActive: true } },
       activity: {
         select: {
+          id: true,
           title: true,
           status: true,
           viewCount: true,
+          adminPick: true,
           _count: { select: { favorites: true } },
         },
       },
@@ -71,8 +73,11 @@ export default async function EstablishmentsPage() {
                         variant={establishment.activity.status === "PUBLISHED" ? "default" : "outline"}
                         className="ml-2 text-xs"
                       >
-                        {establishment.activity.status === "PUBLISHED" ? "Publie" : "Brouillon"}
+                        {establishment.activity.status === "PUBLISHED" ? "Publié" : "Brouillon"}
                       </Badge>
+                      {establishment.activity.adminPick && (
+                        <Badge className="ml-2 text-xs bg-emerald-500">Validé Wadelo</Badge>
+                      )}
                       <span className="text-muted-foreground ml-4">
                         {establishment.activity.viewCount} vues, {establishment.activity._count.favorites} favoris
                       </span>
