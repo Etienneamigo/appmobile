@@ -2,15 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { X, ChevronLeft, ChevronRight, Play, Volume2, VolumeX } from "lucide-react"
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
+import { normalizeUploadUrl, isHlsUrl } from "@/lib/video-utils"
 import type { Media } from "@prisma/client"
-
-// Normalize upload URLs to use the API serving route
-function normalizeUploadUrl(url: string): string {
-  if (url.startsWith("/uploads/")) {
-    return url.replace("/uploads/", "/api/uploads/")
-  }
-  return url
-}
 
 interface VideoGalleryProps {
   videos: Media[]
@@ -83,13 +77,24 @@ export function VideoGallery({ videos }: VideoGalleryProps) {
             onClick={() => setSelectedIndex(index)}
             className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden group cursor-pointer"
           >
-            <video
-              src={normalizeUploadUrl(video.url)}
-              className="w-full h-full object-cover"
-              preload="metadata"
-              muted
-              playsInline
-            />
+            {isHlsUrl(video.url) ? (
+              <StreamHlsVideo
+                src={video.url}
+                poster={video.thumbnailUrl ? normalizeUploadUrl(video.thumbnailUrl) : undefined}
+                className="w-full h-full object-cover"
+                preload="metadata"
+                muted
+                playsInline
+              />
+            ) : (
+              <video
+                src={normalizeUploadUrl(video.url)}
+                className="w-full h-full object-cover"
+                preload="metadata"
+                muted
+                playsInline
+              />
+            )}
             {/* Play overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
               <Play className="h-8 w-8 text-white opacity-70 group-hover:opacity-100 transition-opacity" />
@@ -155,18 +160,32 @@ export function VideoGallery({ videos }: VideoGalleryProps) {
           {/* Video player */}
           <div className="w-full max-w-lg mx-auto px-4">
             {selectedVideo.kind === "VIDEO_UPLOAD" ? (
-              <video
-                ref={videoRef}
-                key={selectedVideo.id}
-                src={normalizeUploadUrl(selectedVideo.url)}
-                controls
-                autoPlay
-                muted={isMuted}
-                playsInline
-                className="w-full max-h-[85vh] rounded-lg bg-black"
-              >
-                Votre navigateur ne supporte pas la lecture de vidéos.
-              </video>
+              isHlsUrl(selectedVideo.url) ? (
+                <StreamHlsVideo
+                  ref={videoRef}
+                  key={selectedVideo.id}
+                  src={selectedVideo.url}
+                  poster={selectedVideo.thumbnailUrl ? normalizeUploadUrl(selectedVideo.thumbnailUrl) : undefined}
+                  controls
+                  autoPlay
+                  muted={isMuted}
+                  playsInline
+                  className="w-full max-h-[85vh] rounded-lg bg-black"
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  key={selectedVideo.id}
+                  src={normalizeUploadUrl(selectedVideo.url)}
+                  controls
+                  autoPlay
+                  muted={isMuted}
+                  playsInline
+                  className="w-full max-h-[85vh] rounded-lg bg-black"
+                >
+                  Votre navigateur ne supporte pas la lecture de vidéos.
+                </video>
+              )
             ) : selectedVideo.url.includes("youtube") || selectedVideo.url.includes("youtu.be") ? (
               <div className="aspect-video">
                 <iframe

@@ -132,38 +132,72 @@ export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerP
         }
       }
 
-      setUploadProgress(`Upload de ${file.name}...`)
-
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("type", "video")
-
       try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
+        // Step 1: Get direct upload URL from Cloudflare Stream
+        setUploadProgress(`Préparation de ${file.name}...`)
+        const duRes = await fetch("/api/cloudflare/stream/direct-upload", { method: "POST" })
+        const duData = await duRes.json()
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          toast.error(data.error || `Erreur lors de l'upload de ${file.name}`)
+        if (!duRes.ok) {
+          // Fallback to local upload if Cloudflare is not configured
+          if (duRes.status === 500 && duData.error?.includes("non configuré")) {
+            setUploadProgress(`Upload local de ${file.name}...`)
+            await handleLocalVideoUpload(file)
+            continue
+          }
+          toast.error(duData.error || `Erreur Cloudflare pour ${file.name}`)
           continue
         }
 
+        // Step 2: Upload directly to Cloudflare
+        setUploadProgress(`Upload de ${file.name}...`)
+        const uploadForm = new FormData()
+        uploadForm.append("file", file)
+
+        const uploadRes = await fetch(duData.uploadURL, {
+          method: "POST",
+          body: uploadForm,
+        })
+
+        if (!uploadRes.ok) {
+          toast.error(`Erreur lors de l'upload de ${file.name} vers Cloudflare`)
+          continue
+        }
+
+        // Step 3: Attach the video to the activity in DB
         setUploadProgress(`Enregistrement de ${file.name}...`)
 
-        const result = await addMediaToActivity(
-          activityId,
-          data.url,
-          "VIDEO_UPLOAD",
-          data.fileName,
-          data.fileSize
-        )
+        // Retry attach (video processing may take a moment)
+        let attachOk = false
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const attachRes = await fetch("/api/cloudflare/stream/attach", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              activityId,
+              uid: duData.uid,
+              fileName: file.name,
+              fileSize: file.size,
+            }),
+          })
 
-        if (result.error) {
-          toast.error(result.error)
-        } else {
+          if (attachRes.ok) {
+            attachOk = true
+            break
+          }
+
+          if (attachRes.status === 202) {
+            setUploadProgress(`Traitement de ${file.name}... (${attempt + 1}/6)`)
+            await new Promise((r) => setTimeout(r, 3000))
+            continue
+          }
+
+          const attachData = await attachRes.json()
+          toast.error(attachData.error || `Erreur enregistrement ${file.name}`)
+          break
+        }
+
+        if (attachOk) {
           toast.success(`Vidéo "${file.name}" uploadée`)
         }
       } catch {
@@ -177,6 +211,43 @@ export function MediaManager({ activityId, medias, coverMediaId }: MediaManagerP
 
     if (videoInputRef.current) {
       videoInputRef.current.value = ""
+    }
+  }
+
+  // Fallback: upload video to local server (when Cloudflare is not configured)
+  async function handleLocalVideoUpload(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("type", "video")
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || `Erreur lors de l'upload de ${file.name}`)
+        return
+      }
+
+      const result = await addMediaToActivity(
+        activityId,
+        data.url,
+        "VIDEO_UPLOAD",
+        data.fileName,
+        data.fileSize
+      )
+
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(`Vidéo "${file.name}" uploadée (local)`)
+      }
+    } catch {
+      toast.error(`Erreur lors de l'upload de ${file.name}`)
     }
   }
 

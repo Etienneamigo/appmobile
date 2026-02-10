@@ -25,14 +25,8 @@ import {
 import type { Activity, Media, Establishment, Event } from "@prisma/client"
 import { EventsCarousel } from "./EventsCarousel"
 import { MediaGrid } from "./MediaGrid"
-
-// Normalize upload URLs to use the API serving route
-function normalizeUploadUrl(url: string): string {
-  if (url.startsWith("/uploads/")) {
-    return url.replace("/uploads/", "/api/uploads/")
-  }
-  return url
-}
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
+import { normalizeUploadUrl, isHlsUrl } from "@/lib/video-utils"
 
 const ActivityMap = dynamic(
   () => import("@/components/map/ActivityMap").then((mod) => mod.ActivityMap),
@@ -120,14 +114,26 @@ export function ActivityDetail({
         {coverMedia ? (
           coverIsVideo ? (
             <div className="aspect-[16/9] sm:aspect-[21/9]">
-              <video
-                src={normalizeUploadUrl(coverMedia.url)}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-              />
+              {isHlsUrl(coverMedia.url) ? (
+                <StreamHlsVideo
+                  src={coverMedia.url}
+                  poster={coverMedia.thumbnailUrl ? normalizeUploadUrl(coverMedia.thumbnailUrl) : undefined}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : (
+                <video
+                  src={normalizeUploadUrl(coverMedia.url)}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              )}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <Play className="h-12 w-12 text-white/60" />
               </div>

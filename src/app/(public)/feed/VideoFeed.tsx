@@ -22,6 +22,8 @@ import {
   ChevronDown,
   ExternalLink,
 } from "lucide-react"
+import { StreamHlsVideo } from "@/components/video/StreamHlsVideo"
+import { isHlsUrl } from "@/lib/video-utils"
 
 interface FeedVideo {
   id: string
@@ -319,17 +321,32 @@ export function VideoFeed() {
             key={video.id}
             className="h-full snap-start relative flex items-center justify-center bg-black"
           >
-            <video
-              ref={(el) => {
-                if (el) videoRefs.current.set(index, el)
-              }}
-              src={video.url}
-              className="h-full w-full object-contain"
-              loop
-              playsInline
-              muted={isMuted}
-              preload={Math.abs(index - currentIndex) <= 1 ? "auto" : "none"}
-            />
+            {isHlsUrl(video.url) ? (
+              <StreamHlsVideo
+                ref={(el) => {
+                  if (el) videoRefs.current.set(index, el)
+                }}
+                src={video.url}
+                poster={video.thumbnailUrl || undefined}
+                className="h-full w-full object-contain"
+                loop
+                playsInline
+                muted={isMuted}
+                preload={Math.abs(index - currentIndex) <= 1 ? "auto" : "none"}
+              />
+            ) : (
+              <video
+                ref={(el) => {
+                  if (el) videoRefs.current.set(index, el)
+                }}
+                src={video.url}
+                className="h-full w-full object-contain"
+                loop
+                playsInline
+                muted={isMuted}
+                preload={Math.abs(index - currentIndex) <= 1 ? "auto" : "none"}
+              />
+            )}
 
             {/* Video info overlay — sits above bottom nav on mobile */}
             <div
