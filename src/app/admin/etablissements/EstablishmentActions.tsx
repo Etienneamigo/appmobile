@@ -7,9 +7,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, CreditCard, ExternalLink } from "lucide-react"
-import { toggleEstablishmentSubscription } from "@/app/actions/admin"
+import { MoreHorizontal, CreditCard, ExternalLink, Award } from "lucide-react"
+import { toggleEstablishmentSubscription, toggleAdminPick } from "@/app/actions/admin"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -19,7 +20,7 @@ interface EstablishmentActionsProps {
     id: string
     name: string
     subscriptionStatus: string | null
-    activity?: { title: string } | null
+    activity?: { id: string; title: string; adminPick?: boolean } | null
   }
 }
 
@@ -37,8 +38,26 @@ export function EstablishmentActions({ establishment }: EstablishmentActionsProp
     } else {
       toast.success(
         result.establishment?.subscriptionStatus === "ACTIVE"
-          ? "Abonnement active"
-          : "Abonnement annule"
+          ? "Abonnement activé"
+          : "Abonnement annulé"
+      )
+      router.refresh()
+    }
+  }
+
+  async function handleToggleAdminPick() {
+    if (!establishment.activity?.id) return
+    setIsLoading(true)
+    const result = await toggleAdminPick(establishment.activity.id)
+    setIsLoading(false)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(
+        result.activity?.adminPick
+          ? "Activité validée par Wadelo"
+          : "Validation Wadelo retirée"
       )
       router.refresh()
     }
@@ -53,12 +72,21 @@ export function EstablishmentActions({ establishment }: EstablishmentActionsProp
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {establishment.activity && (
-          <DropdownMenuItem asChild>
-            <Link href={`/activite/${establishment.id}`} target="_blank">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Voir l&apos;activite
-            </Link>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem asChild>
+              <Link href={`/activite/${establishment.activity.id}`} target="_blank">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Voir l&apos;activité
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleToggleAdminPick}>
+              <Award className="mr-2 h-4 w-4" />
+              {establishment.activity.adminPick
+                ? "Retirer validation Wadelo"
+                : "Valider par Wadelo"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
         )}
         <DropdownMenuItem onClick={handleToggleSubscription}>
           <CreditCard className="mr-2 h-4 w-4" />

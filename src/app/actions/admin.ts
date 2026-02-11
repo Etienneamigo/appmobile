@@ -308,6 +308,32 @@ export async function deleteHeroImage(type: "desktop" | "mobile") {
   }
 }
 
+// Toggle adminPick for an activity
+export async function toggleAdminPick(activityId: string) {
+  try {
+    await requireAdmin()
+
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId },
+    })
+
+    if (!activity) {
+      return { error: "Activité non trouvée" }
+    }
+
+    const updated = await prisma.activity.update({
+      where: { id: activityId },
+      data: { adminPick: !activity.adminPick },
+    })
+
+    revalidatePath("/admin/etablissements")
+    revalidatePath("/")
+    return { activity: updated }
+  } catch {
+    return { error: "Erreur lors de la modification" }
+  }
+}
+
 // Establishment management
 export async function toggleEstablishmentSubscription(establishmentId: string) {
   try {
