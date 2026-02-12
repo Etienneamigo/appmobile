@@ -17,6 +17,7 @@ import {
   typography,
   getActivityEmoji,
 } from '../theme';
+import { normalizeMediaUrl } from '../api/client';
 
 const { width } = Dimensions.get('window');
 
@@ -39,9 +40,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   const heartAnim = useRef(new Animated.Value(1)).current;
 
   const imageUri = activity.imageUrl
-    ? activity.imageUrl.startsWith('http')
-      ? activity.imageUrl
-      : `https://maisonapee.com${activity.imageUrl}`
+    ? normalizeMediaUrl(activity.imageUrl)
     : null;
 
   const handlePressIn = () => {

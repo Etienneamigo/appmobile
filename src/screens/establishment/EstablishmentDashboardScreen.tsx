@@ -12,15 +12,12 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { establishmentApi } from '../../api/establishment';
 import { Establishment } from '../../types';
-
-type RootStackParamList = {
-  EstablishmentEdit: undefined;
-  ActivityEdit: undefined;
-  MediaManager: undefined;
-};
+import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
+import { Badge, Button, EmptyState } from '../../components/ui';
+import { EstablishmentStackParamList } from '../../navigation/AppNavigator';
 
 export const EstablishmentDashboardScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<EstablishmentStackParamList>>();
 
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +54,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.neutral[950]} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -66,28 +63,18 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   if (error || !establishment) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorText}>{error || 'Établissement non trouvé'}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
-          <Text style={styles.retryButtonText}>Réessayer</Text>
-        </TouchableOpacity>
+        <EmptyState
+          icon={'\u26A0\uFE0F'}
+          title="Erreur"
+          description={error || 'Etablissement non trouve'}
+          actionLabel="Reessayer"
+          onAction={fetchData}
+        />
       </View>
     );
   }
 
-  // Derive isActive from status if not provided directly
-  const subscriptionStatus = establishment.subscription?.status;
-  const isActive = establishment.subscription?.isActive ??
-    (subscriptionStatus === 'ACTIVE' || subscriptionStatus === 'TRIALING');
-  const isTrialing = establishment.subscription?.isTrialing ??
-    (subscriptionStatus === 'TRIALING');
-
-  const subscriptionColor = isActive ? '#2ecc71' : '#e74c3c';
-  const subscriptionText = isTrialing
-    ? 'Période d\'essai'
-    : isActive
-    ? 'Abonnement actif'
-    : 'Abonnement inactif';
+  const isVerified = !!establishment.verifiedAt;
 
   return (
     <ScrollView
@@ -96,7 +83,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#3498db"
+          tintColor={colors.neutral[950]}
         />
       }
     >
@@ -108,34 +95,26 @@ export const EstablishmentDashboardScreen: React.FC = () => {
           </Text>
         </View>
         <Text style={styles.establishmentName}>{establishment.name}</Text>
-        <View style={[styles.subscriptionBadge, { backgroundColor: subscriptionColor }]}>
-          <Text style={styles.subscriptionText}>{subscriptionText}</Text>
+        <View style={styles.badgeRow}>
+          {isVerified ? (
+            <Badge label="Verifie" variant="verified" size="md" />
+          ) : (
+            <Badge label="Non verifie" variant="warning" size="md" />
+          )}
         </View>
-        {establishment.subscription?.trialEndsAt && isTrialing && (
-          <Text style={styles.trialEndText}>
-            Expire le {new Date(establishment.subscription.trialEndsAt).toLocaleDateString('fr-FR')}
-          </Text>
-        )}
       </View>
 
       {/* Activity Stats */}
       {establishment.activity ? (
-        <View style={styles.statsCard}>
-          <Text style={styles.cardTitle}>Mon activité</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Mon activite</Text>
           <Text style={styles.activityTitle}>{establishment.activity.title}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor:
-                  establishment.activity.status === 'PUBLISHED' ? '#2ecc71' : '#f39c12',
-              },
-            ]}
-          >
-            <Text style={styles.statusText}>
-              {establishment.activity.status === 'PUBLISHED' ? 'Publiée' : 'Brouillon'}
-            </Text>
-          </View>
+          <Badge
+            label={establishment.activity.status === 'PUBLISHED' ? 'Publiee' : 'Brouillon'}
+            variant={establishment.activity.status === 'PUBLISHED' ? 'success' : 'warning'}
+            size="sm"
+            style={styles.statusBadge}
+          />
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -150,217 +129,188 @@ export const EstablishmentDashboardScreen: React.FC = () => {
           </View>
         </View>
       ) : (
-        <View style={styles.noActivityCard}>
-          <Text style={styles.noActivityIcon}>📝</Text>
-          <Text style={styles.noActivityTitle}>Pas encore d'activité</Text>
-          <Text style={styles.noActivityText}>
-            Créez votre activité depuis le site web pour qu'elle apparaisse ici.
-          </Text>
+        <View style={styles.card}>
+          <EmptyState
+            icon={'\u{1F4DD}'}
+            title="Pas encore d'activite"
+            description="Creez votre activite pour qu'elle apparaisse sur la plateforme"
+            actionLabel="Creer une activite"
+            onAction={() => navigation.navigate('ActivityEdit')}
+          />
         </View>
       )}
 
       {/* Quick Actions */}
-      <View style={styles.actionsCard}>
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Actions rapides</Text>
 
-        <TouchableOpacity
-          style={styles.actionButton}
+        <ActionRow
+          icon={'\u{1F3E2}'}
+          title="Modifier mon etablissement"
+          subtitle="Nom, contact, liens..."
           onPress={() => navigation.navigate('EstablishmentEdit')}
-        >
-          <Text style={styles.actionIcon}>🏢</Text>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Modifier mon établissement</Text>
-            <Text style={styles.actionSubtitle}>Nom, contact, liens...</Text>
-          </View>
-          <Text style={styles.actionArrow}>›</Text>
-        </TouchableOpacity>
+        />
 
         {establishment.activity && (
           <>
-            <TouchableOpacity
-              style={styles.actionButton}
+            <ActionRow
+              icon={'\u{1F3AF}'}
+              title="Modifier mon activite"
+              subtitle="Description, tarifs, horaires, tags..."
               onPress={() => navigation.navigate('ActivityEdit')}
-            >
-              <Text style={styles.actionIcon}>🎯</Text>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Modifier mon activité</Text>
-                <Text style={styles.actionSubtitle}>Description, tarifs, horaires...</Text>
-              </View>
-              <Text style={styles.actionArrow}>›</Text>
-            </TouchableOpacity>
+            />
 
-            <TouchableOpacity
-              style={styles.actionButton}
+            <ActionRow
+              icon={'\u{1F4F8}'}
+              title="Gerer les medias"
+              subtitle="Photos et videos"
               onPress={() => navigation.navigate('MediaManager')}
-            >
-              <Text style={styles.actionIcon}>📸</Text>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Gérer les médias</Text>
-                <Text style={styles.actionSubtitle}>Photos et vidéos</Text>
-              </View>
-              <Text style={styles.actionArrow}>›</Text>
-            </TouchableOpacity>
+            />
+
+            <ActionRow
+              icon={'\u{1F4C5}'}
+              title="Gerer les evenements"
+              subtitle="Creer et modifier des evenements"
+              onPress={() => navigation.navigate('EventsManager')}
+            />
           </>
         )}
+
+        <ActionRow
+          icon={isVerified ? '\u2705' : '\u{1F4CB}'}
+          title="Verification"
+          subtitle={isVerified ? 'Etablissement verifie' : 'Soumettre des documents'}
+          onPress={() => navigation.navigate('VerificationRequest')}
+        />
       </View>
 
       {/* Info Card */}
-      <View style={styles.infoCard}>
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Informations</Text>
         {establishment.address && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>📍 Adresse</Text>
-            <Text style={styles.infoValue}>
-              {establishment.address}, {establishment.zipCode} {establishment.city}
-            </Text>
-          </View>
+          <InfoRow
+            label={'\u{1F4CD} Adresse'}
+            value={`${establishment.address}, ${establishment.zipCode} ${establishment.city}`}
+          />
         )}
         {establishment.phone && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>📞 Téléphone</Text>
-            <Text style={styles.infoValue}>{establishment.phone}</Text>
-          </View>
+          <InfoRow label={'\u{1F4DE} Telephone'} value={establishment.phone} />
         )}
         {establishment.website && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>🌐 Site web</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {establishment.website}
-            </Text>
-          </View>
+          <InfoRow label={'\u{1F310} Site web'} value={establishment.website} />
         )}
         {establishment.bookingUrl && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>🗓 Réservation</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {establishment.bookingUrl}
-            </Text>
-          </View>
+          <InfoRow label={'\u{1F5D3} Reservation'} value={establishment.bookingUrl} />
         )}
       </View>
+
+      <View style={styles.bottomPadding} />
     </ScrollView>
   );
 };
 
+// Action row component
+const ActionRow: React.FC<{
+  icon: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}> = ({ icon, title, subtitle, onPress }) => (
+  <TouchableOpacity style={styles.actionButton} onPress={onPress} activeOpacity={0.7}>
+    <Text style={styles.actionIcon}>{icon}</Text>
+    <View style={styles.actionContent}>
+      <Text style={styles.actionTitle}>{title}</Text>
+      <Text style={styles.actionSubtitle}>{subtitle}</Text>
+    </View>
+    <Text style={styles.actionArrow}>{'\u203A'}</Text>
+  </TouchableOpacity>
+);
+
+// Info row component
+const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <View style={styles.infoRow}>
+    <Text style={styles.infoLabel}>{label}</Text>
+    <Text style={styles.infoValue} numberOfLines={2}>{value}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xl,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.text.tertiary,
   },
   headerCard: {
-    backgroundColor: '#fff',
-    padding: 24,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.xl,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.neutral[200],
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#3498db',
+    backgroundColor: colors.neutral[950],
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.lg,
   },
   avatarText: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: typography.weight.bold,
+    color: colors.text.inverse,
   },
   establishmentName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
-  subscriptionBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
+  badgeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  subscriptionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  trialEndText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#666',
-  },
-  statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  card: {
+    backgroundColor: colors.background.secondary,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
   },
   activityTitle: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 8,
+    fontSize: typography.size.md,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   statusBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    marginBottom: spacing.lg,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.neutral[100],
   },
   statItem: {
     flex: 1,
@@ -368,105 +318,62 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
   },
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: '#eee',
-  },
-  noActivityCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  noActivityIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  noActivityTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  noActivityText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  actionsCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.neutral[200],
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.neutral[100],
   },
   actionIcon: {
     fontSize: 24,
-    marginRight: 14,
+    marginRight: spacing.md,
   },
   actionContent: {
     flex: 1,
   },
   actionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.medium,
+    color: colors.text.primary,
   },
   actionSubtitle: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
     marginTop: 2,
   },
   actionArrow: {
     fontSize: 24,
-    color: '#ccc',
-  },
-  infoCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    color: colors.text.disabled,
   },
   infoRow: {
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.neutral[100],
   },
   infoLabel: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 4,
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginBottom: spacing.xs,
   },
   infoValue: {
-    fontSize: 15,
-    color: '#333',
+    fontSize: typography.size.sm,
+    color: colors.text.primary,
+  },
+  bottomPadding: {
+    height: spacing['3xl'],
   },
 });

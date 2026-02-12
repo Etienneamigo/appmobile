@@ -12,7 +12,11 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { establishmentApi } from '../../api/establishment';
-import { Media, MediaKind } from '../../types';
+import { cloudflareApi } from '../../api/cloudflare';
+import { normalizeMediaUrl } from '../../api/client';
+import { Media } from '../../types';
+import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
+import { Button, Badge, EmptyState } from '../../components/ui';
 
 export const MediaManagerScreen: React.FC = () => {
   const [medias, setMedias] = useState<Media[]>([]);
@@ -20,6 +24,7 @@ export const MediaManagerScreen: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activityId, setActivityId] = useState<string | null>(null);
 
   const fetchMedias = useCallback(async () => {
     try {
@@ -31,14 +36,23 @@ export const MediaManagerScreen: React.FC = () => {
     }
   }, []);
 
+  const fetchActivityId = useCallback(async () => {
+    try {
+      const activity = await establishmentApi.getActivity();
+      if (activity) setActivityId(activity.id);
+    } catch {
+      // Ignore
+    }
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
-      await fetchMedias();
+      await Promise.all([fetchMedias(), fetchActivityId()]);
       setIsLoading(false);
     };
     load();
-  }, [fetchMedias]);
+  }, [fetchMedias, fetchActivityId]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
@@ -49,7 +63,7 @@ export const MediaManagerScreen: React.FC = () => {
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour ajouter des images.');
+      Alert.alert('Permission requise', "Autorisez l'acces a la galerie pour ajouter des images.");
       return;
     }
 
@@ -61,41 +75,55 @@ export const MediaManagerScreen: React.FC = () => {
     });
 
     if (!result.canceled && result.assets[0]) {
-      uploadFile(result.assets[0]);
+      uploadImage(result.assets[0]);
     }
   };
 
-  const uploadFile = async (asset: ImagePicker.ImagePickerAsset) => {
+  const uploadImage = async (asset: ImagePicker.ImagePickerAsset) => {
     if (medias.length >= 10) {
-      Alert.alert('Limite atteinte', 'Vous ne pouvez pas ajouter plus de 10 médias.');
+      Alert.alert('Limite atteinte', 'Vous ne pouvez pas ajouter plus de 10 medias.');
+      return;
+    }
+
+    if (!activityId) {
+      Alert.alert('Erreur', "Vous devez d'abord creer une activite.");
       return;
     }
 
     setIsUploading(true);
     try {
-      // Upload the file
       const fileName = asset.uri.split('/').pop() || 'image.jpg';
       const type = asset.mimeType || 'image/jpeg';
+      const fileSize = asset.fileSize;
 
-      const uploadResponse = await establishmentApi.uploadFile({
-        uri: asset.uri,
-        name: fileName,
-        type,
-      });
+      // Try Cloudflare Images first, fallback to legacy upload
+      try {
+        await cloudflareApi.uploadImage(activityId, {
+          uri: asset.uri,
+          name: fileName,
+          type,
+          size: fileSize,
+        });
+      } catch {
+        // Fallback to legacy /api/upload
+        const uploadResponse = await establishmentApi.uploadFile({
+          uri: asset.uri,
+          name: fileName,
+          type,
+        });
 
-      // Add media to activity
-      await establishmentApi.addMedia({
-        url: uploadResponse.url,
-        kind: uploadResponse.kind,
-        fileName: uploadResponse.fileName,
-        fileSize: uploadResponse.fileSize,
-      });
+        await establishmentApi.addMedia({
+          url: uploadResponse.url,
+          kind: uploadResponse.kind,
+          fileName: uploadResponse.fileName,
+          fileSize: uploadResponse.fileSize,
+        });
+      }
 
-      // Refresh list
       await fetchMedias();
-      Alert.alert('Succès', 'Image ajoutée');
+      Alert.alert('Succes', 'Image ajoutee');
     } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Erreur lors de l\'upload');
+      Alert.alert('Erreur', err.message || "Erreur lors de l'upload");
     } finally {
       setIsUploading(false);
     }
@@ -104,7 +132,7 @@ export const MediaManagerScreen: React.FC = () => {
   const deleteMedia = async (mediaId: string) => {
     Alert.alert(
       'Supprimer',
-      'Voulez-vous vraiment supprimer ce média ?',
+      'Voulez-vous vraiment supprimer ce media ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -123,20 +151,10 @@ export const MediaManagerScreen: React.FC = () => {
     );
   };
 
-  const addVideoLink = () => {
-    // Note: Alert.prompt is iOS only, so we show an info message
-    // For a full implementation, use a modal with TextInput
-    Alert.alert(
-      'Ajouter une vidéo',
-      'Pour ajouter un lien vidéo (YouTube, Vimeo), utilisez le site web.',
-      [{ text: 'OK' }]
-    );
-  };
-
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.neutral[950]} />
       </View>
     );
   }
@@ -151,7 +169,7 @@ export const MediaManagerScreen: React.FC = () => {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          tintColor="#3498db"
+          tintColor={colors.neutral[950]}
         />
       }
     >
@@ -166,7 +184,7 @@ export const MediaManagerScreen: React.FC = () => {
       {/* Stats */}
       <View style={styles.statsCard}>
         <Text style={styles.statsText}>
-          {medias.length}/10 médias utilisés
+          {medias.length}/10 medias utilises
         </Text>
         <View style={styles.statsBar}>
           <View
@@ -179,37 +197,42 @@ export const MediaManagerScreen: React.FC = () => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Images ({images.length})</Text>
-          <TouchableOpacity
-            style={styles.addButton}
+          <Button
+            title="+ Ajouter"
             onPress={pickImage}
-            disabled={medias.length >= 10}
-          >
-            <Text style={styles.addButtonText}>+ Ajouter</Text>
-          </TouchableOpacity>
+            variant="outline"
+            size="sm"
+            disabled={medias.length >= 10 || isUploading}
+          />
         </View>
 
         {images.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>📷</Text>
-            <Text style={styles.emptyStateText}>Aucune image</Text>
-          </View>
+          <EmptyState
+            icon={'\u{1F4F7}'}
+            title="Aucune image"
+            description="Ajoutez des images pour illustrer votre activite"
+          />
         ) : (
           <View style={styles.mediaGrid}>
             {images.map((media) => (
               <View key={media.id} style={styles.mediaItem}>
                 <Image
-                  source={{
-                    uri: media.url.startsWith('http')
-                      ? media.url
-                      : `https://maisonapee.com${media.url}`,
-                  }}
+                  source={{ uri: normalizeMediaUrl(media.url) || undefined }}
                   style={styles.mediaImage}
                 />
+                {media.cloudflareImageId && (
+                  <Badge
+                    label="CF"
+                    variant="success"
+                    size="sm"
+                    style={styles.cfBadge}
+                  />
+                )}
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => deleteMedia(media.id)}
                 >
-                  <Text style={styles.deleteButtonText}>✕</Text>
+                  <Text style={styles.deleteButtonText}>{'\u2715'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -220,41 +243,36 @@ export const MediaManagerScreen: React.FC = () => {
       {/* Videos Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Vidéos ({videos.length})</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={addVideoLink}
-            disabled={medias.length >= 10}
-          >
-            <Text style={styles.addButtonText}>+ Ajouter lien</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Videos ({videos.length})</Text>
         </View>
 
         {videos.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>🎬</Text>
-            <Text style={styles.emptyStateText}>Aucune vidéo</Text>
-          </View>
+          <EmptyState
+            icon={'\u{1F3AC}'}
+            title="Aucune video"
+            description="Les videos peuvent etre ajoutees depuis le site web"
+          />
         ) : (
           <View style={styles.videoList}>
             {videos.map((media) => (
               <View key={media.id} style={styles.videoItem}>
                 <View style={styles.videoIcon}>
-                  <Text style={styles.videoIconText}>▶️</Text>
+                  <Text style={styles.videoIconText}>{'\u25B6\uFE0F'}</Text>
                 </View>
                 <View style={styles.videoInfo}>
-                  <Text style={styles.videoUrl} numberOfLines={1}>
-                    {media.url}
+                  <Text style={styles.videoTitle} numberOfLines={1}>
+                    {media.title || 'Video'}
                   </Text>
                   <Text style={styles.videoType}>
-                    {media.kind === 'VIDEO_UPLOAD' ? 'Vidéo uploadée' : 'Lien externe'}
+                    {media.kind === 'VIDEO_UPLOAD' ? 'Video uploadee' : 'Lien externe'}
+                    {media.duration ? ` - ${Math.round(media.duration)}s` : ''}
                   </Text>
                 </View>
                 <TouchableOpacity
                   style={styles.videoDeleteButton}
                   onPress={() => deleteMedia(media.id)}
                 >
-                  <Text style={styles.deleteButtonText}>✕</Text>
+                  <Text style={styles.deleteButtonText}>{'\u2715'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -262,17 +280,12 @@ export const MediaManagerScreen: React.FC = () => {
         )}
       </View>
 
+      {/* Tips */}
       <View style={styles.tips}>
         <Text style={styles.tipsTitle}>Conseils</Text>
-        <Text style={styles.tipsText}>
-          • Utilisez des images de haute qualité (16:9 recommandé)
-        </Text>
-        <Text style={styles.tipsText}>
-          • Les vidéos YouTube/Vimeo sont recommandées
-        </Text>
-        <Text style={styles.tipsText}>
-          • La première image sera utilisée comme aperçu
-        </Text>
+        <Text style={styles.tipsText}>{'\u2022'} Utilisez des images de haute qualite (16:9 recommande)</Text>
+        <Text style={styles.tipsText}>{'\u2022'} Les videos sont gerees depuis le site web</Text>
+        <Text style={styles.tipsText}>{'\u2022'} La premiere image sera utilisee comme apercu</Text>
       </View>
     </ScrollView>
   );
@@ -281,7 +294,7 @@ export const MediaManagerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   centered: {
     flex: 1,
@@ -289,101 +302,85 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   uploadingBanner: {
-    backgroundColor: '#3498db',
+    backgroundColor: colors.neutral[950],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   uploadingText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.text.inverse,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
   },
   statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.background.secondary,
+    margin: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
   },
   statsText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    marginBottom: spacing.sm,
   },
   statsBar: {
     height: 6,
-    backgroundColor: '#eee',
+    backgroundColor: colors.neutral[200],
     borderRadius: 3,
     overflow: 'hidden',
   },
   statsBarFill: {
     height: '100%',
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary.main,
     borderRadius: 3,
   },
   section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.background.secondary,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  addButton: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  addButtonText: {
-    color: '#3498db',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  emptyStateIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
   },
   mediaGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: spacing.md,
   },
   mediaItem: {
     position: 'relative',
     width: '47%',
     aspectRatio: 16 / 9,
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
   },
   mediaImage: {
     width: '100%',
     height: '100%',
   },
+  cfBadge: {
+    position: 'absolute',
+    top: spacing.xs,
+    left: spacing.xs,
+  },
   deleteButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: spacing.sm,
+    right: spacing.sm,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -394,26 +391,26 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: typography.weight.bold,
   },
   videoList: {
-    gap: 12,
+    gap: spacing.md,
   },
   videoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: colors.neutral[50],
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
   },
   videoIcon: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: '#e74c3c',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.error.main,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   videoIconText: {
     fontSize: 16,
@@ -421,39 +418,40 @@ const styles = StyleSheet.create({
   videoInfo: {
     flex: 1,
   },
-  videoUrl: {
-    fontSize: 14,
-    color: '#333',
+  videoTitle: {
+    fontSize: typography.size.sm,
+    color: colors.text.primary,
+    fontWeight: typography.weight.medium,
   },
   videoType: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
     marginTop: 2,
   },
   videoDeleteButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#eee',
+    backgroundColor: colors.neutral[200],
     justifyContent: 'center',
     alignItems: 'center',
   },
   tips: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff3cd',
-    borderRadius: 12,
-    marginBottom: 32,
+    margin: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.warning.main + '15',
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing['3xl'],
   },
   tipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#856404',
-    marginBottom: 8,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.warning.dark,
+    marginBottom: spacing.sm,
   },
   tipsText: {
-    fontSize: 14,
-    color: '#856404',
-    marginBottom: 4,
+    fontSize: typography.size.sm,
+    color: colors.warning.dark,
+    marginBottom: spacing.xs,
   },
 });

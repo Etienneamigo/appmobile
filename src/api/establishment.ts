@@ -7,8 +7,6 @@ import {
   MediaKind,
 } from '../types';
 
-// Backend returns objects directly, not wrapped in { data: ... }
-
 interface MessageResponse {
   message: string;
 }
@@ -38,11 +36,14 @@ interface UpdateActivityData {
   priceFrom?: number | null;
   scheduleText?: string | null;
   tags?: string[];
+  zone1Tags?: string[];
+  zone2Tags?: string[];
+  zone3Tags?: string[];
+  coverMediaId?: string | null;
   status?: 'DRAFT' | 'PUBLISHED';
 }
 
 export const establishmentApi = {
-  // Establishment - returns Establishment directly
   get(): Promise<Establishment> {
     return apiClient.get<Establishment>('/api/mobile/establishment');
   },
@@ -51,16 +52,18 @@ export const establishmentApi = {
     return apiClient.patch<Establishment>('/api/mobile/establishment', data);
   },
 
-  // Activity - returns MyActivity directly (or null)
   getActivity(): Promise<MyActivity | null> {
     return apiClient.get<MyActivity | null>('/api/mobile/establishment/activity');
+  },
+
+  createActivity(data: UpdateActivityData): Promise<{ message: string; data: { id: string; title: string; status: string } }> {
+    return apiClient.post('/api/mobile/establishment/activity', data);
   },
 
   updateActivity(data: UpdateActivityData): Promise<{ message: string; data: { id: string; title: string; status: string; updatedAt: string } }> {
     return apiClient.patch('/api/mobile/establishment/activity', data);
   },
 
-  // Media - returns Media[] directly
   getMedias(): Promise<Media[]> {
     return apiClient.get<Media[]>('/api/mobile/establishment/media');
   },
@@ -70,6 +73,11 @@ export const establishmentApi = {
     kind: MediaKind;
     fileName?: string | null;
     fileSize?: number | null;
+    cloudflareImageId?: string | null;
+    thumbnailUrl?: string | null;
+    title?: string | null;
+    videoCategory?: string | null;
+    sortOrder?: number;
   }): Promise<Media> {
     return apiClient.post<Media>('/api/mobile/establishment/media', data);
   },
@@ -78,7 +86,6 @@ export const establishmentApi = {
     return apiClient.delete<MessageResponse>(`/api/mobile/establishment/media/${mediaId}`);
   },
 
-  // Upload file (uses /api/upload which is shared with web)
   uploadFile(file: { uri: string; name: string; type: string }): Promise<UploadResponse> {
     return apiClient.uploadFile<UploadResponse>('/api/upload', file);
   },

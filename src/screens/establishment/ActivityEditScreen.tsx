@@ -14,7 +14,16 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { establishmentApi } from '../../api/establishment';
-import { ActivityType, ACTIVITY_TYPE_LABELS } from '../../types';
+import {
+  ActivityType,
+  ACTIVITY_TYPE_LABELS,
+  ZONE1_TAGS,
+  ZONE2_TAGS,
+  ZONE3_TAGS,
+  ZONE_TAG_LABELS,
+} from '../../types';
+import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
+import { Button, Chip } from '../../components/ui';
 
 const ACTIVITY_TYPES: ActivityType[] = [
   'BOWLING',
@@ -31,6 +40,7 @@ export const ActivityEditScreen: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTypePicker, setShowTypePicker] = useState(false);
 
@@ -47,6 +57,9 @@ export const ActivityEditScreen: React.FC = () => {
     priceFrom: '',
     scheduleText: '',
     tags: '',
+    zone1Tags: [] as string[],
+    zone2Tags: [] as string[],
+    zone3Tags: [] as string[],
     isPublished: false,
   });
 
@@ -68,8 +81,14 @@ export const ActivityEditScreen: React.FC = () => {
             priceFrom: activity.priceFrom?.toString() || '',
             scheduleText: activity.scheduleText || '',
             tags: activity.tags.join(', '),
+            zone1Tags: activity.zone1Tags || [],
+            zone2Tags: activity.zone2Tags || [],
+            zone3Tags: activity.zone3Tags || [],
             isPublished: activity.status === 'PUBLISHED',
           });
+          setIsCreating(false);
+        } else {
+          setIsCreating(true);
         }
         setError(null);
       } catch (err: any) {
@@ -80,6 +99,15 @@ export const ActivityEditScreen: React.FC = () => {
     };
     fetchData();
   }, []);
+
+  const toggleZoneTag = (zone: 'zone1Tags' | 'zone2Tags' | 'zone3Tags', tag: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [zone]: prev[zone].includes(tag)
+        ? prev[zone].filter((t) => t !== tag)
+        : [...prev[zone], tag],
+    }));
+  };
 
   const handleSave = async () => {
     if (!form.title.trim()) {
@@ -98,7 +126,7 @@ export const ActivityEditScreen: React.FC = () => {
         .map((t) => t.trim().toLowerCase())
         .filter((t) => t.length > 0);
 
-      await establishmentApi.updateActivity({
+      const data = {
         title: form.title.trim(),
         description: form.description.trim(),
         type: form.type,
@@ -111,13 +139,25 @@ export const ActivityEditScreen: React.FC = () => {
         priceFrom: form.priceFrom ? parseFloat(form.priceFrom) : null,
         scheduleText: form.scheduleText.trim() || null,
         tags,
-        status: form.isPublished ? 'PUBLISHED' : 'DRAFT',
-      });
-      Alert.alert('Succès', 'Activité mise à jour', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+        zone1Tags: form.zone1Tags,
+        zone2Tags: form.zone2Tags,
+        zone3Tags: form.zone3Tags,
+        status: form.isPublished ? 'PUBLISHED' as const : 'DRAFT' as const,
+      };
+
+      if (isCreating) {
+        await establishmentApi.createActivity(data);
+        Alert.alert('Succes', 'Activite creee', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        await establishmentApi.updateActivity(data);
+        Alert.alert('Succes', 'Activite mise a jour', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
     } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Erreur lors de la mise à jour');
+      Alert.alert('Erreur', err.message || 'Erreur lors de la sauvegarde');
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +166,7 @@ export const ActivityEditScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <ActivityIndicator size="large" color={colors.neutral[950]} />
       </View>
     );
   }
@@ -135,6 +175,7 @@ export const ActivityEditScreen: React.FC = () => {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
+        <Button title="Reessayer" onPress={() => navigation.goBack()} variant="outline" size="sm" />
       </View>
     );
   }
@@ -154,21 +195,21 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.title}
               onChangeText={(text) => setForm({ ...form, title: text })}
               placeholder="Escape Game..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
             />
           </View>
 
           {/* Type */}
           <View style={styles.field}>
-            <Text style={styles.label}>Type d'activité</Text>
+            <Text style={styles.label}>Type d'activite</Text>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowTypePicker(!showTypePicker)}
             >
               <Text style={styles.pickerButtonText}>
-                {ACTIVITY_TYPE_LABELS[form.type]}
+                {ACTIVITY_TYPE_LABELS[form.type] || form.type}
               </Text>
-              <Text style={styles.pickerArrow}>▼</Text>
+              <Text style={styles.pickerArrow}>{'\u25BC'}</Text>
             </TouchableOpacity>
             {showTypePicker && (
               <View style={styles.pickerOptions}>
@@ -190,7 +231,7 @@ export const ActivityEditScreen: React.FC = () => {
                         form.type === type && styles.pickerOptionTextActive,
                       ]}
                     >
-                      {ACTIVITY_TYPE_LABELS[type]}
+                      {ACTIVITY_TYPE_LABELS[type] || type}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -205,8 +246,8 @@ export const ActivityEditScreen: React.FC = () => {
               style={[styles.input, styles.textArea]}
               value={form.description}
               onChangeText={(text) => setForm({ ...form, description: text })}
-              placeholder="Décrivez votre activité..."
-              placeholderTextColor="#999"
+              placeholder="Decrivez votre activite..."
+              placeholderTextColor={colors.text.disabled}
               multiline
               numberOfLines={5}
               textAlignVertical="top"
@@ -214,42 +255,42 @@ export const ActivityEditScreen: React.FC = () => {
           </View>
 
           <View style={styles.separator} />
-          <Text style={styles.sectionTitle}>Tarifs et durée</Text>
+          <Text style={styles.sectionTitle}>Tarifs et duree</Text>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Prix à partir de (€)</Text>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
+              <Text style={styles.label}>Prix a partir de ({'\u20AC'})</Text>
               <TextInput
                 style={styles.input}
                 value={form.priceFrom}
                 onChangeText={(text) => setForm({ ...form, priceFrom: text })}
                 placeholder="25"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="decimal-pad"
               />
             </View>
             <View style={[styles.field, { flex: 1 }]}>
-              <Text style={styles.label}>Durée (min)</Text>
+              <Text style={styles.label}>Duree (min)</Text>
               <TextInput
                 style={styles.input}
                 value={form.durationMinutes}
                 onChangeText={(text) => setForm({ ...form, durationMinutes: text })}
                 placeholder="60"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
               <Text style={styles.label}>Min. personnes</Text>
               <TextInput
                 style={styles.input}
                 value={form.minPeople}
                 onChangeText={(text) => setForm({ ...form, minPeople: text })}
                 placeholder="2"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -260,7 +301,7 @@ export const ActivityEditScreen: React.FC = () => {
                 value={form.maxPeople}
                 onChangeText={(text) => setForm({ ...form, maxPeople: text })}
                 placeholder="6"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -276,19 +317,19 @@ export const ActivityEditScreen: React.FC = () => {
               value={form.address}
               onChangeText={(text) => setForm({ ...form, address: text })}
               placeholder="123 Rue Example"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text.disabled}
             />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.field, { flex: 1, marginRight: spacing.sm }]}>
               <Text style={styles.label}>Code postal</Text>
               <TextInput
                 style={styles.input}
                 value={form.zipCode}
                 onChangeText={(text) => setForm({ ...form, zipCode: text })}
                 placeholder="75001"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
                 keyboardType="number-pad"
               />
             </View>
@@ -299,13 +340,64 @@ export const ActivityEditScreen: React.FC = () => {
                 value={form.city}
                 onChangeText={(text) => setForm({ ...form, city: text })}
                 placeholder="Paris"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text.disabled}
               />
             </View>
           </View>
 
           <View style={styles.separator} />
-          <Text style={styles.sectionTitle}>Informations complémentaires</Text>
+          <Text style={styles.sectionTitle}>Tags par zone</Text>
+          <Text style={styles.hint}>
+            Selectionnez les tags correspondant a votre activite pour chaque categorie
+          </Text>
+
+          {/* Zone 1 Tags - Avec qui */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Avec qui ?</Text>
+            <View style={styles.chipRow}>
+              {ZONE1_TAGS.map((tag) => (
+                <Chip
+                  key={tag}
+                  label={ZONE_TAG_LABELS[tag] || tag}
+                  selected={form.zone1Tags.includes(tag)}
+                  onPress={() => toggleZoneTag('zone1Tags', tag)}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Zone 2 Tags - Ambiance */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Ambiance</Text>
+            <View style={styles.chipRow}>
+              {ZONE2_TAGS.map((tag) => (
+                <Chip
+                  key={tag}
+                  label={ZONE_TAG_LABELS[tag] || tag}
+                  selected={form.zone2Tags.includes(tag)}
+                  onPress={() => toggleZoneTag('zone2Tags', tag)}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Zone 3 Tags - Type */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Type d'experience</Text>
+            <View style={styles.chipRow}>
+              {ZONE3_TAGS.map((tag) => (
+                <Chip
+                  key={tag}
+                  label={ZONE_TAG_LABELS[tag] || tag}
+                  selected={form.zone3Tags.includes(tag)}
+                  onPress={() => toggleZoneTag('zone3Tags', tag)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.separator} />
+          <Text style={styles.sectionTitle}>Informations complementaires</Text>
 
           <View style={styles.field}>
             <Text style={styles.label}>Horaires</Text>
@@ -313,8 +405,8 @@ export const ActivityEditScreen: React.FC = () => {
               style={[styles.input, styles.textArea]}
               value={form.scheduleText}
               onChangeText={(text) => setForm({ ...form, scheduleText: text })}
-              placeholder="Lun-Ven: 10h-22h&#10;Sam-Dim: 9h-23h"
-              placeholderTextColor="#999"
+              placeholder={"Lun-Ven: 10h-22h\nSam-Dim: 9h-23h"}
+              placeholderTextColor={colors.text.disabled}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
@@ -322,13 +414,13 @@ export const ActivityEditScreen: React.FC = () => {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Tags (séparés par des virgules)</Text>
+            <Text style={styles.label}>Tags libres (separes par des virgules)</Text>
             <TextInput
               style={styles.input}
               value={form.tags}
               onChangeText={(text) => setForm({ ...form, tags: text })}
-              placeholder="aventure, mystère, équipe"
-              placeholderTextColor="#999"
+              placeholder="aventure, mystere, equipe"
+              placeholderTextColor={colors.text.disabled}
               autoCapitalize="none"
             />
           </View>
@@ -337,34 +429,30 @@ export const ActivityEditScreen: React.FC = () => {
 
           {/* Publication toggle */}
           <View style={styles.toggleField}>
-            <View>
-              <Text style={styles.label}>Publier l'activité</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Publier l'activite</Text>
               <Text style={styles.hint}>
-                Une fois publiée, l'activité sera visible par tous
+                Une fois publiee, l'activite sera visible par tous
               </Text>
             </View>
             <Switch
               value={form.isPublished}
               onValueChange={(value) => setForm({ ...form, isPublished: value })}
-              trackColor={{ false: '#ddd', true: '#2ecc71' }}
-              thumbColor="#fff"
+              trackColor={{ false: colors.neutral[200], true: colors.success.main }}
+              thumbColor={colors.background.elevated}
             />
           </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        <Button
+          title={isSaving ? 'Enregistrement...' : isCreating ? 'Creer l\'activite' : 'Enregistrer'}
           onPress={handleSave}
+          variant="primary"
+          fullWidth
           disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Enregistrer</Text>
-          )}
-        </TouchableOpacity>
+        />
       </View>
     </KeyboardAvoidingView>
   );
@@ -373,7 +461,7 @@ export const ActivityEditScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background.primary,
   },
   scrollView: {
     flex: 1,
@@ -382,129 +470,122 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: spacing.xl,
   },
   errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
+    fontSize: typography.size.md,
+    color: colors.error.main,
     textAlign: 'center',
+    marginBottom: spacing.lg,
   },
   form: {
-    padding: 20,
+    padding: spacing.lg,
   },
   field: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   textArea: {
     minHeight: 100,
-    paddingTop: 14,
+    paddingTop: spacing.md,
   },
   hint: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 6,
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
   },
   pickerButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   pickerButtonText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   pickerArrow: {
     fontSize: 12,
-    color: '#888',
+    color: colors.text.tertiary,
   },
   pickerOptions: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background.elevated,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    marginTop: 4,
+    borderColor: colors.neutral[200],
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.xs,
     overflow: 'hidden',
   },
   pickerOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.neutral[100],
   },
   pickerOptionActive: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: colors.primary.main + '15',
   },
   pickerOptionText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.size.md,
+    color: colors.text.primary,
   },
   pickerOptionTextActive: {
-    color: '#3498db',
-    fontWeight: '600',
+    color: colors.primary.dark,
+    fontWeight: typography.weight.semibold,
   },
   separator: {
     height: 1,
-    backgroundColor: '#ddd',
-    marginVertical: 24,
+    backgroundColor: colors.neutral[200],
+    marginVertical: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
   },
   row: {
     flexDirection: 'row',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   toggleField: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
+    backgroundColor: colors.background.elevated,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.neutral[200],
   },
   footer: {
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  saveButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#95a5a6',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    borderTopColor: colors.neutral[200],
   },
 });
