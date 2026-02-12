@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, Image, ActivityIndicator, RefreshControl, ScrollView, Modal,
+  TextInput, Image, ActivityIndicator, RefreshControl, ScrollView, Modal, Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { config } from '../../config';
@@ -27,6 +28,7 @@ const SORT_OPTIONS = [
 export const SearchScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
   const params = route.params || {};
 
   const [city, setCity] = useState<string>(params.city || '');
@@ -156,6 +158,11 @@ export const SearchScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* WADELO Header */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>WADELO</Text>
+      </View>
+
       {/* SearchHero */}
       <View style={styles.searchHero}>
         <View style={styles.searchRow}>
@@ -310,6 +317,8 @@ export const SearchScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { backgroundColor: '#18181B', paddingHorizontal: 16, paddingBottom: 12 },
+  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 2, textAlign: 'center' },
   searchHero: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 8 },
   searchRow: { flexDirection: 'row', gap: 8 },
   searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 8, paddingHorizontal: 10, height: 40, borderWidth: 1, borderColor: '#E5E7EB' },

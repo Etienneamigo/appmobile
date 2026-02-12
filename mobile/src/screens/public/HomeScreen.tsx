@@ -4,6 +4,7 @@ import {
   FlatList, Image, RefreshControl, ActivityIndicator,
   Dimensions, TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { config } from '../../config';
@@ -39,6 +40,7 @@ interface HomeData {
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState<HomeData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -186,12 +188,18 @@ export const HomeScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#18181B" />
-      }
-    >
+    <View style={styles.container}>
+      {/* WADELO Header */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>WADELO</Text>
+      </View>
+
+      <ScrollView
+        style={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#18181B" />
+        }
+      >
       {/* Hero */}
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>découvrez quoi faire, simplement</Text>
@@ -277,11 +285,15 @@ export const HomeScreen: React.FC = () => {
 
       <View style={{ height: 32 }} />
     </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { backgroundColor: '#18181B', paddingHorizontal: 16, paddingBottom: 12 },
+  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 2, textAlign: 'center' },
+  scrollContent: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
 
   // Hero
