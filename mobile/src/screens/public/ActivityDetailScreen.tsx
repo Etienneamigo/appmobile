@@ -101,8 +101,11 @@ export const ActivityDetailScreen: React.FC = () => {
           <Text style={styles.coverTitle}>{activity.title}</Text>
           <Text style={styles.coverLocation}>📍 {activity.address}, {activity.zipCode} {activity.city}</Text>
         </View>
+        {(activity as any).verifiedAt && (
+          <View style={styles.verifiedBadge}><Text style={styles.verifiedBadgeText}>✓ Verifie</Text></View>
+        )}
         {(activity as any).adminPick && (
-          <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>✓ Vérifié</Text></View>
+          <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>Coup de coeur</Text></View>
         )}
         {isAuthenticated && (
           <TouchableOpacity style={styles.favButton} onPress={handleFavoriteToggle}>
@@ -272,7 +275,9 @@ const styles = StyleSheet.create({
   coverType: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   coverTitle: { fontSize: 24, fontWeight: '700', color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   coverLocation: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
-  adminBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: '#3B82F6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  verifiedBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: '#3B82F6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  verifiedBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
+  adminBadge: { position: 'absolute', top: 12, left: (12 + 80 + 8), backgroundColor: '#F59E0B', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   adminBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
   favButton: { position: 'absolute', top: 12, right: 12, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center' },
 

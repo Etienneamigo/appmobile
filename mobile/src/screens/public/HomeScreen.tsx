@@ -27,6 +27,7 @@ interface HomeActivity {
   minPeople: number | null;
   maxPeople: number | null;
   adminPick: boolean;
+  verifiedAt: string | null;
   distance: number | null;
   medias: { url: string; kind: string }[];
   _count: { favorites: number };
@@ -126,9 +127,14 @@ export const HomeScreen: React.FC = () => {
               <Text style={{ fontSize: 36 }}>{getActivityEmoji(item.type)}</Text>
             </View>
           )}
-          {item.adminPick && (
+          {item.verifiedAt && (
             <View style={styles.verifiedBadge}>
               <Text style={styles.verifiedText}>✓</Text>
+            </View>
+          )}
+          {item.adminPick && (
+            <View style={styles.adminPickBadge}>
+              <Text style={styles.adminPickText}>Coup de coeur</Text>
             </View>
           )}
         </View>
@@ -326,6 +332,8 @@ const styles = StyleSheet.create({
   cardImagePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
   verifiedBadge: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   verifiedText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  adminPickBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: '#F59E0B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  adminPickText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600' },
   cardContent: { padding: 10 },
   cardTitle: { fontSize: 14, fontWeight: '600', color: '#18181B' },
   cardDesc: { fontSize: 12, color: '#6B7280', marginTop: 2 },
