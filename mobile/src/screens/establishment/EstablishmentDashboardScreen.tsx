@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -40,12 +41,19 @@ export const EstablishmentDashboardScreen: React.FC = () => {
 
   useFocusEffect(
     useCallback(() => {
-      const load = async () => {
-        setIsLoading(true);
-        await fetchData();
-        setIsLoading(false);
-      };
-      load();
+      if (!hasLoadedOnce.current) {
+        // First load: show loading spinner
+        hasLoadedOnce.current = true;
+        const load = async () => {
+          setIsLoading(true);
+          await fetchData();
+          setIsLoading(false);
+        };
+        load();
+      } else {
+        // Subsequent focus (back navigation): silently refresh, no loading state
+        fetchData();
+      }
     }, [fetchData])
   );
 
