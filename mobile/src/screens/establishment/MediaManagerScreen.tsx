@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   ActivityIndicator, Alert, RefreshControl, Modal, TextInput,
-  KeyboardAvoidingView, Platform, Dimensions, Linking,
+  KeyboardAvoidingView, Platform, Dimensions,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { establishmentApi } from '../../api/establishment';
 import { Media } from '../../types';
@@ -210,12 +211,7 @@ export const MediaManagerScreen: React.FC = () => {
                   <TouchableOpacity
                     key={media.id}
                     style={styles.gridItem}
-                    onPress={() => {
-                      const url = media.url;
-                      if (url.startsWith('http')) {
-                        Linking.openURL(url).catch(() => {});
-                      }
-                    }}
+                    onPress={() => setSelectedMediaIndex(mediasArr.indexOf(media))}
                     onLongPress={() => handleDeleteMedia(media.id)}
                   >
                     {thumb ? (
@@ -296,12 +292,16 @@ export const MediaManagerScreen: React.FC = () => {
               if (!m) return null;
               const url = normalizeMediaUrl(m.url);
               const isVid = m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD';
-              if (isVid) return (
-                <View style={{ alignItems: 'center', gap: 16 }}>
-                  <Text style={{ color: '#FFF' }}>{m.title || 'Vidéo'}</Text>
-                  <TouchableOpacity style={styles.viewerPlayBtn} onPress={() => url && Linking.openURL(url).catch(() => {})}>
-                    <Text style={{ color: '#FFF', fontWeight: '600' }}>▶ Ouvrir la vidéo</Text>
-                  </TouchableOpacity>
+              if (isVid && url) return (
+                <View style={{ width: width - 32, height: '70%' }}>
+                  <Video
+                    source={{ uri: url }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode={ResizeMode.CONTAIN}
+                    shouldPlay
+                    useNativeControls
+                    isLooping
+                  />
                 </View>
               );
               return url ? <Image source={{ uri: url }} style={{ width: width - 32, height: '80%' }} resizeMode="contain" /> : null;

@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   Linking, Dimensions, RefreshControl, ActivityIndicator, Modal,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { activitiesApi } from '../../api/activities';
 import { favoritesApi } from '../../api/favorites';
@@ -219,12 +220,16 @@ export const ActivityDetailScreen: React.FC = () => {
               const m = visibleGridMedia[selectedMediaIndex];
               const mUrl = normalizeMediaUrl(m.url);
               const isVid = m.kind === 'VIDEO_UPLOAD' || m.kind === 'VIDEO';
-              if (isVid) return (
-                <View style={{ alignItems: 'center', gap: 16 }}>
-                  <Text style={{ color: '#FFF', fontSize: 16 }}>{m.title || 'Vidéo'}</Text>
-                  <TouchableOpacity style={styles.viewerPlayBtn} onPress={() => mUrl && openLink(mUrl)}>
-                    <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '600' }}>▶ Lire la vidéo</Text>
-                  </TouchableOpacity>
+              if (isVid && mUrl) return (
+                <View style={{ width: width - 32, height: '70%' }}>
+                  <Video
+                    source={{ uri: mUrl }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode={ResizeMode.CONTAIN}
+                    shouldPlay
+                    useNativeControls
+                    isLooping
+                  />
                 </View>
               );
               return mUrl ? <Image source={{ uri: mUrl }} style={{ width: width - 32, height: '80%' }} resizeMode="contain" /> : null;
