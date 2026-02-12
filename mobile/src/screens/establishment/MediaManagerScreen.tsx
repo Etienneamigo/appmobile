@@ -41,10 +41,18 @@ export const MediaManagerScreen: React.FC = () => {
   const fetchMedias = useCallback(async () => {
     try {
       const data = await establishmentApi.getMedias();
-      setMedias(data);
+      // Normalize: API may return { items: [...] } or object instead of array
+      const normalized = Array.isArray(data)
+        ? data
+        : Array.isArray((data as any)?.items)
+          ? (data as any).items
+          : [];
+      setMedias(normalized);
       setError(null);
     } catch (err: any) {
-      setError(err.message || 'Erreur lors du chargement');
+      console.warn('[MediaManager] fetchMedias error:', err);
+      setError(err.message || 'Erreur lors du chargement des médias');
+      setMedias([]);
     }
   }, []);
 
@@ -138,8 +146,9 @@ export const MediaManagerScreen: React.FC = () => {
     );
   }
 
-  const images = medias.filter(m => m.kind === 'IMAGE');
-  const videos = medias.filter(m => m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD');
+  const mediasArr = Array.isArray(medias) ? medias : [];
+  const images = mediasArr.filter(m => m.kind === 'IMAGE');
+  const videos = mediasArr.filter(m => m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD');
 
   return (
     <View style={styles.container}>
@@ -167,7 +176,7 @@ export const MediaManagerScreen: React.FC = () => {
                   <TouchableOpacity
                     key={media.id}
                     style={styles.gridItem}
-                    onPress={() => setSelectedMediaIndex(medias.indexOf(media))}
+                    onPress={() => setSelectedMediaIndex(mediasArr.indexOf(media))}
                     onLongPress={() => {
                       Alert.alert('Actions', media.url, [
                         { text: 'Couverture', onPress: () => handleSetCover(media.id) },
@@ -283,7 +292,7 @@ export const MediaManagerScreen: React.FC = () => {
               <Text style={{ color: '#FFF', fontSize: 20 }}>✕</Text>
             </TouchableOpacity>
             {(() => {
-              const m = medias[selectedMediaIndex];
+              const m = mediasArr[selectedMediaIndex];
               if (!m) return null;
               const url = normalizeMediaUrl(m.url);
               const isVid = m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD';
