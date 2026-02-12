@@ -75,9 +75,11 @@ const defaultScreenOptions = {
   headerTintColor: colors.text.primary,
 };
 
-// Tab Icon component
+// Tab Icon component with increased touch area
 const TabIcon: React.FC<{ icon: string; focused: boolean }> = ({ icon, focused }) => (
-  <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
+  <View style={{ padding: 4, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }}>
+    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
+  </View>
 );
 
 // Home Stack
@@ -186,9 +188,10 @@ const MainTabs: React.FC = () => {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: colors.neutral[200],
-          paddingTop: 6,
-          paddingBottom: 6,
-          height: 56,
+          paddingTop: 8,
+          // paddingBottom handled automatically by safe area
+          height: 64,
+          minHeight: 56,
         },
         tabBarActiveTintColor: colors.primary.main,
         tabBarInactiveTintColor: colors.neutral[400],
@@ -196,7 +199,11 @@ const MainTabs: React.FC = () => {
           fontSize: 10,
           fontWeight: typography.weight.medium,
         },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
         headerShown: false,
+        tabBarHideOnKeyboard: true,
       }}
     >
       {/* Home - Available to all (matches web Accueil) */}
