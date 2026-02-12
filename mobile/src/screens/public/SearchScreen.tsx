@@ -90,8 +90,10 @@ export const SearchScreen: React.FC = () => {
       setTotal(result.total || 0);
       setHasMore(result.hasMore || false);
       setPage(p);
-    } catch {}
-    finally {
+    } catch (err: any) {
+      console.warn('[Search] fetchActivities error:', err);
+      if (!append) setActivities([]);
+    } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
     }

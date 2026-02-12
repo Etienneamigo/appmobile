@@ -22,6 +22,7 @@ export interface ActivitiesSearchParams {
   radiusKm?: number;
   page?: number;
   limit?: number;
+  pageSize?: number;
 }
 
 export const activitiesApi = {
@@ -35,11 +36,17 @@ export const activitiesApi = {
     if (params.radiusKm != null) queryParams.append('radiusKm', params.radiusKm.toString());
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.pageSize) queryParams.append('pageSize', params.pageSize.toString());
 
     const query = queryParams.toString();
     return apiClient.get<ActivitiesListResponse>(
       `/api/mobile/activities${query ? `?${query}` : ''}`
     );
+  },
+
+  // Alias used by SearchScreen
+  search(params: ActivitiesSearchParams = {}): Promise<ActivitiesListResponse> {
+    return this.list(params);
   },
 
   getById(id: string): Promise<ActivityDetail> {
