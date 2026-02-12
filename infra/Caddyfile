@@ -1,4 +1,0 @@
-wadelo.com, www.wadelo.com {
-  header X-Served-By "wadelo-vps"
-  reverse_proxy web:3000
-}
