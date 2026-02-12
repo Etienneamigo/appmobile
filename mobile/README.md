@@ -107,7 +107,7 @@ L'application adapte automatiquement les onglets selon le rôle de l'utilisateur
 
 ## API Backend
 
-Base URL: `https://maisonapee.com`
+Base URL: `https://wadelo.com` (configurable via `EXPO_PUBLIC_API_BASE_URL`)
 
 ### Endpoints utilisés
 
@@ -181,11 +181,7 @@ eas build --platform ios --profile production
 
 ## Configuration
 
-Pour modifier l'URL du backend, éditer `src/api/client.ts`:
-
-```typescript
-const BASE_URL = 'https://maisonapee.com';
-```
+L'URL du backend est centralisée dans `src/config.ts` et utilise la variable d'environnement `EXPO_PUBLIC_API_BASE_URL` avec fallback sur `https://wadelo.com`.
 
 ## Scripts
 

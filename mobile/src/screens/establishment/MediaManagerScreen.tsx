@@ -1,23 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
+  ActivityIndicator, Alert, RefreshControl, Modal, TextInput,
+  KeyboardAvoidingView, Platform, Dimensions, Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { establishmentApi } from '../../api/establishment';
-import { Media, MediaKind } from '../../types';
-import { config } from '../../config';
+import { Media } from '../../types';
+import { normalizeMediaUrl } from '../../utils/url';
+
+const { width } = Dimensions.get('window');
+const GRID_GAP = 2;
+const GRID_COLS = 3;
+const ITEM_SIZE = (width - 32 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+
+const VIDEO_CATEGORIES = [
+  { value: 'teaser', label: 'Teaser' },
+  { value: 'ambiance', label: 'Ambiance' },
+  { value: 'cours', label: 'Cours / Tutorial' },
+  { value: 'evenement', label: 'Événement' },
+  { value: 'autre', label: 'Autre' },
+];
 
 export const MediaManagerScreen: React.FC = () => {
   const [medias, setMedias] = useState<Media[]>([]);
@@ -26,24 +29,19 @@ export const MediaManagerScreen: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Video link modal state
+  // Video link modal
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoCategory, setVideoCategory] = useState('teaser');
   const [isAddingVideo, setIsAddingVideo] = useState(false);
 
-  const VIDEO_CATEGORIES = [
-    { value: 'teaser', label: 'Teaser' },
-    { value: 'ambiance', label: 'Ambiance' },
-    { value: 'cours', label: 'Cours / Tutorial' },
-    { value: 'evenement', label: 'Evenement' },
-    { value: 'autre', label: 'Autre' },
-  ];
+  // Media viewer modal
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
 
   const fetchMedias = useCallback(async () => {
     try {
-      const mediasData = await establishmentApi.getMedias();
-      setMedias(mediasData);
+      const data = await establishmentApi.getMedias();
+      setMedias(data);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement');
@@ -51,670 +49,306 @@ export const MediaManagerScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      await fetchMedias();
-      setIsLoading(false);
-    };
-    load();
+    setIsLoading(true);
+    fetchMedias().finally(() => setIsLoading(false));
   }, [fetchMedias]);
 
-  const onRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchMedias();
-    setIsRefreshing(false);
-  };
+  const onRefresh = async () => { setIsRefreshing(true); await fetchMedias(); setIsRefreshing(false); };
 
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission requise', 'Autorisez l\'acces a la galerie pour ajouter des images.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      uploadFile(result.assets[0]);
-    }
-  };
-
-  const pickVideo = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission requise', 'Autorisez l\'acces a la galerie pour ajouter des videos.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'],
-      allowsEditing: true,
-      quality: 0.8,
-      videoMaxDuration: 15,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      uploadFile(result.assets[0]);
-    }
-  };
-
-  const uploadFile = async (asset: ImagePicker.ImagePickerAsset) => {
-    if (medias.length >= 10) {
-      Alert.alert('Limite atteinte', 'Vous ne pouvez pas ajouter plus de 10 medias.');
-      return;
-    }
-
-    setIsUploading(true);
+  const handlePickImage = async () => {
     try {
-      const fileName = asset.uri.split('/').pop() || 'file';
-      const type = asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
-
-      const uploadResponse = await establishmentApi.uploadFile({
-        uri: asset.uri,
-        name: fileName,
-        type,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsMultipleSelection: true,
       });
 
-      await establishmentApi.addMedia({
-        url: uploadResponse.url,
-        kind: uploadResponse.kind,
-        fileName: uploadResponse.fileName,
-        fileSize: uploadResponse.fileSize,
-      });
-
-      await fetchMedias();
-      Alert.alert('Succes', asset.type === 'video' ? 'Video ajoutee' : 'Image ajoutee');
-    } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Erreur lors de l\'upload');
-    } finally {
-      setIsUploading(false);
+      if (!result.canceled && result.assets.length > 0) {
+        setIsUploading(true);
+        for (const asset of result.assets) {
+          try {
+            await establishmentApi.uploadMedia(asset.uri, 'image');
+          } catch (err) {
+            Alert.alert('Erreur', "Échec de l'upload d'une image");
+          }
+        }
+        await fetchMedias();
+        setIsUploading(false);
+      }
+    } catch (err) {
+      Alert.alert('Erreur', "Impossible d'ouvrir la galerie");
     }
   };
 
   const handleAddVideoLink = async () => {
-    if (!videoUrl.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer une URL');
-      return;
-    }
-
-    const urlPattern = /^https?:\/\/.+/;
-    if (!urlPattern.test(videoUrl.trim())) {
-      Alert.alert('Erreur', 'URL invalide. Elle doit commencer par http:// ou https://');
-      return;
-    }
-
-    if (medias.length >= 10) {
-      Alert.alert('Limite atteinte', 'Vous ne pouvez pas ajouter plus de 10 medias.');
-      return;
-    }
-
+    if (!videoUrl.trim()) return;
     setIsAddingVideo(true);
     try {
-      await establishmentApi.addMedia({
-        url: videoUrl.trim(),
-        kind: 'VIDEO' as MediaKind,
-        fileName: null,
-        fileSize: null,
-        videoCategory,
-      });
-
-      await fetchMedias();
+      await establishmentApi.addMedia({ url: videoUrl, kind: 'VIDEO', videoCategory });
       setShowVideoModal(false);
       setVideoUrl('');
       setVideoCategory('teaser');
-      Alert.alert('Succes', 'Lien video ajoute');
-    } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Erreur lors de l\'ajout');
-    } finally {
-      setIsAddingVideo(false);
+      await fetchMedias();
+    } catch (err) {
+      Alert.alert('Erreur', "Impossible d'ajouter le lien vidéo");
+    }
+    setIsAddingVideo(false);
+  };
+
+  const handleDeleteMedia = (mediaId: string) => {
+    Alert.alert('Supprimer', 'Supprimer ce média ?', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await establishmentApi.deleteMedia(mediaId);
+            await fetchMedias();
+          } catch {
+            Alert.alert('Erreur', 'Impossible de supprimer le média');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSetCover = async (mediaId: string) => {
+    try {
+      await establishmentApi.setCoverMedia(mediaId);
+      Alert.alert('Succès', 'Couverture mise à jour');
+    } catch {
+      Alert.alert('Erreur', 'Impossible de mettre à jour la couverture');
     }
   };
 
-  const deleteMedia = async (mediaId: string) => {
-    Alert.alert(
-      'Supprimer',
-      'Voulez-vous vraiment supprimer ce media ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await establishmentApi.deleteMedia(mediaId);
-              setMedias((prev) => prev.filter((m) => m.id !== mediaId));
-            } catch (err: any) {
-              Alert.alert('Erreur', err.message || 'Erreur lors de la suppression');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const getMediaUrl = (url: string): string => {
-    return url.startsWith('http') ? url : `${config.BASE_URL}${url}`;
-  };
-
   if (isLoading) {
+    return <View style={styles.centered}><ActivityIndicator size="large" color="#18181B" /></View>;
+  }
+
+  if (error) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3498db" />
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>⚠️</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchMedias}>
+          <Text style={styles.retryButtonText}>Réessayer</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const images = medias.filter((m) => m.kind === 'IMAGE');
-  const videos = medias.filter((m) => m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD');
+  const images = medias.filter(m => m.kind === 'IMAGE');
+  const videos = medias.filter(m => m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD');
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={onRefresh}
-            tintColor="#3498db"
-          />
-        }
-      >
-        {/* Upload Progress */}
-        {isUploading && (
-          <View style={styles.uploadingBanner}>
-            <ActivityIndicator color="#fff" />
-            <Text style={styles.uploadingText}>Upload en cours...</Text>
-          </View>
-        )}
-
-        {/* Stats */}
-        <View style={styles.statsCard}>
-          <Text style={styles.statsText}>
-            {medias.length}/10 medias utilises
-          </Text>
-          <View style={styles.statsBar}>
-            <View
-              style={[styles.statsBarFill, { width: `${(medias.length / 10) * 100}%` }]}
-            />
-          </View>
+      <ScrollView refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#18181B" />}>
+        {/* Actions */}
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.actionBtn} onPress={handlePickImage} disabled={isUploading}>
+            {isUploading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.actionBtnText}>📷 Ajouter des images</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtnOutline} onPress={() => setShowVideoModal(true)}>
+            <Text style={styles.actionBtnOutlineText}>🔗 Ajouter un lien vidéo</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Images Section */}
+        {/* Images section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Images ({images.length})</Text>
-            <TouchableOpacity
-              style={[styles.addButton, medias.length >= 10 && styles.addButtonDisabled]}
-              onPress={pickImage}
-              disabled={medias.length >= 10 || isUploading}
-            >
-              <Text style={styles.addButtonText}>+ Ajouter</Text>
-            </TouchableOpacity>
-          </View>
-
+          <Text style={styles.sectionTitle}>Images <Text style={styles.sCount}>{images.length}</Text></Text>
           {images.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>📷</Text>
-              <Text style={styles.emptyStateText}>Aucune image</Text>
-            </View>
+            <Text style={styles.emptyText}>Aucune image. Ajoutez des photos de votre activité.</Text>
           ) : (
             <View style={styles.mediaGrid}>
-              {images.map((media) => (
-                <View key={media.id} style={styles.mediaItem}>
-                  <Image
-                    source={{ uri: getMediaUrl(media.url) }}
-                    style={styles.mediaImage}
-                  />
+              {images.map((media, index) => {
+                const url = normalizeMediaUrl(media.url);
+                return (
                   <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteMedia(media.id)}
+                    key={media.id}
+                    style={styles.gridItem}
+                    onPress={() => setSelectedMediaIndex(medias.indexOf(media))}
+                    onLongPress={() => {
+                      Alert.alert('Actions', media.url, [
+                        { text: 'Couverture', onPress: () => handleSetCover(media.id) },
+                        { text: 'Supprimer', style: 'destructive', onPress: () => handleDeleteMedia(media.id) },
+                        { text: 'Annuler', style: 'cancel' },
+                      ]);
+                    }}
                   >
-                    <Text style={styles.deleteButtonText}>✕</Text>
+                    {url ? (
+                      <Image source={{ uri: url }} style={styles.gridImg} />
+                    ) : (
+                      <View style={[styles.gridImg, styles.gridPlaceholder]}><Text>📷</Text></View>
+                    )}
                   </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
 
-        {/* Videos Section */}
+        {/* Videos section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Videos ({videos.length})</Text>
-            <View style={styles.videoActions}>
-              <TouchableOpacity
-                style={[styles.addButton, medias.length >= 10 && styles.addButtonDisabled]}
-                onPress={pickVideo}
-                disabled={medias.length >= 10 || isUploading}
-              >
-                <Text style={styles.addButtonText}>+ Upload</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.addButton, styles.addLinkButton, medias.length >= 10 && styles.addButtonDisabled]}
-                onPress={() => setShowVideoModal(true)}
-                disabled={medias.length >= 10}
-              >
-                <Text style={styles.addButtonText}>+ Lien</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
+          <Text style={styles.sectionTitle}>Vidéos <Text style={styles.sCount}>{videos.length}</Text></Text>
           {videos.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>🎬</Text>
-              <Text style={styles.emptyStateText}>Aucune video</Text>
-            </View>
+            <Text style={styles.emptyText}>Aucune vidéo. Ajoutez des liens YouTube ou autres.</Text>
           ) : (
-            <View style={styles.videoList}>
-              {videos.map((media) => (
-                <View key={media.id} style={styles.videoItem}>
-                  <View style={styles.videoIcon}>
-                    <Text style={styles.videoIconText}>▶️</Text>
-                  </View>
-                  <View style={styles.videoInfo}>
-                    <Text style={styles.videoUrl} numberOfLines={1}>
-                      {media.fileName || media.url}
-                    </Text>
-                    <Text style={styles.videoType}>
-                      {media.kind === 'VIDEO_UPLOAD' ? 'Video uploadee' : 'Lien externe'}
-                      {media.videoCategory ? ` - ${media.videoCategory}` : ''}
-                    </Text>
-                  </View>
+            <View style={styles.mediaGrid}>
+              {videos.map((media) => {
+                const thumb = normalizeMediaUrl(media.thumbnailUrl);
+                return (
                   <TouchableOpacity
-                    style={styles.videoDeleteButton}
-                    onPress={() => deleteMedia(media.id)}
+                    key={media.id}
+                    style={styles.gridItem}
+                    onPress={() => {
+                      const url = media.url;
+                      if (url.startsWith('http')) {
+                        Linking.openURL(url).catch(() => {});
+                      }
+                    }}
+                    onLongPress={() => handleDeleteMedia(media.id)}
                   >
-                    <Text style={styles.deleteButtonText}>✕</Text>
+                    {thumb ? (
+                      <Image source={{ uri: thumb }} style={styles.gridImg} />
+                    ) : (
+                      <View style={[styles.gridImg, styles.gridPlaceholder]}><Text style={{ fontSize: 24 }}>🎬</Text></View>
+                    )}
+                    <View style={styles.videoOverlay}>
+                      <Text style={{ color: '#FFF', fontSize: 20 }}>▶</Text>
+                    </View>
+                    {media.videoCategory && (
+                      <View style={styles.videoCategoryBadge}>
+                        <Text style={styles.videoCategoryText}>{media.videoCategory}</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
 
-        <View style={styles.tips}>
-          <Text style={styles.tipsTitle}>Conseils</Text>
-          <Text style={styles.tipsText}>
-            - Utilisez des images de haute qualite (16:9 recommande)
-          </Text>
-          <Text style={styles.tipsText}>
-            - Les videos courtes (10-15s) captent mieux l'attention
-          </Text>
-          <Text style={styles.tipsText}>
-            - La premiere image sera utilisee comme apercu
-          </Text>
-        </View>
+        <Text style={styles.hint}>Appui long sur un média pour les options (couverture, supprimer)</Text>
+        <View style={{ height: 32 }} />
       </ScrollView>
 
       {/* Video Link Modal */}
-      <Modal
-        visible={showVideoModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowVideoModal(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+      <Modal visible={showVideoModal} transparent animationType="slide">
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Ajouter un lien video</Text>
-
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>URL de la video</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={videoUrl}
-                onChangeText={setVideoUrl}
-                placeholder="https://www.youtube.com/watch?v=..."
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ajouter un lien vidéo</Text>
+              <TouchableOpacity onPress={() => setShowVideoModal(false)}><Text style={{ fontSize: 18, color: '#9CA3AF' }}>✕</Text></TouchableOpacity>
             </View>
-
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Categorie</Text>
-              <View style={styles.categoryPicker}>
-                {VIDEO_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.value}
-                    style={[
-                      styles.categoryChip,
-                      videoCategory === cat.value && styles.categoryChipActive,
-                    ]}
-                    onPress={() => setVideoCategory(cat.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        videoCategory === cat.value && styles.categoryChipTextActive,
-                      ]}
-                    >
-                      {cat.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            <Text style={styles.modalLabel}>URL de la vidéo</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={videoUrl}
+              onChangeText={setVideoUrl}
+              placeholder="https://youtube.com/watch?v=..."
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            <Text style={styles.modalLabel}>Catégorie</Text>
+            <View style={styles.categoryRow}>
+              {VIDEO_CATEGORIES.map(cat => (
+                <TouchableOpacity
+                  key={cat.value}
+                  style={[styles.categoryChip, videoCategory === cat.value && styles.categoryChipActive]}
+                  onPress={() => setVideoCategory(cat.value)}
+                >
+                  <Text style={[styles.categoryChipText, videoCategory === cat.value && styles.categoryChipTextActive]}>{cat.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => {
-                  setShowVideoModal(false);
-                  setVideoUrl('');
-                  setVideoCategory('teaser');
-                }}
-              >
-                <Text style={styles.modalCancelText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalConfirmButton, isAddingVideo && styles.modalConfirmDisabled]}
-                onPress={handleAddVideoLink}
-                disabled={isAddingVideo}
-              >
-                {isAddingVideo ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.modalConfirmText}>Ajouter</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, (!videoUrl.trim() || isAddingVideo) && { opacity: 0.5 }]}
+              onPress={handleAddVideoLink}
+              disabled={!videoUrl.trim() || isAddingVideo}
+            >
+              {isAddingVideo ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalSubmitText}>Ajouter la vidéo</Text>}
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Media Viewer */}
+      {selectedMediaIndex !== null && (
+        <Modal visible transparent animationType="fade">
+          <View style={styles.viewer}>
+            <TouchableOpacity style={styles.viewerClose} onPress={() => setSelectedMediaIndex(null)}>
+              <Text style={{ color: '#FFF', fontSize: 20 }}>✕</Text>
+            </TouchableOpacity>
+            {(() => {
+              const m = medias[selectedMediaIndex];
+              if (!m) return null;
+              const url = normalizeMediaUrl(m.url);
+              const isVid = m.kind === 'VIDEO' || m.kind === 'VIDEO_UPLOAD';
+              if (isVid) return (
+                <View style={{ alignItems: 'center', gap: 16 }}>
+                  <Text style={{ color: '#FFF' }}>{m.title || 'Vidéo'}</Text>
+                  <TouchableOpacity style={styles.viewerPlayBtn} onPress={() => url && Linking.openURL(url).catch(() => {})}>
+                    <Text style={{ color: '#FFF', fontWeight: '600' }}>▶ Ouvrir la vidéo</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+              return url ? <Image source={{ uri: url }} style={{ width: width - 32, height: '80%' }} resizeMode="contain" /> : null;
+            })()}
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadingBanner: {
-    backgroundColor: '#3498db',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    gap: 12,
-  },
-  uploadingText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-  },
-  statsText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  statsBar: {
-    height: 6,
-    backgroundColor: '#eee',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  statsBarFill: {
-    height: '100%',
-    backgroundColor: '#3498db',
-    borderRadius: 3,
-  },
-  section: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  videoActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  addButton: {
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  addLinkButton: {
-    backgroundColor: '#fce4ec',
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
-  },
-  addButtonText: {
-    color: '#3498db',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  emptyStateIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#888',
-  },
-  mediaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  mediaItem: {
-    position: 'relative',
-    width: '47%',
-    aspectRatio: 16 / 9,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  mediaImage: {
-    width: '100%',
-    height: '100%',
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  videoList: {
-    gap: 12,
-  },
-  videoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    padding: 12,
-    borderRadius: 8,
-  },
-  videoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#e74c3c',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  videoIconText: {
-    fontSize: 16,
-  },
-  videoInfo: {
-    flex: 1,
-  },
-  videoUrl: {
-    fontSize: 14,
-    color: '#333',
-  },
-  videoType: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  videoDeleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eee',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tips: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff3cd',
-    borderRadius: 12,
-    marginBottom: 32,
-  },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#856404',
-    marginBottom: 8,
-  },
-  tipsText: {
-    fontSize: 14,
-    color: '#856404',
-    marginBottom: 4,
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  modalField: {
-    marginBottom: 20,
-  },
-  modalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  modalInput: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
-  },
-  categoryPicker: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  categoryChipActive: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#3498db',
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  categoryChipTextActive: {
-    color: '#3498db',
-    fontWeight: '600',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalCancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  modalConfirmButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#3498db',
-  },
-  modalConfirmDisabled: {
-    backgroundColor: '#95a5a6',
-  },
-  modalConfirmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#FFF' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  errorText: { fontSize: 16, color: '#EF4444', textAlign: 'center', marginBottom: 16 },
+  retryButton: { backgroundColor: '#18181B', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  retryButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+
+  actions: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+  actionBtn: { flex: 1, backgroundColor: '#18181B', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  actionBtnText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  actionBtnOutline: { flex: 1, borderWidth: 1, borderColor: '#E5E7EB', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  actionBtnOutlineText: { color: '#4B5563', fontSize: 14, fontWeight: '500' },
+
+  section: { paddingHorizontal: 16, paddingVertical: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#18181B', marginBottom: 12 },
+  sCount: { fontSize: 13, fontWeight: '400', color: '#9CA3AF' },
+  emptyText: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
+
+  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
+  gridItem: { width: ITEM_SIZE, aspectRatio: 9 / 16, borderRadius: 4, overflow: 'hidden', backgroundColor: '#F3F4F6', position: 'relative' },
+  gridImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  gridPlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#1A1A1A' },
+  videoOverlay: { position: 'absolute', top: '50%', left: '50%', marginTop: -16, marginLeft: -16, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  videoCategoryBadge: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  videoCategoryText: { color: '#FFF', fontSize: 9, fontWeight: '500' },
+
+  hint: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', paddingVertical: 12 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 16, fontWeight: '600', color: '#18181B' },
+  modalLabel: { fontSize: 12, fontWeight: '600', color: '#9CA3AF', marginBottom: 4, marginTop: 12 },
+  modalInput: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, paddingHorizontal: 12, height: 44, fontSize: 14, color: '#18181B' },
+  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  categoryChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  categoryChipActive: { backgroundColor: '#18181B', borderColor: '#18181B' },
+  categoryChipText: { fontSize: 13, color: '#6B7280' },
+  categoryChipTextActive: { color: '#FFF' },
+  modalSubmitBtn: { backgroundColor: '#18181B', borderRadius: 8, height: 44, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+  modalSubmitText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+
+  // Viewer
+  viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  viewerClose: { position: 'absolute', top: 50, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
+  viewerPlayBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
 });

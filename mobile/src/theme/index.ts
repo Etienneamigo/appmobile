@@ -1,20 +1,20 @@
-// Design System - High-Tech 2026 Theme
-// Modern, clean, with subtle gradients and glassmorphism effects
+// Design System - Clean Minimal Theme
+// Matches web SaaS style: black/gray primary, white backgrounds, subtle borders
 
 export const colors = {
-  // Primary palette - Deep purple/blue gradient feel
+  // Primary palette - Gray-900 based (matches web's primary buttons)
   primary: {
-    main: '#6366F1', // Indigo
-    light: '#818CF8',
-    dark: '#4F46E5',
+    main: '#18181B', // gray-900
+    light: '#3F3F46', // gray-700
+    dark: '#09090B', // gray-950
     contrast: '#FFFFFF',
   },
 
-  // Secondary - Cyan accent for highlights
+  // Secondary - Indigo for special accents (Wadelo branding)
   secondary: {
-    main: '#06B6D4',
-    light: '#22D3EE',
-    dark: '#0891B2',
+    main: '#6366F1',
+    light: '#818CF8',
+    dark: '#4F46E5',
     contrast: '#FFFFFF',
   },
 
@@ -56,8 +56,8 @@ export const colors = {
 
   // Backgrounds
   background: {
-    primary: '#FAFAFA',
-    secondary: '#FFFFFF',
+    primary: '#FFFFFF',
+    secondary: '#FAFAFA',
     tertiary: '#F4F4F5',
     elevated: '#FFFFFF',
     dark: '#18181B',
@@ -74,9 +74,9 @@ export const colors = {
 
   // Gradients
   gradients: {
-    primary: ['#6366F1', '#8B5CF6'],
-    secondary: ['#06B6D4', '#3B82F6'],
-    hero: ['#4F46E5', '#7C3AED', '#EC4899'],
+    primary: ['#18181B', '#3F3F46'],
+    secondary: ['#6366F1', '#818CF8'],
+    hero: ['#18181B', '#27272A', '#3F3F46'],
     card: ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)'],
     dark: ['#18181B', '#27272A'],
   },
@@ -191,7 +191,7 @@ export const shadows = {
   },
   // Colored shadows for cards
   primary: {
-    shadowColor: '#6366F1',
+    shadowColor: '#18181B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,

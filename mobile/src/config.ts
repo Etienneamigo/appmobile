@@ -1,23 +1,22 @@
-// App Configuration
-// Change BASE_URL to point to your backend server
+// Centralized configuration
+// Uses EXPO_PUBLIC_ env vars for runtime overrides
 
-export const config = {
-  // API base URL - change this to your server address
-  BASE_URL: 'https://maisonapee.com',
-
-  // App info
-  APP_NAME: 'Wadelo',
-  APP_VERSION: '1.0.0',
-
-  // Pagination defaults
-  DEFAULT_PAGE_SIZE: 20,
-  MAX_MEDIAS: 10,
-
-  // Geolocation defaults
-  DEFAULT_RADIUS_KM: 10,
-
-  // Search debounce (ms)
-  SEARCH_DEBOUNCE_MS: 500,
+const getEnv = (key: string, fallback: string): string => {
+  // @ts-ignore - Expo env vars
+  const val = process.env[key];
+  return val || fallback;
 };
 
-export default config;
+export const config = {
+  BASE_URL: getEnv('EXPO_PUBLIC_API_BASE_URL', 'https://wadelo.com'),
+  APP_NAME: 'Wadelo',
+  APP_VERSION: '1.0.0',
+  DEFAULT_PAGE_SIZE: 20,
+  MAX_MEDIAS: 10,
+  DEFAULT_RADIUS_KM: 10,
+  SEARCH_DEBOUNCE_MS: 500,
+  FEED_PAGE_SIZE: 10,
+  HOME_SECTION_LIMIT: 10,
+  MARSEILLE_LAT: 43.2965,
+  MARSEILLE_LNG: 5.3698,
+};

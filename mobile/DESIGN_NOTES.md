@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the design system and visual choices made for the mobile app redesign, inspired by the web SaaS application at maisonapee.com.
+This document describes the design system and visual choices made for the mobile app redesign, inspired by the web SaaS application at wadelo.com.
 
 ## Design Philosophy
 
@@ -251,4 +251,4 @@ src/
 
 ---
 
-*Design inspired by web SaaS at maisonapee.com, adapted for mobile UX patterns.*
+*Design inspired by web SaaS at wadelo.com, adapted for mobile UX patterns.*

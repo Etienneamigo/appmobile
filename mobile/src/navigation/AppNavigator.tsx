@@ -4,10 +4,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
+import { colors, typography } from '../theme';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
+import { HomeScreen } from '../screens/public/HomeScreen';
+import { FeedScreen } from '../screens/public/FeedScreen';
 import { SearchScreen } from '../screens/public/SearchScreen';
 import { ActivityDetailScreen } from '../screens/public/ActivityDetailScreen';
 import { FavoritesScreen } from '../screens/user/FavoritesScreen';
@@ -20,6 +23,16 @@ import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { AccountScreen } from '../screens/common/AccountScreen';
 
 // Types
+export type HomeStackParamList = {
+  Home: undefined;
+  ActivityDetail: { activityId: string };
+};
+
+export type FeedStackParamList = {
+  Feed: undefined;
+  ActivityDetail: { activityId: string };
+};
+
 export type SearchStackParamList = {
   Search: undefined;
   ActivityDetail: { activityId: string };
@@ -39,6 +52,8 @@ export type EstablishmentStackParamList = {
 };
 
 export type MainTabParamList = {
+  HomeTab: undefined;
+  FeedTab: undefined;
   SearchTab: undefined;
   FavoritesTab: undefined;
   EstablishmentTab: undefined;
@@ -46,45 +61,76 @@ export type MainTabParamList = {
   AccountTab: undefined;
 };
 
+const HomeStackNav = createNativeStackNavigator<HomeStackParamList>();
+const FeedStackNav = createNativeStackNavigator<FeedStackParamList>();
 const SearchStackNav = createNativeStackNavigator<SearchStackParamList>();
 const FavoritesStackNav = createNativeStackNavigator<FavoritesStackParamList>();
 const EstablishmentStackNav = createNativeStackNavigator<EstablishmentStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+const defaultScreenOptions = {
+  headerStyle: { backgroundColor: '#fff' },
+  headerTitleStyle: { fontWeight: '600' as const },
+  headerShadowVisible: false,
+  headerTintColor: colors.text.primary,
+};
+
 // Tab Icon component
 const TabIcon: React.FC<{ icon: string; focused: boolean }> = ({ icon, focused }) => (
-  <Text style={{ fontSize: 24, opacity: focused ? 1 : 0.5 }}>{icon}</Text>
+  <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
+);
+
+// Home Stack
+const HomeStack: React.FC = () => (
+  <HomeStackNav.Navigator screenOptions={defaultScreenOptions}>
+    <HomeStackNav.Screen
+      name="Home"
+      component={HomeScreen}
+      options={{ headerShown: false }}
+    />
+    <HomeStackNav.Screen
+      name="ActivityDetail"
+      component={ActivityDetailScreen}
+      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
+    />
+  </HomeStackNav.Navigator>
+);
+
+// Feed Stack
+const FeedStack: React.FC = () => (
+  <FeedStackNav.Navigator screenOptions={defaultScreenOptions}>
+    <FeedStackNav.Screen
+      name="Feed"
+      component={FeedScreen}
+      options={{ headerShown: false }}
+    />
+    <FeedStackNav.Screen
+      name="ActivityDetail"
+      component={ActivityDetailScreen}
+      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
+    />
+  </FeedStackNav.Navigator>
 );
 
 // Search Stack
 const SearchStack: React.FC = () => (
-  <SearchStackNav.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#fff' },
-      headerTitleStyle: { fontWeight: '600' },
-    }}
-  >
+  <SearchStackNav.Navigator screenOptions={defaultScreenOptions}>
     <SearchStackNav.Screen
       name="Search"
       component={SearchScreen}
-      options={{ title: 'Activités' }}
+      options={{ headerShown: false }}
     />
     <SearchStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail' }}
+      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
     />
   </SearchStackNav.Navigator>
 );
 
 // Favorites Stack
 const FavoritesStack: React.FC = () => (
-  <FavoritesStackNav.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#fff' },
-      headerTitleStyle: { fontWeight: '600' },
-    }}
-  >
+  <FavoritesStackNav.Navigator screenOptions={defaultScreenOptions}>
     <FavoritesStackNav.Screen
       name="Favorites"
       component={FavoritesScreen}
@@ -93,19 +139,14 @@ const FavoritesStack: React.FC = () => (
     <FavoritesStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail' }}
+      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
     />
   </FavoritesStackNav.Navigator>
 );
 
 // Establishment Stack
 const EstablishmentStack: React.FC = () => (
-  <EstablishmentStackNav.Navigator
-    screenOptions={{
-      headerStyle: { backgroundColor: '#fff' },
-      headerTitleStyle: { fontWeight: '600' },
-    }}
-  >
+  <EstablishmentStackNav.Navigator screenOptions={defaultScreenOptions}>
     <EstablishmentStackNav.Screen
       name="EstablishmentDashboard"
       component={EstablishmentDashboardScreen}
@@ -134,7 +175,7 @@ const EstablishmentStack: React.FC = () => (
   </EstablishmentStackNav.Navigator>
 );
 
-// Main Tab Navigator
+// Main Tab Navigator - Matches web's MobileBottomNav role-based structure
 const MainTabs: React.FC = () => {
   const { isRole } = useAuth();
 
@@ -144,31 +185,77 @@ const MainTabs: React.FC = () => {
         tabBarStyle: {
           backgroundColor: '#fff',
           borderTopWidth: 1,
-          borderTopColor: '#eee',
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 60,
+          borderTopColor: colors.neutral[200],
+          paddingTop: 6,
+          paddingBottom: 6,
+          height: 56,
         },
-        tabBarActiveTintColor: '#6366F1',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: colors.primary.main,
+        tabBarInactiveTintColor: colors.neutral[400],
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 10,
+          fontWeight: typography.weight.medium,
         },
         headerShown: false,
       }}
     >
-      {/* Search - Available to all */}
+      {/* Home - Available to all (matches web Accueil) */}
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeStack}
+        options={{
+          title: 'Accueil',
+          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+        }}
+      />
+
+      {/* Admin - ADMIN only (matches web: Admin tab in position 2) */}
+      {isRole('ADMIN') && (
+        <Tab.Screen
+          name="AdminTab"
+          component={AdminDashboardScreen}
+          options={{
+            title: 'Admin',
+            tabBarIcon: ({ focused }) => <TabIcon icon="🛡️" focused={focused} />,
+            headerShown: true,
+            headerTitle: 'Administration',
+          }}
+        />
+      )}
+
+      {/* Feed - Available to all (matches web Feed) */}
+      <Tab.Screen
+        name="FeedTab"
+        component={FeedStack}
+        options={{
+          title: 'Feed',
+          tabBarIcon: ({ focused }) => <TabIcon icon="▶️" focused={focused} />,
+        }}
+      />
+
+      {/* Establishment - ESTABLISHMENT only (matches web Activité) */}
+      {isRole('ESTABLISHMENT') && (
+        <Tab.Screen
+          name="EstablishmentTab"
+          component={EstablishmentStack}
+          options={{
+            title: 'Activité',
+            tabBarIcon: ({ focused }) => <TabIcon icon="🏢" focused={focused} />,
+          }}
+        />
+      )}
+
+      {/* Search - Available to all (matches web Recherche) */}
       <Tab.Screen
         name="SearchTab"
         component={SearchStack}
         options={{
-          title: 'Explorer',
+          title: 'Recherche',
           tabBarIcon: ({ focused }) => <TabIcon icon="🔍" focused={focused} />,
         }}
       />
 
-      {/* Favorites - USER only */}
+      {/* Favorites - USER only (matches web Favoris) */}
       {isRole('USER') && (
         <Tab.Screen
           name="FavoritesTab"
@@ -180,33 +267,7 @@ const MainTabs: React.FC = () => {
         />
       )}
 
-      {/* Establishment - ESTABLISHMENT only */}
-      {isRole('ESTABLISHMENT') && (
-        <Tab.Screen
-          name="EstablishmentTab"
-          component={EstablishmentStack}
-          options={{
-            title: 'Mon établissement',
-            tabBarIcon: ({ focused }) => <TabIcon icon="🏢" focused={focused} />,
-          }}
-        />
-      )}
-
-      {/* Admin - ADMIN only */}
-      {isRole('ADMIN') && (
-        <Tab.Screen
-          name="AdminTab"
-          component={AdminDashboardScreen}
-          options={{
-            title: 'Admin',
-            tabBarIcon: ({ focused }) => <TabIcon icon="⚙️" focused={focused} />,
-            headerShown: true,
-            headerTitle: 'Administration',
-          }}
-        />
-      )}
-
-      {/* Account - Available to all */}
+      {/* Account - Available to all (matches web Compte) */}
       <Tab.Screen
         name="AccountTab"
         component={AccountScreen}
@@ -239,7 +300,7 @@ export const AppNavigator: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={colors.primary.main} />
       </View>
     );
   }
@@ -256,6 +317,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background.secondary,
   },
 });

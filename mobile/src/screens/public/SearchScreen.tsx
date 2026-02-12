@@ -1,763 +1,374 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  RefreshControl,
-  ScrollView,
-  Animated,
-  Dimensions,
-  StatusBar,
-  Platform,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  TextInput, Image, ActivityIndicator, RefreshControl, ScrollView, Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { activitiesApi, ActivitiesSearchParams } from '../../api/activities';
-import { favoritesApi } from '../../api/favorites';
-import { ActivityListItem, ActivityType, ACTIVITY_TYPE_LABELS } from '../../types';
-import { ActivityCard } from '../../components/ActivityCard';
-import { SkeletonList, SkeletonCategories } from '../../components/SkeletonCard';
-import { useAuth } from '../../context/AuthContext';
-import {
-  colors,
-  borderRadius,
-  spacing,
-  shadows,
-  typography,
-  getActivityEmoji,
-} from '../../theme';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import { config } from '../../config';
+import { activitiesApi } from '../../api/activities';
+import { ActivityListItem, ActivityType, ALL_ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS } from '../../types';
+import { getActivityEmoji } from '../../theme';
+import { normalizeMediaUrl, formatDistance, calculateDistance } from '../../utils/url';
 
-const { width, height } = Dimensions.get('window');
+const DISTANCE_OPTIONS = [
+  { value: 1, label: '1 km' },
+  { value: 5, label: '5 km' },
+  { value: 10, label: '10 km' },
+  { value: 25, label: '25 km' },
+  { value: 50, label: '50 km' },
+];
 
-type RootStackParamList = {
-  ActivityDetail: { activityId: string };
-};
-
-const ACTIVITY_TYPES = [
-  'BOWLING', 'ESCAPE_GAME', 'BAR_DANSANT', 'KARAOKE', 'LASER_GAME',
-  'CINEMA', 'TRAMPOLINE_PARK', 'KARTING', 'REALITE_VIRTUELLE', 'QUIZ_GAME',
-  'MINIGOLF', 'ESCALADE', 'PATINOIRE', 'SPA_BIEN_ETRE', 'ATELIER',
-  'DEGUSTATION', 'COMEDY_CLUB', 'MUSEE_EXPO', 'CONCERT_SPECTACLE',
-] as ActivityType[];
+const SORT_OPTIONS = [
+  { value: 'distance', label: 'Distance' },
+  { value: 'popularity', label: 'Popularité' },
+];
 
 export const SearchScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { isAuthenticated } = useAuth();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const params = route.params || {};
+
+  const [city, setCity] = useState<string>(params.city || '');
+  const [type, setType] = useState<string>(params.type || '');
+  const [radiusKm, setRadiusKm] = useState(10);
+  const [sortBy, setSortBy] = useState('distance');
+  const [minPeople, setMinPeople] = useState('');
+  const [maxPeople, setMaxPeople] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(
+    params.lat && params.lng ? { lat: params.lat, lng: params.lng } : null
+  );
+  const [isLocating, setIsLocating] = useState(false);
 
   const [activities, setActivities] = useState<ActivityListItem[]>([]);
-  const [discoverActivities, setDiscoverActivities] = useState<ActivityListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingDiscover, setIsLoadingDiscover] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Search state
-  const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<ActivityType | null>(null);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
 
-  // Animations
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const searchInputRef = useRef<TextInput>(null);
-
-  // Fetch activities for search results
-  const fetchActivities = useCallback(
-    async (params: ActivitiesSearchParams, append = false) => {
-      try {
-        const response = await activitiesApi.list(params);
-        if (append) {
-          setActivities((prev) => [...prev, ...response.items]);
-        } else {
-          setActivities(response.items);
-        }
-        setHasMore(response.hasMore);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Erreur lors du chargement');
-      }
-    },
-    []
-  );
-
-  // Fetch discover activities (popular/recent)
-  const fetchDiscoverActivities = useCallback(async () => {
-    try {
-      setIsLoadingDiscover(true);
-      const response = await activitiesApi.list({ page: 1, limit: 10 });
-      setDiscoverActivities(response.items);
-    } catch (err) {
-      // Silent fail for discover
-    } finally {
-      setIsLoadingDiscover(false);
-    }
-  }, []);
-
-  const loadInitial = useCallback(async () => {
-    setIsLoading(true);
-    setPage(1);
-    await fetchActivities({
-      search: search || undefined,
-      type: selectedType || undefined,
-      page: 1,
-      limit: 20,
-    });
-    setIsLoading(false);
-  }, [search, selectedType, fetchActivities]);
-
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
-    setIsLoadingMore(true);
-    const nextPage = page + 1;
-    await fetchActivities(
-      {
-        search: search || undefined,
-        type: selectedType || undefined,
-        page: nextPage,
-        limit: 20,
-      },
-      true
-    );
-    setPage(nextPage);
-    setIsLoadingMore(false);
-  }, [page, hasMore, isLoadingMore, search, selectedType, fetchActivities]);
-
-  const onRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setPage(1);
-    await Promise.all([
-      fetchActivities({
-        search: search || undefined,
-        type: selectedType || undefined,
-        page: 1,
-        limit: 20,
-      }),
-      fetchDiscoverActivities(),
-    ]);
-    setIsRefreshing(false);
-  }, [search, selectedType, fetchActivities, fetchDiscoverActivities]);
-
-  // Initial load
-  useEffect(() => {
-    loadInitial();
-    fetchDiscoverActivities();
-  }, []);
-
-  // Load when type changes
-  useEffect(() => {
-    if (selectedType !== null || search) {
-      setIsSearching(true);
-      loadInitial();
-    } else {
-      setIsSearching(false);
-    }
-  }, [selectedType]);
-
-  // Debounced search
-  useEffect(() => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-    const timeout = setTimeout(() => {
-      if (search) {
-        setIsSearching(true);
-        loadInitial();
-      } else if (!selectedType) {
-        setIsSearching(false);
-      }
-    }, 500);
-    setSearchTimeout(timeout);
-    return () => clearTimeout(timeout);
-  }, [search]);
-
-  const handleFavoriteToggle = async (activity: ActivityListItem) => {
-    if (!isAuthenticated) return;
+  const fetchActivities = useCallback(async (p: number = 1, append = false) => {
+    if (p === 1 && !append) setIsLoading(true);
+    else setIsLoadingMore(true);
 
     try {
-      if (activity.isFavorite) {
-        await favoritesApi.remove(activity.id);
+      const searchParams: any = { page: p, pageSize: config.DEFAULT_PAGE_SIZE };
+      if (userLocation) {
+        searchParams.lat = userLocation.lat;
+        searchParams.lng = userLocation.lng;
+        searchParams.radiusKm = radiusKm;
+      } else if (city) {
+        searchParams.city = city;
+      }
+      if (type) searchParams.type = type;
+
+      const result = await activitiesApi.search(searchParams);
+      const items = result.items || [];
+
+      const withDistance = userLocation
+        ? items.map((a: any) => ({
+            ...a,
+            _distance: calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng),
+          }))
+        : items;
+
+      if (sortBy === 'distance' && userLocation) {
+        withDistance.sort((a: any, b: any) => (a._distance || 0) - (b._distance || 0));
+      }
+
+      if (append) {
+        setActivities((prev) => [...prev, ...withDistance]);
       } else {
-        await favoritesApi.add(activity.id);
+        setActivities(withDistance);
       }
-      // Update both lists
-      const updateList = (list: ActivityListItem[]) =>
-        list.map((a) =>
-          a.id === activity.id ? { ...a, isFavorite: !a.isFavorite } : a
-        );
-      setActivities(updateList);
-      setDiscoverActivities(updateList);
-    } catch (err) {
-      // Silently fail
+      setTotal(result.total || 0);
+      setHasMore(result.hasMore || false);
+      setPage(p);
+    } catch {}
+    finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
     }
+  }, [userLocation, city, type, radiusKm, sortBy]);
+
+  useEffect(() => { fetchActivities(1); }, [fetchActivities]);
+
+  const onRefresh = async () => { setIsRefreshing(true); await fetchActivities(1); setIsRefreshing(false); };
+  const loadMore = () => { if (hasMore && !isLoadingMore) fetchActivities(page + 1, true); };
+
+  const handleLocate = async () => {
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({});
+        setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        setCity('');
+      }
+    } catch {}
+    setIsLocating(false);
   };
 
-  const handleTypeSelect = (type: ActivityType | null) => {
-    setSelectedType(type);
-  };
+  const handleSearch = () => { setShowFilters(false); fetchActivities(1); };
 
-  const clearSearch = () => {
-    setSearch('');
-    setSelectedType(null);
-    setIsSearching(false);
-  };
-
-  // Header opacity based on scroll
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  const renderHero = () => (
-    <LinearGradient
-      colors={colors.gradients.hero as [string, string, string]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.heroContainer}
-    >
-      <View style={styles.heroContent}>
-        <Text style={styles.heroTitle}>Qu'est-ce qu'on{'\n'}fait ce soir ?</Text>
-        <Text style={styles.heroSubtitle}>
-          Decouvrez les meilleures activites pres de chez vous
-        </Text>
-
-        {/* Search card with glassmorphism effect */}
-        <View style={styles.searchCard}>
-          <View style={styles.searchInputContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              ref={searchInputRef}
-              style={styles.searchInput}
-              placeholder="Rechercher une activite..."
-              placeholderTextColor={colors.text.tertiary}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')} style={styles.clearButton}>
-                <Text style={styles.clearIcon}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </View>
-    </LinearGradient>
-  );
-
-  const renderCategories = () => (
-    <View style={styles.categoriesSection}>
-      <Text style={styles.sectionTitle}>Decouvrez nos categories</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesList}
+  const renderActivityItem = ({ item }: { item: any }) => {
+    const imageUrl = normalizeMediaUrl(item.imageUrl);
+    const dist = item._distance;
+    return (
+      <TouchableOpacity
+        style={styles.resultItem}
+        onPress={() => navigation.navigate('ActivityDetail', { activityId: item.id })}
+        activeOpacity={0.6}
       >
-        {/* All option */}
-        <TouchableOpacity
-          style={[
-            styles.categoryCard,
-            selectedType === null && isSearching && styles.categoryCardSelected,
-          ]}
-          onPress={() => handleTypeSelect(null)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.categoryIconContainer, selectedType === null && isSearching && styles.categoryIconSelected]}>
-            <Text style={styles.categoryIcon}>🎯</Text>
-          </View>
-          <Text style={[styles.categoryLabel, selectedType === null && isSearching && styles.categoryLabelSelected]}>
-            Tout
-          </Text>
-        </TouchableOpacity>
-
-        {ACTIVITY_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[
-              styles.categoryCard,
-              selectedType === type && styles.categoryCardSelected,
-            ]}
-            onPress={() => handleTypeSelect(type)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.categoryIconContainer, selectedType === type && styles.categoryIconSelected]}>
-              <Text style={styles.categoryIcon}>{getActivityEmoji(type)}</Text>
+        <View style={styles.resultThumb}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.resultThumbImg} />
+          ) : (
+            <View style={styles.resultThumbPlaceholder}>
+              <Text style={{ fontSize: 24 }}>{getActivityEmoji(item.type)}</Text>
             </View>
-            <Text
-              style={[
-                styles.categoryLabel,
-                selectedType === type && styles.categoryLabelSelected,
-              ]}
-              numberOfLines={2}
-            >
-              {ACTIVITY_TYPE_LABELS[type]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
-  const renderDiscover = () => {
-    if (isSearching) return null;
-
-    return (
-      <View style={styles.discoverSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>A decouvrir</Text>
-          <TouchableOpacity onPress={() => setIsSearching(true)}>
-            <Text style={styles.seeAllText}>Voir tout</Text>
-          </TouchableOpacity>
-        </View>
-
-        {isLoadingDiscover ? (
-          <View style={styles.discoverSkeletonContainer}>
-            <SkeletonCategories />
-          </View>
-        ) : (
-          <FlatList
-            horizontal
-            data={discoverActivities}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.discoverList}
-            renderItem={({ item }) => (
-              <ActivityCard
-                activity={item}
-                variant="vertical"
-                onPress={() =>
-                  navigation.navigate('ActivityDetail', { activityId: item.id })
-                }
-                onFavoriteToggle={
-                  isAuthenticated ? () => handleFavoriteToggle(item) : undefined
-                }
-                showFavorite={isAuthenticated}
-              />
-            )}
-          />
-        )}
-      </View>
-    );
-  };
-
-  const renderSearchResults = () => {
-    if (!isSearching) return null;
-
-    return (
-      <View style={styles.resultsSection}>
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsTitle}>
-            {activities.length} activite{activities.length !== 1 ? 's' : ''} trouvee{activities.length !== 1 ? 's' : ''}
-          </Text>
-          {(search || selectedType) && (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearFiltersButton}>
-              <Text style={styles.clearFiltersText}>Effacer</Text>
-            </TouchableOpacity>
           )}
         </View>
-      </View>
-    );
-  };
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyStateIcon}>🔍</Text>
-      <Text style={styles.emptyStateTitle}>Aucune activite trouvee</Text>
-      <Text style={styles.emptyStateText}>
-        Essayez de modifier vos filtres ou votre recherche
-      </Text>
-      <TouchableOpacity style={styles.emptyStateButton} onPress={clearSearch}>
-        <Text style={styles.emptyStateButtonText}>Effacer les filtres</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderFooter = () => {
-    if (!isLoadingMore) return null;
-    return (
-      <View style={styles.loadingMore}>
-        <SkeletonList count={2} />
-      </View>
-    );
-  };
-
-  const renderListHeader = () => (
-    <>
-      {renderHero()}
-      {renderCategories()}
-      {renderDiscover()}
-      {renderSearchResults()}
-    </>
-  );
-
-  // Error state
-  if (error && !isRefreshing) {
-    return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        {renderHero()}
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadInitial}>
-            <Text style={styles.retryButtonText}>Reessayer</Text>
-          </TouchableOpacity>
+        <View style={styles.resultContent}>
+          <Text style={styles.resultType}>{ACTIVITY_TYPE_LABELS[item.type as ActivityType] || item.type}</Text>
+          <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+          {item.description && <Text style={styles.resultDesc} numberOfLines={1}>{item.description}</Text>}
+          <View style={styles.resultMeta}>
+            <Text style={styles.metaItem}>📍 {item.city}</Text>
+            {dist != null && <Text style={styles.metaDistance}>{formatDistance(dist)}</Text>}
+            {item.durationMinutes && <Text style={styles.metaItem}>⏱ {item.durationMinutes} min</Text>}
+            {item.priceFrom != null && <Text style={styles.metaItem}>dès {item.priceFrom}€</Text>}
+            {(item.minPeople || item.maxPeople) && <Text style={styles.metaItem}>👥 {item.minPeople || 1}-{item.maxPeople || '∞'}</Text>}
+          </View>
         </View>
-      </View>
+        <Text style={styles.resultArrow}>›</Text>
+      </TouchableOpacity>
     );
-  }
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* Sticky header on scroll */}
-      <Animated.View style={[styles.stickyHeader, { opacity: headerOpacity }]}>
-        <View style={styles.stickySearchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.stickySearchInput}
-            placeholder="Rechercher..."
-            placeholderTextColor={colors.text.tertiary}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-      </Animated.View>
-
-      {isLoading && !isRefreshing ? (
-        <ScrollView style={styles.loadingContainer}>
-          {renderListHeader()}
-          <View style={styles.loadingList}>
-            <SkeletonList count={3} />
+      {/* SearchHero */}
+      <View style={styles.searchHero}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputWrap}>
+            <Text style={styles.inputIcon}>📍</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Ville ou code postal"
+              placeholderTextColor="#9CA3AF"
+              value={userLocation ? 'Position actuelle' : city}
+              onChangeText={(t) => { setCity(t); if (userLocation) setUserLocation(null); }}
+              editable={!userLocation}
+              onSubmitEditing={handleSearch}
+            />
           </View>
-        </ScrollView>
+          {userLocation ? (
+            <TouchableOpacity style={styles.locatedBtn} onPress={() => setUserLocation(null)}>
+              <Text style={styles.locatedBtnText}>✓ Localisé</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.locateBtn} onPress={handleLocate} disabled={isLocating}>
+              {isLocating ? <ActivityIndicator size="small" color="#6B7280" /> : <Text style={styles.locateBtnText}>📍</Text>}
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.searchRow}>
+          <TouchableOpacity style={styles.typeSelector} onPress={() => setShowTypePicker(true)}>
+            <Text style={type ? styles.typeSelectorText : styles.typeSelectorPlaceholder}>
+              {type ? (ACTIVITY_TYPE_LABELS[type as ActivityType] || type) : "Type d'activité"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+            <Text style={styles.searchButtonText}>🔍 Rechercher</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Results Header */}
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsCount}>{isLoading ? 'Recherche...' : `${total} résultat${total > 1 ? 's' : ''}`}</Text>
+        <TouchableOpacity style={[styles.filterToggle, showFilters && styles.filterToggleActive]} onPress={() => setShowFilters(!showFilters)}>
+          <Text style={[styles.filterToggleText, showFilters && styles.filterToggleTextActive]}>⚙ Filtres</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Filters Panel */}
+      {showFilters && (
+        <View style={styles.filtersPanel}>
+          <View style={styles.filterRow}>
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>RAYON</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.chipRow}>
+                  {DISTANCE_OPTIONS.map((opt) => (
+                    <TouchableOpacity key={opt.value} style={[styles.chip, radiusKm === opt.value && styles.chipActive]} onPress={() => setRadiusKm(opt.value)}>
+                      <Text style={[styles.chipText, radiusKm === opt.value && styles.chipTextActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+          <View style={styles.filterRow}>
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>TRI</Text>
+              <View style={styles.chipRow}>
+                {SORT_OPTIONS.map((opt) => (
+                  <TouchableOpacity key={opt.value} style={[styles.chip, sortBy === opt.value && styles.chipActive]} onPress={() => setSortBy(opt.value)}>
+                    <Text style={[styles.chipText, sortBy === opt.value && styles.chipTextActive]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+          <View style={styles.filterRow}>
+            <View style={[styles.filterGroup, { flex: 1 }]}>
+              <Text style={styles.filterLabel}>MIN PERS.</Text>
+              <TextInput style={styles.filterInput} keyboardType="numeric" value={minPeople} onChangeText={setMinPeople} placeholder="1" placeholderTextColor="#9CA3AF" />
+            </View>
+            <View style={[styles.filterGroup, { flex: 1 }]}>
+              <Text style={styles.filterLabel}>MAX PERS.</Text>
+              <TextInput style={styles.filterInput} keyboardType="numeric" value={maxPeople} onChangeText={setMaxPeople} placeholder="10" placeholderTextColor="#9CA3AF" />
+            </View>
+            <View style={[styles.filterGroup, { flex: 1 }]}>
+              <Text style={styles.filterLabel}>PRIX MAX</Text>
+              <TextInput style={styles.filterInput} keyboardType="numeric" value={priceMax} onChangeText={setPriceMax} placeholder="50€" placeholderTextColor="#9CA3AF" />
+            </View>
+          </View>
+          <TouchableOpacity style={styles.applyFiltersBtn} onPress={handleSearch}>
+            <Text style={styles.applyFiltersBtnText}>🔍 Rechercher</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Results */}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} style={styles.skeleton}>
+              <View style={styles.skeletonThumb} />
+              <View style={styles.skeletonContent}>
+                <View style={[styles.skeletonLine, { width: 60 }]} />
+                <View style={[styles.skeletonLine, { width: 160 }]} />
+                <View style={[styles.skeletonLine, { width: 100 }]} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : activities.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Aucune activité trouvée</Text>
+          <Text style={styles.emptySubtext}>Essayez d'élargir votre recherche ou de modifier les filtres</Text>
+        </View>
       ) : (
         <FlatList
-          data={isSearching ? activities : []}
+          data={activities}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ActivityCard
-              activity={item}
-              onPress={() =>
-                navigation.navigate('ActivityDetail', { activityId: item.id })
-              }
-              onFavoriteToggle={
-                isAuthenticated ? () => handleFavoriteToggle(item) : undefined
-              }
-              showFavorite={isAuthenticated}
-            />
-          )}
-          ListHeaderComponent={renderListHeader}
-          ListEmptyComponent={isSearching ? renderEmptyState : null}
-          ListFooterComponent={renderFooter}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary.main}
-              progressViewOffset={100}
-            />
-          }
-          onEndReached={isSearching ? loadMore : undefined}
-          onEndReachedThreshold={0.5}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.listContent}
+          renderItem={renderActivityItem}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor="#18181B" />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={isLoadingMore ? <ActivityIndicator style={{ padding: 16 }} color="#18181B" /> : null}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
+
+      {/* Type Picker Modal */}
+      <Modal visible={showTypePicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Type d'activité</Text>
+              <TouchableOpacity onPress={() => setShowTypePicker(false)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+            </View>
+            <ScrollView>
+              <TouchableOpacity style={styles.modalOption} onPress={() => { setType(''); setShowTypePicker(false); }}>
+                <Text style={styles.modalOptionText}>Toutes les activités</Text>
+              </TouchableOpacity>
+              {ALL_ACTIVITY_TYPES.map((t) => (
+                <TouchableOpacity key={t} style={[styles.modalOption, type === t && styles.modalOptionActive]} onPress={() => { setType(t); setShowTypePicker(false); }}>
+                  <Text style={styles.modalOptionEmoji}>{getActivityEmoji(t)}</Text>
+                  <Text style={[styles.modalOptionText, type === t && styles.modalOptionTextActive]}>{ACTIVITY_TYPE_LABELS[t]}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.primary,
-  },
-
-  // Hero section
-  heroContainer: {
-    paddingTop: Platform.OS === 'ios' ? 60 : StatusBar.currentHeight || 40,
-    paddingBottom: spacing['4xl'],
-    paddingHorizontal: spacing.lg,
-  },
-  heroContent: {
-    alignItems: 'center',
-  },
-  heroTitle: {
-    fontSize: typography.size['4xl'],
-    fontWeight: typography.weight.extrabold,
-    color: colors.text.inverse,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  heroSubtitle: {
-    fontSize: typography.size.lg,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
-    marginBottom: spacing['3xl'],
-  },
-
-  // Search card
-  searchCard: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: borderRadius['2xl'],
-    padding: spacing.md,
-    ...shadows.xl,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.elevated,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.md,
-    height: 50,
-  },
-  searchIcon: {
-    fontSize: 18,
-    marginRight: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: typography.size.md,
-    color: colors.text.primary,
-  },
-  clearButton: {
-    padding: spacing.xs,
-  },
-  clearIcon: {
-    fontSize: 16,
-    color: colors.text.tertiary,
-  },
-
-  // Sticky header
-  stickyHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    backgroundColor: colors.background.elevated,
-    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 30,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    ...shadows.md,
-  },
-  stickySearchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[100],
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.md,
-    height: 44,
-  },
-  stickySearchInput: {
-    flex: 1,
-    fontSize: typography.size.base,
-    color: colors.text.primary,
-  },
-
-  // Categories section
-  categoriesSection: {
-    paddingVertical: spacing.xl,
-    backgroundColor: colors.neutral[50],
-  },
-  sectionTitle: {
-    fontSize: typography.size.xl,
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
-  categoriesList: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
-  categoryCard: {
-    alignItems: 'center',
-    width: 80,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.background.elevated,
-    borderRadius: borderRadius.xl,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    ...shadows.sm,
-  },
-  categoryCardSelected: {
-    borderColor: colors.primary.main,
-    backgroundColor: colors.primary.main + '10',
-  },
-  categoryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  categoryIconSelected: {
-    backgroundColor: colors.primary.main + '20',
-  },
-  categoryIcon: {
-    fontSize: 24,
-  },
-  categoryLabel: {
-    fontSize: typography.size.xs,
-    color: colors.text.secondary,
-    fontWeight: typography.weight.medium,
-    textAlign: 'center',
-  },
-  categoryLabelSelected: {
-    color: colors.primary.main,
-    fontWeight: typography.weight.semibold,
-  },
-
-  // Discover section
-  discoverSection: {
-    paddingVertical: spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  seeAllText: {
-    fontSize: typography.size.sm,
-    color: colors.primary.main,
-    fontWeight: typography.weight.semibold,
-  },
-  discoverList: {
-    paddingHorizontal: spacing.lg,
-  },
-  discoverSkeletonContainer: {
-    paddingVertical: spacing.lg,
-  },
-
-  // Results section
-  resultsSection: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  resultsTitle: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-  },
-  clearFiltersButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.neutral[100],
-    borderRadius: borderRadius.full,
-  },
-  clearFiltersText: {
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
-    fontWeight: typography.weight.medium,
-  },
-
-  // List
-  listContent: {
-    paddingBottom: spacing['4xl'],
-  },
-
-  // Loading states
-  loadingContainer: {
-    flex: 1,
-  },
-  loadingList: {
-    paddingTop: spacing.lg,
-  },
-  loadingMore: {
-    paddingVertical: spacing.xl,
-  },
-
-  // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing['5xl'],
-    paddingHorizontal: spacing['3xl'],
-  },
-  emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: spacing.lg,
-  },
-  emptyStateTitle: {
-    fontSize: typography.size.xl,
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  emptyStateButton: {
-    backgroundColor: colors.primary.main,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-  },
-  emptyStateButtonText: {
-    fontSize: typography.size.md,
-    color: colors.text.inverse,
-    fontWeight: typography.weight.semibold,
-  },
-
-  // Error state
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing['3xl'],
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: spacing.lg,
-  },
-  errorText: {
-    fontSize: typography.size.md,
-    color: colors.error.main,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-  },
-  retryButton: {
-    backgroundColor: colors.primary.main,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-  },
-  retryButtonText: {
-    color: colors.text.inverse,
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  searchHero: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 8 },
+  searchRow: { flexDirection: 'row', gap: 8 },
+  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 8, paddingHorizontal: 10, height: 40, borderWidth: 1, borderColor: '#E5E7EB' },
+  inputIcon: { fontSize: 14, marginRight: 6 },
+  searchInput: { flex: 1, fontSize: 14, color: '#18181B' },
+  locateBtn: { width: 40, height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
+  locateBtnText: { fontSize: 16 },
+  locatedBtn: { paddingHorizontal: 12, height: 40, borderRadius: 8, backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0', justifyContent: 'center' },
+  locatedBtnText: { fontSize: 13, color: '#059669', fontWeight: '600' },
+  typeSelector: { flex: 1, height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', justifyContent: 'center', paddingHorizontal: 12 },
+  typeSelectorText: { fontSize: 14, color: '#18181B' },
+  typeSelectorPlaceholder: { fontSize: 14, color: '#9CA3AF' },
+  searchButton: { backgroundColor: '#18181B', borderRadius: 8, paddingHorizontal: 16, height: 40, justifyContent: 'center' },
+  searchButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  resultsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  resultsCount: { fontSize: 16, fontWeight: '600', color: '#18181B' },
+  filterToggle: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB' },
+  filterToggleActive: { backgroundColor: '#18181B', borderColor: '#18181B' },
+  filterToggleText: { fontSize: 13, color: '#6B7280' },
+  filterToggleTextActive: { color: '#FFFFFF' },
+  filtersPanel: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', gap: 12 },
+  filterRow: { flexDirection: 'row', gap: 12 },
+  filterGroup: { gap: 4 },
+  filterLabel: { fontSize: 10, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5 },
+  chipRow: { flexDirection: 'row', gap: 6 },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  chipActive: { backgroundColor: '#18181B', borderColor: '#18181B' },
+  chipText: { fontSize: 13, color: '#6B7280' },
+  chipTextActive: { color: '#FFFFFF' },
+  filterInput: { height: 36, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 10, fontSize: 14, color: '#18181B' },
+  applyFiltersBtn: { backgroundColor: '#18181B', borderRadius: 8, height: 40, justifyContent: 'center', alignItems: 'center' },
+  applyFiltersBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  resultItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  resultThumb: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F3F4F6' },
+  resultThumbImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  resultThumbPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
+  resultContent: { flex: 1, paddingVertical: 2 },
+  resultType: { fontSize: 11, color: '#9CA3AF', marginBottom: 2 },
+  resultTitle: { fontSize: 15, fontWeight: '600', color: '#18181B' },
+  resultDesc: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  resultMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  metaItem: { fontSize: 11, color: '#9CA3AF' },
+  metaDistance: { fontSize: 11, color: '#4B5563', fontWeight: '600' },
+  resultArrow: { fontSize: 20, color: '#D1D5DB', marginTop: 8 },
+  separator: { height: 1, backgroundColor: '#F3F4F6' },
+  loadingContainer: { flex: 1 },
+  skeleton: { flexDirection: 'row', gap: 12, padding: 16 },
+  skeletonThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: '#F3F4F6' },
+  skeletonContent: { flex: 1, gap: 6, paddingVertical: 4 },
+  skeletonLine: { height: 10, backgroundColor: '#F3F4F6', borderRadius: 4 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  emptyText: { fontSize: 14, color: '#9CA3AF' },
+  emptySubtext: { fontSize: 12, color: '#9CA3AF', marginTop: 4, textAlign: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  modalTitle: { fontSize: 16, fontWeight: '600', color: '#18181B' },
+  modalClose: { fontSize: 18, color: '#9CA3AF', padding: 4 },
+  modalOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
+  modalOptionActive: { backgroundColor: '#F3F4F6' },
+  modalOptionEmoji: { fontSize: 18 },
+  modalOptionText: { fontSize: 15, color: '#18181B' },
+  modalOptionTextActive: { fontWeight: '600' },
 });
-
-export default SearchScreen;
