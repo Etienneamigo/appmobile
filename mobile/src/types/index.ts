@@ -150,6 +150,7 @@ export interface ActivityDetail {
     phone: string | null;
     website: string | null;
     bookingUrl: string | null;
+    verifiedAt?: string | null;
   };
   isFavorite: boolean;
   adminPick?: boolean;

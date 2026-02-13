@@ -5,13 +5,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { Video, ResizeMode } from 'expo-av';
+import { Audio, Video, ResizeMode } from 'expo-av';
 import * as Location from 'expo-location';
 import { config } from '../../config';
 import { apiClient } from '../../api/client';
 import { normalizeMediaUrl } from '../../utils/url';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TAB_BAR_CONTENT_HEIGHT = 64; // matches tabBarStyle.height in AppNavigator
 
 const DISTANCE_OPTIONS = [
   { value: 5, label: '5 km' },
@@ -80,6 +81,9 @@ const FeedVideoItem: React.FC<{
   useEffect(() => {
     if (!videoRef.current || !isPlayable) return;
     videoRef.current.setIsMutedAsync(isMuted).catch(() => {});
+    if (!isMuted) {
+      videoRef.current.setVolumeAsync(1.0).catch(() => {});
+    }
   }, [isMuted, isPlayable]);
 
   return (
@@ -167,11 +171,19 @@ export const FeedScreen: React.FC = () => {
   const [visibleIndex, setVisibleIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Calculate exact item height: full screen minus the tab bar
+  // Calculate exact item height: full window minus the tab bar (content + bottom safe area)
   // The header and filter bar are absolutely positioned (overlaid on top)
   // so the FlatList fills the full container
-  const TAB_BAR_HEIGHT = 56 + insets.bottom;
-  const ITEM_HEIGHT = SCREEN_HEIGHT - TAB_BAR_HEIGHT;
+  const ITEM_HEIGHT = SCREEN_HEIGHT - TAB_BAR_CONTENT_HEIGHT - insets.bottom;
+
+  // Configure audio for iOS: allow playback even in silent mode
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    }).catch(() => {});
+  }, []);
 
   const fetchVideos = useCallback(async (reset = false) => {
     if (reset) {
@@ -309,6 +321,7 @@ export const FeedScreen: React.FC = () => {
         snapToInterval={ITEM_HEIGHT}
         snapToAlignment="start"
         decelerationRate="fast"
+        disableIntervalMomentum
         showsVerticalScrollIndicator={false}
         getItemLayout={getItemLayout}
         onViewableItemsChanged={onViewableItemsChanged}

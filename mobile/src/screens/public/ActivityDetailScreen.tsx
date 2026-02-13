@@ -101,7 +101,7 @@ export const ActivityDetailScreen: React.FC = () => {
           <Text style={styles.coverTitle}>{activity.title}</Text>
           <Text style={styles.coverLocation}>📍 {activity.address}, {activity.zipCode} {activity.city}</Text>
         </View>
-        {activity.verifiedAt && (
+        {(activity.verifiedAt || activity.establishment?.verifiedAt) && (
           <View style={styles.verifiedBadge}><Text style={styles.verifiedBadgeText}>Verifie</Text></View>
         )}
         {activity.adminPick && (
@@ -206,7 +206,12 @@ export const ActivityDetailScreen: React.FC = () => {
       {/* Établissement */}
       <View style={styles.estSection}>
         <Text style={styles.sectionTitle}>Établissement</Text>
-        <Text style={{ fontSize: 15, fontWeight: '500', color: '#18181B' }}>{activity.establishment.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 15, fontWeight: '500', color: '#18181B' }}>{activity.establishment.name}</Text>
+          {(activity.verifiedAt || activity.establishment?.verifiedAt) && (
+            <View style={styles.estVerifiedBadge}><Text style={styles.estVerifiedText}>Verifie</Text></View>
+          )}
+        </View>
       </View>
 
       <View style={{ height: 32 }} />
@@ -312,6 +317,8 @@ const styles = StyleSheet.create({
   mapBtnText: { fontSize: 12, color: '#4B5563' },
 
   estSection: { marginHorizontal: 16, marginTop: 8, padding: 16, backgroundColor: '#FAFAFA', borderRadius: 12 },
+  estVerifiedBadge: { backgroundColor: '#3B82F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  estVerifiedText: { color: '#FFF', fontSize: 11, fontWeight: '600' },
 
   viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   viewerClose: { position: 'absolute', top: 50, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
