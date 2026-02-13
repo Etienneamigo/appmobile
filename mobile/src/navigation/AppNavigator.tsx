@@ -83,6 +83,11 @@ const TabIcon: React.FC<{ icon: string; focused: boolean }> = ({ icon, focused }
   </View>
 );
 
+// Shared options for ActivityDetail in public stacks: dark WADELO header + reliable back
+const activityDetailOptions = {
+  header: () => <WadeloHeader dark />,
+};
+
 // Home Stack
 const HomeStack: React.FC = () => (
   <HomeStackNav.Navigator screenOptions={defaultScreenOptions}>
@@ -94,7 +99,7 @@ const HomeStack: React.FC = () => (
     <HomeStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
+      options={activityDetailOptions}
     />
   </HomeStackNav.Navigator>
 );
@@ -110,7 +115,7 @@ const FeedStack: React.FC = () => (
     <FeedStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
+      options={activityDetailOptions}
     />
   </FeedStackNav.Navigator>
 );
@@ -126,7 +131,7 @@ const SearchStack: React.FC = () => (
     <SearchStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
+      options={activityDetailOptions}
     />
   </SearchStackNav.Navigator>
 );
@@ -142,7 +147,7 @@ const FavoritesStack: React.FC = () => (
     <FavoritesStackNav.Screen
       name="ActivityDetail"
       component={ActivityDetailScreen}
-      options={{ title: 'Détail', headerTransparent: true, headerTitle: '' }}
+      options={activityDetailOptions}
     />
   </FavoritesStackNav.Navigator>
 );
@@ -194,12 +199,9 @@ const MainTabs: React.FC = () => {
           height: 64,
           minHeight: 56,
         },
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.primary.main,
         tabBarInactiveTintColor: colors.neutral[400],
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: typography.weight.medium,
-        },
         tabBarItemStyle: {
           paddingVertical: 4,
         },

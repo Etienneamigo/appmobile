@@ -78,23 +78,23 @@ const FeedVideoItem: React.FC<{
     }
   }, [isVisible, isPlayable]);
 
+  // Sync mute state when prop changes (e.g. new visible item picks up current mute)
   useEffect(() => {
     if (!videoRef.current || !isPlayable) return;
-    videoRef.current.setIsMutedAsync(isMuted).catch(() => {});
-    if (!isMuted) {
-      videoRef.current.setVolumeAsync(1.0).catch(() => {});
-    }
+    const status: Record<string, any> = { isMuted };
+    if (!isMuted) status.volume = 1.0;
+    videoRef.current.setStatusAsync(status).catch(() => {});
   }, [isMuted, isPlayable]);
 
-  // Imperative toggle: applies mute/unmute immediately on tap without
-  // waiting for the React re-render cycle from the parent state update.
+  // Imperative toggle: applies mute/unmute in a single atomic setStatusAsync
+  // call at tap time, without waiting for the React re-render cycle.
+  // Also forces shouldPlay: true to avoid race conditions with play/stop.
   const handleLocalToggle = useCallback(() => {
     if (isVisible && videoRef.current && isPlayable) {
       const newMuted = !isMuted;
-      videoRef.current.setIsMutedAsync(newMuted).catch(() => {});
-      if (!newMuted) {
-        videoRef.current.setVolumeAsync(1.0).catch(() => {});
-      }
+      const status: Record<string, any> = { isMuted: newMuted, shouldPlay: true };
+      if (!newMuted) status.volume = 1.0;
+      videoRef.current.setStatusAsync(status).catch(() => {});
       if (__DEV__) {
         console.log(`[Feed] Toggle sound: ${isMuted ? 'OFF->ON' : 'ON->OFF'}, videoRef: ${!!videoRef.current}`);
       }
@@ -198,14 +198,8 @@ export const FeedScreen: React.FC = () => {
   const ITEM_HEIGHT = viewportHeight || Dimensions.get("window").height;
 
 
-  // Configure audio for iOS: allow playback even in silent mode
-  useEffect(() => {
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-    }).catch(() => {});
-  }, []);
+  // Audio mode is configured at the app root level (App.tsx).
+  // No per-screen setup needed.
 
   const fetchVideos = useCallback(async (reset = false) => {
     if (reset) {
