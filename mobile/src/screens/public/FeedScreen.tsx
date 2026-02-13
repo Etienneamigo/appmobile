@@ -170,11 +170,15 @@ export const FeedScreen: React.FC = () => {
   const [isMuted, setIsMuted] = useState(true);
   const [visibleIndex, setVisibleIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const [viewportHeight, setViewportHeight] = useState(0);
+
+
 
   // Calculate exact item height: full window minus the tab bar (content + bottom safe area)
   // The header and filter bar are absolutely positioned (overlaid on top)
   // so the FlatList fills the full container
-  const ITEM_HEIGHT = SCREEN_HEIGHT - TAB_BAR_CONTENT_HEIGHT - insets.bottom;
+  const ITEM_HEIGHT = viewportHeight || Dimensions.get("window").height;
+
 
   // Configure audio for iOS: allow playback even in silent mode
   useEffect(() => {
@@ -309,7 +313,10 @@ export const FeedScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+    style={styles.container}
+    onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+  >
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* Video feed - TikTok style full screen */}
