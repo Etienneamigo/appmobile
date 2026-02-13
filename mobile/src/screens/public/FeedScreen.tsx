@@ -86,6 +86,24 @@ const FeedVideoItem: React.FC<{
     }
   }, [isMuted, isPlayable]);
 
+  // Imperative toggle: applies mute/unmute immediately on tap without
+  // waiting for the React re-render cycle from the parent state update.
+  const handleLocalToggle = useCallback(() => {
+    if (isVisible && videoRef.current && isPlayable) {
+      const newMuted = !isMuted;
+      videoRef.current.setIsMutedAsync(newMuted).catch(() => {});
+      if (!newMuted) {
+        videoRef.current.setVolumeAsync(1.0).catch(() => {});
+      }
+      if (__DEV__) {
+        console.log(`[Feed] Toggle sound: ${isMuted ? 'OFF->ON' : 'ON->OFF'}, videoRef: ${!!videoRef.current}`);
+      }
+    } else if (__DEV__) {
+      console.log(`[Feed] Toggle skipped: visible=${isVisible}, ref=${!!videoRef.current}, playable=${isPlayable}`);
+    }
+    onToggleMute();
+  }, [isMuted, isVisible, isPlayable, onToggleMute]);
+
   return (
     <View style={[styles.videoItem, { height: itemHeight }]}>
       {/* Video / Thumbnail - fills entire item */}
@@ -115,12 +133,12 @@ const FeedVideoItem: React.FC<{
       {/* Tap overlay to toggle mute */}
       <TouchableOpacity
         style={StyleSheet.absoluteFill}
-        onPress={onToggleMute}
+        onPress={handleLocalToggle}
         activeOpacity={1}
       />
 
       {/* Mute/Unmute button - top right */}
-      <TouchableOpacity style={styles.muteBtn} onPress={onToggleMute} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.muteBtn} onPress={handleLocalToggle} activeOpacity={0.7}>
         <Text style={styles.muteBtnText}>{isMuted ? 'Son OFF' : 'Son ON'}</Text>
       </TouchableOpacity>
 
@@ -254,7 +272,20 @@ export const FeedScreen: React.FC = () => {
   }, [navigation]);
 
   const handleToggleMute = useCallback(() => {
-    setIsMuted(prev => !prev);
+    setIsMuted(prev => {
+      const newMuted = !prev;
+      if (!newMuted) {
+        // Re-ensure audio mode is correctly set when unmuting.
+        // This handles cases where iOS silent mode or other system
+        // state may have reset the audio session.
+        Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        }).catch(() => {});
+      }
+      return newMuted;
+    });
   }, []);
 
   // Viewability config: trigger when item is 50%+ visible

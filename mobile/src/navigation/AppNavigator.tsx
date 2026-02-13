@@ -21,6 +21,7 @@ import { ActivityCreateScreen } from '../screens/establishment/ActivityCreateScr
 import { MediaManagerScreen } from '../screens/establishment/MediaManagerScreen';
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { AccountScreen } from '../screens/common/AccountScreen';
+import { WadeloHeader } from '../components/WadeloHeader';
 
 // Types
 export type HomeStackParamList = {
@@ -146,33 +147,33 @@ const FavoritesStack: React.FC = () => (
   </FavoritesStackNav.Navigator>
 );
 
-// Establishment Stack
+// Establishment Stack - uses WADELO branded header with smart back button
 const EstablishmentStack: React.FC = () => (
-  <EstablishmentStackNav.Navigator screenOptions={defaultScreenOptions}>
+  <EstablishmentStackNav.Navigator
+    screenOptions={{
+      ...defaultScreenOptions,
+      header: () => <WadeloHeader />,
+    }}
+  >
     <EstablishmentStackNav.Screen
       name="EstablishmentDashboard"
       component={EstablishmentDashboardScreen}
-      options={{ title: 'Mon établissement' }}
     />
     <EstablishmentStackNav.Screen
       name="EstablishmentEdit"
       component={EstablishmentEditScreen}
-      options={{ title: 'Modifier' }}
     />
     <EstablishmentStackNav.Screen
       name="ActivityEdit"
       component={ActivityEditScreen}
-      options={{ title: 'Mon activité' }}
     />
     <EstablishmentStackNav.Screen
       name="ActivityCreate"
       component={ActivityCreateScreen}
-      options={{ title: 'Créer une activité' }}
     />
     <EstablishmentStackNav.Screen
       name="MediaManager"
       component={MediaManagerScreen}
-      options={{ title: 'Médias' }}
     />
   </EstablishmentStackNav.Navigator>
 );
