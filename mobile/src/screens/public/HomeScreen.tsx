@@ -10,7 +10,6 @@ import * as Location from 'expo-location';
 import { config } from '../../config';
 import { apiClient } from '../../api/client';
 import { ALL_ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS, ActivityType } from '../../types';
-import { getActivityEmoji } from '../../theme';
 import { normalizeMediaUrl, formatDistance } from '../../utils/url';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -124,7 +123,7 @@ export const HomeScreen: React.FC = () => {
             <Image source={{ uri: imageUrl }} style={styles.cardImageImg} />
           ) : (
             <View style={styles.cardImagePlaceholder}>
-              <Text style={{ fontSize: 36 }}>{getActivityEmoji(item.type)}</Text>
+              <Text style={styles.placeholderLetter}>{(ACTIVITY_TYPE_LABELS[item.type as ActivityType] || item.type).charAt(0)}</Text>
             </View>
           )}
           {item.verifiedAt && (
@@ -196,7 +195,7 @@ export const HomeScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* WADELO Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>WADELO</Text>
       </View>
 
@@ -260,20 +259,19 @@ export const HomeScreen: React.FC = () => {
 
       {renderSection('Quoi faire ce soir', '🌙', data?.evening.activities)}
 
-      {renderSection('Validé par Wadelo', '✅', data?.adminPicks.activities)}
+      {renderSection('Coup de coeur Wadelo', '❤️', data?.adminPicks.activities)}
 
       {/* Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Catégories</Text>
+        <Text style={styles.sectionTitle}>Categories</Text>
         <View style={styles.categoriesGrid}>
           {ALL_ACTIVITY_TYPES.map((type) => (
             <TouchableOpacity
               key={type}
-              style={styles.categoryItem}
+              style={styles.categoryChip}
               onPress={() => handleTypePress(type)}
             >
-              <Text style={styles.categoryEmoji}>{getActivityEmoji(type)}</Text>
-              <Text style={styles.categoryLabel} numberOfLines={1}>
+              <Text style={styles.categoryChipText} numberOfLines={1}>
                 {ACTIVITY_TYPE_LABELS[type]}
               </Text>
             </TouchableOpacity>
@@ -297,14 +295,14 @@ export const HomeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { backgroundColor: '#18181B', paddingHorizontal: 16, paddingBottom: 12 },
-  headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', letterSpacing: 2, textAlign: 'center' },
+  header: { backgroundColor: '#18181B', paddingHorizontal: 16, paddingBottom: 18, paddingTop: 8 },
+  headerTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', letterSpacing: 3, textAlign: 'center' },
   scrollContent: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
 
   // Hero
-  hero: { paddingTop: 12, paddingBottom: 20, paddingHorizontal: 16 },
-  heroTitle: { fontSize: 22, fontWeight: '700', color: '#18181B', textAlign: 'center', marginBottom: 16 },
+  hero: { paddingTop: 28, paddingBottom: 28, paddingHorizontal: 16 },
+  heroTitle: { fontSize: 24, fontWeight: '700', color: '#18181B', textAlign: 'center', marginBottom: 20 },
 
   // Search
   searchBar: { backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 12 },
@@ -329,7 +327,8 @@ const styles = StyleSheet.create({
   card: { width: CARD_WIDTH, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6', overflow: 'hidden' },
   cardImage: { aspectRatio: 4 / 3, backgroundColor: '#F3F4F6' },
   cardImageImg: { width: '100%', height: '100%', resizeMode: 'cover' },
-  cardImagePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
+  cardImagePlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' },
+  placeholderLetter: { fontSize: 32, fontWeight: '700', color: '#D1D5DB' },
   verifiedBadge: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   verifiedText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   adminPickBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: '#F59E0B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
@@ -342,10 +341,9 @@ const styles = StyleSheet.create({
   cardMetaDistance: { fontSize: 11, color: '#4B5563', fontWeight: '600' },
 
   // Categories
-  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12 },
-  categoryItem: { width: (SCREEN_WIDTH - 24) / 3, alignItems: 'center', paddingVertical: 10 },
-  categoryEmoji: { fontSize: 26, marginBottom: 4 },
-  categoryLabel: { fontSize: 11, color: '#4B5563', textAlign: 'center', fontWeight: '500' },
+  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8 },
+  categoryChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FAFAFA' },
+  categoryChipText: { fontSize: 13, color: '#18181B', fontWeight: '500' },
 
   // CTA
   ctaSection: { marginHorizontal: 16, marginTop: 8, paddingVertical: 24, borderTopWidth: 1, borderTopColor: '#F3F4F6', alignItems: 'center' },

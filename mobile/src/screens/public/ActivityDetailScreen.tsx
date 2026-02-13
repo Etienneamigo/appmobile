@@ -101,10 +101,10 @@ export const ActivityDetailScreen: React.FC = () => {
           <Text style={styles.coverTitle}>{activity.title}</Text>
           <Text style={styles.coverLocation}>📍 {activity.address}, {activity.zipCode} {activity.city}</Text>
         </View>
-        {(activity as any).verifiedAt && (
-          <View style={styles.verifiedBadge}><Text style={styles.verifiedBadgeText}>✓ Verifie</Text></View>
+        {activity.verifiedAt && (
+          <View style={styles.verifiedBadge}><Text style={styles.verifiedBadgeText}>Verifie</Text></View>
         )}
-        {(activity as any).adminPick && (
+        {activity.adminPick && (
           <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>Coup de coeur</Text></View>
         )}
         {isAuthenticated && (

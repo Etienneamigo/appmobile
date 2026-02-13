@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, ActivityIndicator, Image, StatusBar, ViewToken,
+  Dimensions, ActivityIndicator, Image, StatusBar, ViewToken, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video, ResizeMode } from 'expo-av';
 import * as Location from 'expo-location';
 import { config } from '../../config';
 import { apiClient } from '../../api/client';
 import { normalizeMediaUrl } from '../../utils/url';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 
 const DISTANCE_OPTIONS = [
   { value: 5, label: '5 km' },
@@ -65,7 +65,7 @@ const FeedVideoItem: React.FC<{
     videoUrl.includes('.mp4') ||
     videoUrl.includes('.m3u8') ||
     videoUrl.includes('cloudflarestream') ||
-    videoUrl.includes('customer-') // Cloudflare stream format
+    videoUrl.includes('customer-')
   );
 
   useEffect(() => {
@@ -73,7 +73,7 @@ const FeedVideoItem: React.FC<{
     if (isVisible) {
       videoRef.current.playAsync().catch(() => {});
     } else {
-      videoRef.current.pauseAsync().catch(() => {});
+      videoRef.current.stopAsync().catch(() => {});
     }
   }, [isVisible, isPlayable]);
 
@@ -84,43 +84,44 @@ const FeedVideoItem: React.FC<{
 
   return (
     <View style={[styles.videoItem, { height: itemHeight }]}>
-      {/* Video / Thumbnail */}
-      <View style={styles.videoBg}>
+      {/* Video / Thumbnail - fills entire item */}
+      <View style={StyleSheet.absoluteFill}>
         {isPlayable ? (
           <Video
             ref={videoRef}
             source={{ uri: videoUrl! }}
-            style={styles.videoPlayer}
+            style={StyleSheet.absoluteFill}
             resizeMode={ResizeMode.COVER}
             shouldPlay={isVisible}
             isLooping
             isMuted={isMuted}
             posterSource={thumbUrl ? { uri: thumbUrl } : undefined}
             usePoster={!!thumbUrl}
+            posterStyle={{ resizeMode: 'cover', width: '100%', height: '100%' } as any}
           />
         ) : thumbUrl && !thumbUrl.includes('.m3u8') ? (
-          <Image source={{ uri: thumbUrl }} style={styles.videoThumb} />
+          <Image source={{ uri: thumbUrl }} style={[StyleSheet.absoluteFill, { resizeMode: 'cover' }]} />
         ) : (
-          <View style={styles.videoPlaceholder}>
-            <Text style={styles.videoPlaceholderText}>🎬</Text>
+          <View style={[StyleSheet.absoluteFill, styles.videoPlaceholder]}>
+            <Text style={styles.videoPlaceholderText}>Video</Text>
           </View>
         )}
-
-        {/* Tap to toggle mute */}
-        <TouchableOpacity
-          style={styles.tapOverlay}
-          onPress={onToggleMute}
-          activeOpacity={1}
-        />
       </View>
 
-      {/* Mute indicator */}
-      <View style={styles.muteBtn}>
-        <Text style={styles.muteBtnText}>{isMuted ? '🔇' : '🔊'}</Text>
-      </View>
+      {/* Tap overlay to toggle mute */}
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        onPress={onToggleMute}
+        activeOpacity={1}
+      />
+
+      {/* Mute/Unmute button - top right */}
+      <TouchableOpacity style={styles.muteBtn} onPress={onToggleMute} activeOpacity={0.7}>
+        <Text style={styles.muteBtnText}>{isMuted ? 'Son OFF' : 'Son ON'}</Text>
+      </TouchableOpacity>
 
       {/* Info overlay at bottom */}
-      <View style={styles.videoInfo}>
+      <View style={styles.videoInfo} pointerEvents="box-none">
         <View style={styles.videoBadges}>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{item.establishment.name}</Text>
@@ -135,14 +136,13 @@ const FeedVideoItem: React.FC<{
           {item.title || item.activity.title}
         </Text>
         <View style={styles.videoLocation}>
-          <Text style={styles.videoLocationIcon}>📍</Text>
           <Text style={styles.videoLocationText}>{item.activity.city}</Text>
         </View>
         <TouchableOpacity
           style={styles.viewActivityBtn}
           onPress={() => onViewActivity(item.activity.id)}
         >
-          <Text style={styles.viewActivityText}>Voir l'activite →</Text>
+          <Text style={styles.viewActivityText}>Voir l'activite</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -167,7 +167,9 @@ export const FeedScreen: React.FC = () => {
   const [visibleIndex, setVisibleIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Full screen minus tab bar
+  // Calculate exact item height: full screen minus the tab bar
+  // The header and filter bar are absolutely positioned (overlaid on top)
+  // so the FlatList fills the full container
   const TAB_BAR_HEIGHT = 56 + insets.bottom;
   const ITEM_HEIGHT = SCREEN_HEIGHT - TAB_BAR_HEIGHT;
 
@@ -197,6 +199,7 @@ export const FeedScreen: React.FC = () => {
 
       if (reset) {
         setVideos(feedVideos);
+        setVisibleIndex(0);
       } else {
         setVideos((prev) => [...prev, ...feedVideos]);
       }
@@ -278,7 +281,6 @@ export const FeedScreen: React.FC = () => {
   if (videos.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.emptyIcon}>🎬</Text>
         <Text style={styles.emptyTitle}>Aucune video disponible</Text>
         <Text style={styles.emptyText}>
           {userLocation
@@ -287,7 +289,7 @@ export const FeedScreen: React.FC = () => {
         </Text>
         {!userLocation && (
           <TouchableOpacity style={styles.locateMainBtn} onPress={handleLocate}>
-            <Text style={styles.locateMainBtnText}>📍 Filtrer par position</Text>
+            <Text style={styles.locateMainBtnText}>Filtrer par position</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -296,35 +298,63 @@ export const FeedScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* WADELO Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      {/* Video feed - TikTok style full screen */}
+      <FlatList
+        ref={flatListRef}
+        data={videos}
+        keyExtractor={(item) => item.id}
+        renderItem={renderVideoItem}
+        snapToInterval={ITEM_HEIGHT}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        getItemLayout={getItemLayout}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        onEndReached={() => {
+          if (hasMore && !isLoadingMore) fetchVideos(false);
+        }}
+        onEndReachedThreshold={0.3}
+        removeClippedSubviews={Platform.OS === 'android'}
+        maxToRenderPerBatch={3}
+        windowSize={3}
+        initialNumToRender={1}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={[styles.videoItem, { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="large" color="#FFFFFF" />
+            </View>
+          ) : null
+        }
+      />
+
+      {/* Header overlay - absolutely positioned on top of feed */}
+      <View style={[styles.headerOverlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <Text style={styles.headerTitle}>WADELO</Text>
       </View>
 
-      {/* Filter bar */}
-      <View style={styles.filterBar}>
-        <View style={styles.filterLeft}>
-          <TouchableOpacity
-            style={[styles.filterBtn, userLocation && styles.filterBtnActive]}
-            onPress={userLocation ? () => setShowRadiusPicker(!showRadiusPicker) : handleLocate}
-            disabled={isLocating}
-          >
-            {isLocating ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.filterBtnText}>
-                {userLocation ? `📍 ${radius} km` : '📍 Localiser'}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      {/* Filter controls - absolutely positioned */}
+      <View style={[styles.filterOverlay, { top: insets.top + 40 }]} pointerEvents="box-none">
+        <TouchableOpacity
+          style={[styles.filterBtn, userLocation && styles.filterBtnActive]}
+          onPress={userLocation ? () => setShowRadiusPicker(!showRadiusPicker) : handleLocate}
+          disabled={isLocating}
+        >
+          {isLocating ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.filterBtnText}>
+              {userLocation ? `${radius} km` : 'Localiser'}
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Radius picker */}
+      {/* Radius picker dropdown */}
       {showRadiusPicker && (
-        <View style={styles.radiusPicker}>
+        <View style={[styles.radiusPicker, { top: insets.top + 76 }]}>
           {DISTANCE_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.value}
@@ -338,35 +368,6 @@ export const FeedScreen: React.FC = () => {
           ))}
         </View>
       )}
-
-      {/* Video feed - TikTok style */}
-      <FlatList
-        ref={flatListRef}
-        data={videos}
-        keyExtractor={(item) => item.id}
-        renderItem={renderVideoItem}
-        pagingEnabled
-        snapToAlignment="start"
-        decelerationRate="fast"
-        showsVerticalScrollIndicator={false}
-        getItemLayout={getItemLayout}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        onEndReached={() => {
-          if (hasMore && !isLoadingMore) fetchVideos(false);
-        }}
-        onEndReachedThreshold={0.3}
-        removeClippedSubviews
-        maxToRenderPerBatch={3}
-        windowSize={3}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={[styles.videoItem, { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }]}>
-              <ActivityIndicator size="large" color="#FFFFFF" />
-            </View>
-          ) : null
-        }
-      />
     </View>
   );
 };
@@ -375,53 +376,46 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: 24 },
   loadingText: { color: '#9CA3AF', marginTop: 12, fontSize: 14 },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
   emptyText: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginBottom: 20 },
   locateMainBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8 },
   locateMainBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 
-  // Header
-  header: { backgroundColor: '#000000', paddingHorizontal: 16, paddingBottom: 8, zIndex: 30 },
-  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 2, textAlign: 'center' },
+  // Header overlay (absolutely positioned over the feed)
+  headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', zIndex: 30 },
+  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 2, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
 
-  // Filter bar
-  filterBar: { position: 'absolute', top: 0, left: 12, right: 12, zIndex: 20, flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  filterLeft: { flexDirection: 'row', gap: 8 },
+  // Filter overlay
+  filterOverlay: { position: 'absolute', left: 12, zIndex: 20 },
   filterBtn: { backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   filterBtnActive: { backgroundColor: 'rgba(0,0,0,0.7)' },
   filterBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
 
   // Radius picker
-  radiusPicker: { position: 'absolute', top: 40, left: 12, zIndex: 20, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: 12, padding: 4 },
+  radiusPicker: { position: 'absolute', left: 12, zIndex: 20, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: 12, padding: 4 },
   radiusOption: { paddingHorizontal: 16, paddingVertical: 10 },
   radiusOptionActive: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8 },
   radiusOptionText: { color: '#9CA3AF', fontSize: 14 },
   radiusOptionTextActive: { color: '#FFFFFF', fontWeight: '600' },
 
-  // Video item - full screen
-  videoItem: { width: SCREEN_WIDTH, backgroundColor: '#000000' },
-  videoBg: { flex: 1, position: 'relative' },
-  videoPlayer: { width: '100%', height: '100%' },
-  videoThumb: { width: '100%', height: '100%', resizeMode: 'cover' },
-  videoPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#1A1A1A' },
-  videoPlaceholderText: { fontSize: 48 },
-  tapOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  // Video item - exact full screen height (set dynamically)
+  videoItem: { width: SCREEN_WIDTH, backgroundColor: '#000000', overflow: 'hidden' },
+  videoPlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#1A1A1A' },
+  videoPlaceholderText: { fontSize: 18, color: '#4B5563', fontWeight: '600' },
 
   // Mute button
-  muteBtn: { position: 'absolute', right: 16, top: 12, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  muteBtnText: { fontSize: 18 },
+  muteBtn: { position: 'absolute', right: 16, top: 80, zIndex: 10, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
+  muteBtnText: { fontSize: 13, color: '#FFFFFF', fontWeight: '600' },
 
   // Video info
-  videoInfo: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 20 },
+  videoInfo: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 24 },
   videoBadges: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   badge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '500' },
   badgeOutline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   badgeTextOutline: { color: '#FFFFFF', fontSize: 12 },
-  videoTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  videoTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', marginBottom: 4, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   videoLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
-  videoLocationIcon: { fontSize: 12 },
   videoLocationText: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
   viewActivityBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, alignSelf: 'flex-start' },
   viewActivityText: { color: '#FFFFFF', fontSize: 13, fontWeight: '500' },

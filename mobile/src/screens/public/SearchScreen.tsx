@@ -9,7 +9,6 @@ import * as Location from 'expo-location';
 import { config } from '../../config';
 import { activitiesApi } from '../../api/activities';
 import { ActivityListItem, ActivityType, ALL_ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS } from '../../types';
-import { getActivityEmoji } from '../../theme';
 import { normalizeMediaUrl, formatDistance, calculateDistance } from '../../utils/url';
 
 const DISTANCE_OPTIONS = [
@@ -130,12 +129,19 @@ export const SearchScreen: React.FC = () => {
         onPress={() => navigation.navigate('ActivityDetail', { activityId: item.id })}
         activeOpacity={0.6}
       >
-        <View style={styles.resultThumb}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.resultThumbImg} />
-          ) : (
-            <View style={styles.resultThumbPlaceholder}>
-              <Text style={{ fontSize: 24 }}>{getActivityEmoji(item.type)}</Text>
+        <View style={styles.resultThumbWrap}>
+          <View style={styles.resultThumb}>
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.resultThumbImg} />
+            ) : (
+              <View style={styles.resultThumbPlaceholder}>
+                <Text style={styles.resultThumbLetter}>{(ACTIVITY_TYPE_LABELS[item.type as ActivityType] || item.type).charAt(0)}</Text>
+              </View>
+            )}
+          </View>
+          {(item as any).verifiedAt && (
+            <View style={styles.verifiedDot}>
+              <Text style={styles.verifiedDotText}>✓</Text>
             </View>
           )}
         </View>
@@ -298,13 +304,14 @@ export const SearchScreen: React.FC = () => {
               <TouchableOpacity onPress={() => setShowTypePicker(false)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
             </View>
             <ScrollView>
-              <TouchableOpacity style={styles.modalOption} onPress={() => { setType(''); setShowTypePicker(false); }}>
-                <Text style={styles.modalOptionText}>Toutes les activités</Text>
+              <TouchableOpacity style={[styles.modalOption, !type && styles.modalOptionActive]} onPress={() => { setType(''); setShowTypePicker(false); }}>
+                <Text style={[styles.modalOptionText, !type && styles.modalOptionTextActive]}>Toutes les activites</Text>
+                {!type && <Text style={styles.modalCheck}>✓</Text>}
               </TouchableOpacity>
               {ALL_ACTIVITY_TYPES.map((t) => (
                 <TouchableOpacity key={t} style={[styles.modalOption, type === t && styles.modalOptionActive]} onPress={() => { setType(t); setShowTypePicker(false); }}>
-                  <Text style={styles.modalOptionEmoji}>{getActivityEmoji(t)}</Text>
                   <Text style={[styles.modalOptionText, type === t && styles.modalOptionTextActive]}>{ACTIVITY_TYPE_LABELS[t]}</Text>
+                  {type === t && <Text style={styles.modalCheck}>✓</Text>}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -352,9 +359,13 @@ const styles = StyleSheet.create({
   applyFiltersBtn: { backgroundColor: '#18181B', borderRadius: 8, height: 40, justifyContent: 'center', alignItems: 'center' },
   applyFiltersBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
   resultItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  resultThumbWrap: { position: 'relative' },
   resultThumb: { width: 72, height: 72, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F3F4F6' },
   resultThumbImg: { width: '100%', height: '100%', resizeMode: 'cover' },
-  resultThumbPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
+  resultThumbPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' },
+  resultThumbLetter: { fontSize: 22, fontWeight: '700', color: '#9CA3AF' },
+  verifiedDot: { position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
+  verifiedDotText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
   resultContent: { flex: 1, paddingVertical: 2 },
   resultType: { fontSize: 11, color: '#9CA3AF', marginBottom: 2 },
   resultTitle: { fontSize: 15, fontWeight: '600', color: '#18181B' },
@@ -377,9 +388,9 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   modalTitle: { fontSize: 16, fontWeight: '600', color: '#18181B' },
   modalClose: { fontSize: 18, color: '#9CA3AF', padding: 4 },
-  modalOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
+  modalOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   modalOptionActive: { backgroundColor: '#F3F4F6' },
-  modalOptionEmoji: { fontSize: 18 },
   modalOptionText: { fontSize: 15, color: '#18181B' },
   modalOptionTextActive: { fontWeight: '600' },
+  modalCheck: { fontSize: 16, color: '#18181B', fontWeight: '700' },
 });

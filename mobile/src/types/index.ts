@@ -116,6 +116,8 @@ export interface ActivityListItem {
   establishmentName: string;
   bookingUrl: string | null;
   isFavorite: boolean;
+  adminPick?: boolean;
+  verifiedAt?: string | null;
 }
 
 // Activity (detail view)
@@ -150,6 +152,8 @@ export interface ActivityDetail {
     bookingUrl: string | null;
   };
   isFavorite: boolean;
+  adminPick?: boolean;
+  verifiedAt?: string | null;
 }
 
 // Establishment
