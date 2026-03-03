@@ -21,6 +21,7 @@ import { ActivityCreateScreen } from '../screens/establishment/ActivityCreateScr
 import { MediaManagerScreen } from '../screens/establishment/MediaManagerScreen';
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { AccountScreen } from '../screens/common/AccountScreen';
+import { MyReservationsScreen } from '../screens/user/MyReservationsScreen';
 import { WadeloHeader } from '../components/WadeloHeader';
 
 // Types
@@ -52,6 +53,12 @@ export type EstablishmentStackParamList = {
   MediaManager: undefined;
 };
 
+export type AccountStackParamList = {
+  Account: undefined;
+  MyReservations: undefined;
+  ActivityDetail: { activityId: string };
+};
+
 export type MainTabParamList = {
   HomeTab: undefined;
   FeedTab: undefined;
@@ -67,6 +74,7 @@ const FeedStackNav = createNativeStackNavigator<FeedStackParamList>();
 const SearchStackNav = createNativeStackNavigator<SearchStackParamList>();
 const FavoritesStackNav = createNativeStackNavigator<FavoritesStackParamList>();
 const EstablishmentStackNav = createNativeStackNavigator<EstablishmentStackParamList>();
+const AccountStackNav = createNativeStackNavigator<AccountStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const defaultScreenOptions = {
@@ -183,6 +191,27 @@ const EstablishmentStack: React.FC = () => (
   </EstablishmentStackNav.Navigator>
 );
 
+// Account Stack - Account + MyReservations + ActivityDetail
+const AccountStack: React.FC = () => (
+  <AccountStackNav.Navigator screenOptions={defaultScreenOptions}>
+    <AccountStackNav.Screen
+      name="Account"
+      component={AccountScreen}
+      options={{ headerTitle: 'Mon compte' }}
+    />
+    <AccountStackNav.Screen
+      name="MyReservations"
+      component={MyReservationsScreen}
+      options={{ headerTitle: 'Mes réservations' }}
+    />
+    <AccountStackNav.Screen
+      name="ActivityDetail"
+      component={ActivityDetailScreen}
+      options={activityDetailOptions}
+    />
+  </AccountStackNav.Navigator>
+);
+
 // Main Tab Navigator - Matches web's MobileBottomNav role-based structure
 const MainTabs: React.FC = () => {
   const { isRole } = useAuth();
@@ -280,12 +309,10 @@ const MainTabs: React.FC = () => {
       {/* Account - Available to all (matches web Compte) */}
       <Tab.Screen
         name="AccountTab"
-        component={AccountScreen}
+        component={AccountStack}
         options={{
           title: 'Compte',
           tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
-          headerShown: true,
-          headerTitle: 'Mon compte',
         }}
       />
     </Tab.Navigator>

@@ -9,6 +9,8 @@ import { Audio, Video, ResizeMode } from 'expo-av';
 import * as Location from 'expo-location';
 import { config } from '../../config';
 import { apiClient } from '../../api/client';
+import { favoritesApi } from '../../api/favorites';
+import { useAuth } from '../../context/AuthContext';
 import { normalizeMediaUrl } from '../../utils/url';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -56,9 +58,12 @@ const FeedVideoItem: React.FC<{
   isVisible: boolean;
   isMuted: boolean;
   itemHeight: number;
+  isFavorite: boolean;
+  isAuthenticated: boolean;
   onToggleMute: () => void;
   onViewActivity: (id: string) => void;
-}> = React.memo(({ item, isVisible, isMuted, itemHeight, onToggleMute, onViewActivity }) => {
+  onToggleFavorite: (activityId: string) => void;
+}> = React.memo(({ item, isVisible, isMuted, itemHeight, isFavorite, isAuthenticated, onToggleMute, onViewActivity, onToggleFavorite }) => {
   const videoRef = useRef<Video>(null);
   const videoUrl = normalizeMediaUrl(item.url);
   const thumbUrl = normalizeMediaUrl(item.thumbnailUrl);
@@ -142,6 +147,19 @@ const FeedVideoItem: React.FC<{
         <Text style={styles.muteBtnText}>{isMuted ? 'Son OFF' : 'Son ON'}</Text>
       </TouchableOpacity>
 
+      {/* Right side action buttons (heart) */}
+      {isAuthenticated && (
+        <View style={styles.rightActions}>
+          <TouchableOpacity
+            style={styles.heartBtn}
+            onPress={() => onToggleFavorite(item.activity.id)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.heartIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Info overlay at bottom */}
       <View style={styles.videoInfo} pointerEvents="box-none">
         <View style={styles.videoBadges}>
@@ -175,6 +193,7 @@ export const FeedScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { isAuthenticated, isRole } = useAuth();
   const [videos, setVideos] = useState<FeedVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -189,6 +208,8 @@ export const FeedScreen: React.FC = () => {
   const [visibleIndex, setVisibleIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const [viewportHeight, setViewportHeight] = useState(0);
+  // Track favorited activity IDs for heart state
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
 
 
@@ -269,9 +290,6 @@ export const FeedScreen: React.FC = () => {
     setIsMuted(prev => {
       const newMuted = !prev;
       if (!newMuted) {
-        // Re-ensure audio mode is correctly set when unmuting.
-        // This handles cases where iOS silent mode or other system
-        // state may have reset the audio session.
         Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: false,
@@ -281,6 +299,40 @@ export const FeedScreen: React.FC = () => {
       return newMuted;
     });
   }, []);
+
+  // Load user's favorited activity IDs on mount (if authenticated USER)
+  useEffect(() => {
+    if (!isAuthenticated || !isRole('USER')) return;
+    favoritesApi.list(1, 100).then((res) => {
+      const ids = new Set(res.items.map((item) => item.id));
+      setFavoritedIds(ids);
+    }).catch(() => {});
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleToggleFavorite = useCallback((activityId: string) => {
+    if (!isAuthenticated || !isRole('USER')) return;
+    const wasFavorite = favoritedIds.has(activityId);
+    // Optimistic update
+    setFavoritedIds(prev => {
+      const next = new Set(prev);
+      if (wasFavorite) next.delete(activityId);
+      else next.add(activityId);
+      return next;
+    });
+    // API call
+    const apiCall = wasFavorite
+      ? favoritesApi.remove(activityId)
+      : favoritesApi.add(activityId);
+    apiCall.catch(() => {
+      // Rollback on error
+      setFavoritedIds(prev => {
+        const next = new Set(prev);
+        if (wasFavorite) next.add(activityId);
+        else next.delete(activityId);
+        return next;
+      });
+    });
+  }, [isAuthenticated, isRole, favoritedIds]);
 
   // Viewability config: trigger when item is 50%+ visible
   const viewabilityConfig = useMemo(() => ({
@@ -299,10 +351,13 @@ export const FeedScreen: React.FC = () => {
       isVisible={isFocused && index === visibleIndex}
       isMuted={isMuted}
       itemHeight={ITEM_HEIGHT}
+      isFavorite={favoritedIds.has(item.activity.id)}
+      isAuthenticated={isAuthenticated && isRole('USER')}
       onToggleMute={handleToggleMute}
       onViewActivity={handleViewActivity}
+      onToggleFavorite={handleToggleFavorite}
     />
-  ), [isFocused, visibleIndex, isMuted, ITEM_HEIGHT, handleToggleMute, handleViewActivity]);
+  ), [isFocused, visibleIndex, isMuted, ITEM_HEIGHT, favoritedIds, isAuthenticated, isRole, handleToggleMute, handleViewActivity, handleToggleFavorite]);
 
   const getItemLayout = useCallback((_: any, index: number) => ({
     length: ITEM_HEIGHT,
@@ -451,6 +506,11 @@ const styles = StyleSheet.create({
   // Mute button
   muteBtn: { position: 'absolute', right: 16, top: 80, zIndex: 10, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
   muteBtnText: { fontSize: 13, color: '#FFFFFF', fontWeight: '600' },
+
+  // Right side action buttons (heart, etc.)
+  rightActions: { position: 'absolute', right: 12, bottom: 180, zIndex: 10, alignItems: 'center', gap: 16 },
+  heartBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  heartIcon: { fontSize: 24 },
 
   // Video info
   videoInfo: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 24 },

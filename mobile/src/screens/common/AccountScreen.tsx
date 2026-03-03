@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -18,7 +19,8 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export const AccountScreen: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isRole } = useAuth();
+  const navigation = useNavigation<any>();
 
   const handleLogout = () => {
     Alert.alert(
@@ -95,6 +97,50 @@ export const AccountScreen: React.FC = () => {
             <Text style={styles.infoLabel}>Version</Text>
             <Text style={styles.infoValue}>{config.APP_VERSION}</Text>
           </View>
+        </View>
+      </View>
+
+      {/* Quick Actions */}
+      {isRole('USER') && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Actions</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('MyReservations')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionIcon}>📋</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionLabel}>Mes réservations</Text>
+              <Text style={styles.actionDesc}>Voir et gérer vos réservations</Text>
+            </View>
+            <Text style={styles.actionArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Debug Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Debug</Text>
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>API URL</Text>
+            <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{config.BASE_URL}</Text>
+          </View>
+          <View style={styles.separator} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>User ID</Text>
+            <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{user.id}</Text>
+          </View>
+          {user.establishmentId && (
+            <>
+              <View style={styles.separator} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Establishment</Text>
+                <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{user.establishmentId}</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
 
@@ -193,6 +239,31 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: colors.neutral[200],
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.primary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.md,
+    gap: spacing.md,
+  },
+  actionIcon: { fontSize: 24 },
+  actionLabel: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  actionDesc: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  actionArrow: {
+    fontSize: 24,
+    color: colors.text.tertiary,
+    fontWeight: typography.weight.bold,
   },
   logoutButton: {
     backgroundColor: colors.background.primary,

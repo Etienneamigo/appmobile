@@ -255,6 +255,129 @@ export interface UploadResponse {
   mimeType: string;
 }
 
+// ─── Reservation Native Types ─────────────────────────────────────────────────
+
+export type ReservationStatus = 'CONFIRMED' | 'CANCELLED' | 'NO_SHOW';
+
+export type ResourceSelectionMode = 'HIDDEN' | 'PICK_RESOURCE_FIRST' | 'PICK_TIME_FIRST';
+
+export type CustomFieldType = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'SELECT' | 'PHONE' | 'EMAIL' | 'CHECKBOX';
+
+export interface ReservationSettings {
+  id: string;
+  establishmentId: string;
+  enabled: boolean;
+  showExternalLinkAlso: boolean;
+  timezone: string;
+  slotDurationMinutes: number;
+  capacityPerSlot: number;
+  minPartySize: number;
+  maxPartySize: number;
+  minNoticeMinutes: number;
+  bookingWindowDays: number;
+  cancellationEnabled: boolean;
+  cancellationDeadlineHours: number;
+  confirmationMessage: string | null;
+  cancellationPolicyText: string | null;
+  resourceSelectionMode: ResourceSelectionMode;
+  customFieldDefs: ReservationCustomFieldDef[];
+}
+
+export interface ReservationCustomFieldDef {
+  id: string;
+  label: string;
+  type: CustomFieldType;
+  required: boolean;
+  optionsJson: string[] | null;
+  order: number;
+}
+
+export interface ReservationResource {
+  id: string;
+  establishmentId: string;
+  name: string;
+  capacity: number;
+  isActive: boolean;
+  description: string | null;
+  imageUrl: string | null;
+  useCustomRules: boolean;
+  minPartySizeOverride: number | null;
+  maxPartySizeOverride: number | null;
+  slotDurationMinutesOverride: number | null;
+  bookingWindowDaysOverride: number | null;
+}
+
+export interface SlotInfo {
+  startAt: string;
+  endAt: string;
+  remainingCapacity: number;
+  isAvailable: boolean;
+  slotId?: string;
+  resourceId?: string;
+  resourceName?: string;
+  isPersisted?: boolean;
+}
+
+export interface Reservation {
+  id: string;
+  settingsId: string;
+  establishmentId: string;
+  userId: string | null;
+  slotId: string | null;
+  resourceId: string | null;
+  startAt: string;
+  endAt: string;
+  partySize: number;
+  status: ReservationStatus;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  establishment: {
+    name: string;
+    address: string | null;
+    city: string | null;
+    activity: { id: string; title: string; type: string } | null;
+  };
+  settings: {
+    cancellationEnabled: boolean;
+    cancellationDeadlineHours: number;
+  };
+  slot: { id: string; startAt: string; endAt: string } | null;
+  resource: { name: string } | null;
+}
+
+export interface CreateReservationPayload {
+  establishmentId: string;
+  startAt: string; // ISO string
+  partySize: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  customFieldValues?: Record<string, string>;
+  slotId?: string | null;
+  resourceId?: string | null;
+}
+
+export interface AvailableResourceForSlot {
+  id: string;
+  name: string;
+  remainingCapacity: number;
+  description: string | null;
+  imageUrl: string | null;
+}
+
+// ─── Accessibility ─────────────────────────────────────────────────────────────
+
+export interface AccessibilityInfo {
+  accessWheelchair: boolean;
+  accessToilets: boolean;
+  accessParking: boolean;
+  accessElevator: boolean;
+  accessLevelEntry: boolean;
+}
+
 // Activity type labels (for display) - all 19 types
 export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   BOWLING: 'Bowling',

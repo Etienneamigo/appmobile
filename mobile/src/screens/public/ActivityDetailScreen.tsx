@@ -7,13 +7,24 @@ import { Video, ResizeMode } from 'expo-av';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { activitiesApi } from '../../api/activities';
 import { favoritesApi } from '../../api/favorites';
-import { ActivityDetail, ACTIVITY_TYPE_LABELS, ActivityType } from '../../types';
+import { reservationsApi } from '../../api/reservations';
+import { ActivityDetail, ACTIVITY_TYPE_LABELS, ActivityType, ReservationSettings, AccessibilityInfo } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { getActivityEmoji } from '../../theme';
 import { normalizeMediaUrl } from '../../utils/url';
+import { BookingModal } from '../../components/BookingModal';
 
 const { width } = Dimensions.get('window');
 type RouteParams = { ActivityDetail: { activityId: string } };
+
+// Accessibility badge definitions
+const ACCESSIBILITY_BADGES: { key: keyof AccessibilityInfo; label: string; icon: string }[] = [
+  { key: 'accessWheelchair', label: 'Accessible PMR', icon: '♿' },
+  { key: 'accessToilets', label: 'Toilettes accessibles', icon: '🚻' },
+  { key: 'accessParking', label: 'Parking PMR', icon: '🅿️' },
+  { key: 'accessElevator', label: 'Ascenseur', icon: '🛗' },
+  { key: 'accessLevelEntry', label: 'Accès plain-pied', icon: '🚪' },
+];
 
 export const ActivityDetailScreen: React.FC = () => {
   const route = useRoute<RouteProp<RouteParams, 'ActivityDetail'>>();
@@ -26,6 +37,13 @@ export const ActivityDetailScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const [visibleMediaCount, setVisibleMediaCount] = useState(9);
+
+  // Native booking state
+  const [bookingSettings, setBookingSettings] = useState<ReservationSettings | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+
+  // Accessibility state
+  const [accessibility, setAccessibility] = useState<AccessibilityInfo | null>(null);
 
   const fetchActivity = useCallback(async () => {
     try {
@@ -41,6 +59,63 @@ export const ActivityDetailScreen: React.FC = () => {
     setIsLoading(true);
     fetchActivity().finally(() => setIsLoading(false));
   }, [fetchActivity]);
+
+  // Try to load reservation settings + accessibility when activity loads
+  useEffect(() => {
+    if (!activity?.establishment?.id) return;
+    const estId = activity.establishment.id;
+
+    // Try loading reservation settings (may fail with 403 if not owner)
+    reservationsApi.getSettings(estId)
+      .then(({ settings }) => {
+        if (settings?.enabled) setBookingSettings(settings);
+      })
+      .catch(() => {
+        // Not the owner — try to detect booking via availability for tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dateStr = tomorrow.toISOString().split('T')[0];
+        reservationsApi.getAvailability(estId, dateStr)
+          .then(({ slots }) => {
+            if (slots && slots.length > 0) {
+              // Booking is enabled — create a minimal settings object with defaults
+              setBookingSettings({
+                id: '',
+                establishmentId: estId,
+                enabled: true,
+                showExternalLinkAlso: false,
+                timezone: 'Europe/Paris',
+                slotDurationMinutes: 60,
+                capacityPerSlot: 10,
+                minPartySize: 1,
+                maxPartySize: 10,
+                minNoticeMinutes: 120,
+                bookingWindowDays: 30,
+                cancellationEnabled: true,
+                cancellationDeadlineHours: 24,
+                confirmationMessage: null,
+                cancellationPolicyText: null,
+                resourceSelectionMode: 'HIDDEN',
+                customFieldDefs: [],
+              });
+            }
+          })
+          .catch(() => {});
+      });
+
+    // The activity detail response may include accessibility fields on the establishment
+    // They come through as (activity as any).establishment.accessXxx
+    const est = activity.establishment as any;
+    if (est.accessWheelchair !== undefined) {
+      setAccessibility({
+        accessWheelchair: !!est.accessWheelchair,
+        accessToilets: !!est.accessToilets,
+        accessParking: !!est.accessParking,
+        accessElevator: !!est.accessElevator,
+        accessLevelEntry: !!est.accessLevelEntry,
+      });
+    }
+  }, [activity?.establishment?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onRefresh = async () => { setIsRefreshing(true); await fetchActivity(); setIsRefreshing(false); };
 
@@ -116,9 +191,21 @@ export const ActivityDetailScreen: React.FC = () => {
 
       {/* CTA row */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ctaRow}>
-        {activity.establishment.bookingUrl && (
-          <TouchableOpacity style={styles.ctaPrimary} onPress={() => openLink(activity.establishment.bookingUrl!)}>
+        {/* Native booking button (priority) */}
+        {bookingSettings?.enabled && (
+          <TouchableOpacity style={styles.ctaPrimary} onPress={() => setShowBookingModal(true)}>
             <Text style={styles.ctaPrimaryText}>📅 Réserver</Text>
+          </TouchableOpacity>
+        )}
+        {/* External booking link (secondary if native enabled, primary otherwise) */}
+        {activity.establishment.bookingUrl && (!bookingSettings?.enabled || bookingSettings?.showExternalLinkAlso) && (
+          <TouchableOpacity
+            style={bookingSettings?.enabled ? styles.ctaBtn : styles.ctaPrimary}
+            onPress={() => openLink(activity.establishment.bookingUrl!)}
+          >
+            <Text style={bookingSettings?.enabled ? styles.ctaBtnText : styles.ctaPrimaryText}>
+              {bookingSettings?.enabled ? '🌐 Réserver en ligne' : '📅 Réserver'}
+            </Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.ctaBtn} onPress={() => openLink(googleMapsUrl)}>
@@ -214,7 +301,33 @@ export const ActivityDetailScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Accessibilité */}
+      {accessibility && Object.values(accessibility).some(Boolean) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Accessibilité</Text>
+          <View style={styles.accessibilityRow}>
+            {ACCESSIBILITY_BADGES.filter((b) => accessibility[b.key]).map((badge) => (
+              <View key={badge.key} style={styles.accessBadge}>
+                <Text style={styles.accessBadgeIcon}>{badge.icon}</Text>
+                <Text style={styles.accessBadgeText}>{badge.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       <View style={{ height: 32 }} />
+
+      {/* Booking Modal */}
+      {bookingSettings?.enabled && activity && (
+        <BookingModal
+          visible={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          establishmentId={activity.establishment.id}
+          settings={bookingSettings}
+          activityTitle={activity.title}
+        />
+      )}
 
       {/* Media Viewer Modal */}
       {selectedMediaIndex !== null && (
@@ -319,6 +432,12 @@ const styles = StyleSheet.create({
   estSection: { marginHorizontal: 16, marginTop: 8, padding: 16, backgroundColor: '#FAFAFA', borderRadius: 12 },
   estVerifiedBadge: { backgroundColor: '#3B82F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
   estVerifiedText: { color: '#FFF', fontSize: 11, fontWeight: '600' },
+
+  // Accessibility badges
+  accessibilityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  accessBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE' },
+  accessBadgeIcon: { fontSize: 14 },
+  accessBadgeText: { fontSize: 12, color: '#1E40AF', fontWeight: '500' },
 
   viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   viewerClose: { position: 'absolute', top: 50, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20 },
