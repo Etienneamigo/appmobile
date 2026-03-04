@@ -34,13 +34,38 @@ interface SettingsResponse {
   settings: ReservationSettings | null;
 }
 
+// ─── Owner response shapes ───────────────────────────────────────────────────
+
+interface OwnerReservationsResponse {
+  reservations: Reservation[];
+}
+
+interface SlotResponse {
+  slots: Array<{
+    id: string;
+    startAt: string;
+    endAt: string;
+    capacity: number;
+    isActive: boolean;
+    resourceId: string | null;
+    resource: { id: string; name: string } | null;
+    _count: { reservations: number };
+  }>;
+}
+
+interface GenerateSlotsResponse {
+  created: number;
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const reservationsApi = {
-  /** Get reservation settings for an establishment (public fields needed for booking) */
+  // ─── Public endpoints ───────────────────────────────────────────────────────
+
+  /** Get reservation settings for an establishment (public - read-only) */
   getSettings(establishmentId: string): Promise<SettingsResponse> {
     return apiClient.get<SettingsResponse>(
-      `/api/establishments/${establishmentId}/reservations/settings`
+      `/api/mobile/establishments/${establishmentId}/reservations/settings`
     );
   },
 
@@ -81,17 +106,145 @@ export const reservationsApi = {
     );
   },
 
-  /** Get current user's reservations */
+  // ─── User endpoints (mobile JWT) ───────────────────────────────────────────
+
+  /** Get current user's reservations (mobile JWT endpoint) */
   getMyReservations(status: 'upcoming' | 'past'): Promise<MyReservationsResponse> {
     return apiClient.get<MyReservationsResponse>(
-      `/api/me/reservations?status=${status}`
+      `/api/mobile/me/reservations?status=${status}`
     );
   },
 
-  /** Cancel a reservation */
+  /** Cancel a reservation (mobile JWT endpoint) */
   cancel(reservationId: string): Promise<{ success: boolean }> {
     return apiClient.post<{ success: boolean }>(
-      `/api/reservations/${reservationId}/cancel`
+      `/api/mobile/reservations/${reservationId}/cancel`
+    );
+  },
+
+  // ─── Owner endpoints (mobile JWT) ──────────────────────────────────────────
+
+  /** Get reservation settings for own establishment (owner) */
+  getOwnerSettings(establishmentId: string): Promise<SettingsResponse> {
+    return apiClient.get<SettingsResponse>(
+      `/api/mobile/owner/establishments/${establishmentId}/reservations/settings`
+    );
+  },
+
+  /** Save reservation settings (owner) */
+  saveOwnerSettings(establishmentId: string, data: unknown): Promise<{ success: boolean }> {
+    return apiClient.put<{ success: boolean }>(
+      `/api/mobile/owner/establishments/${establishmentId}/reservations/settings`,
+      data
+    );
+  },
+
+  /** List reservations for own establishment (owner) */
+  getOwnerReservations(
+    establishmentId: string,
+    filters?: { dateFrom?: string; dateTo?: string; status?: string }
+  ): Promise<OwnerReservationsResponse> {
+    const params = new URLSearchParams();
+    if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.set('dateTo', filters.dateTo);
+    if (filters?.status) params.set('status', filters.status);
+    const qs = params.toString();
+    return apiClient.get<OwnerReservationsResponse>(
+      `/api/mobile/owner/establishments/${establishmentId}/reservations${qs ? `?${qs}` : ''}`
+    );
+  },
+
+  /** Cancel a reservation as owner */
+  cancelAsOwner(reservationId: string): Promise<{ success: boolean }> {
+    return apiClient.post<{ success: boolean }>(
+      `/api/mobile/owner/reservations/${reservationId}/cancel`
+    );
+  },
+
+  // ─── Owner resource endpoints ──────────────────────────────────────────────
+
+  /** List resources for own establishment (owner - includes inactive) */
+  getOwnerResources(establishmentId: string): Promise<ResourcesResponse> {
+    return apiClient.get<ResourcesResponse>(
+      `/api/mobile/owner/establishments/${establishmentId}/resources`
+    );
+  },
+
+  /** Create a resource */
+  createResource(establishmentId: string, data: Partial<ReservationResource>): Promise<{ resource: ReservationResource }> {
+    return apiClient.post<{ resource: ReservationResource }>(
+      `/api/mobile/owner/establishments/${establishmentId}/resources`,
+      data
+    );
+  },
+
+  /** Update a resource */
+  updateResource(establishmentId: string, resourceId: string, data: Partial<ReservationResource>): Promise<{ resource: ReservationResource }> {
+    return apiClient.patch<{ resource: ReservationResource }>(
+      `/api/mobile/owner/establishments/${establishmentId}/resources/${resourceId}`,
+      data
+    );
+  },
+
+  /** Delete a resource */
+  deleteResource(establishmentId: string, resourceId: string): Promise<{ success: boolean }> {
+    return apiClient.delete<{ success: boolean }>(
+      `/api/mobile/owner/establishments/${establishmentId}/resources/${resourceId}`
+    );
+  },
+
+  // ─── Owner slot endpoints ─────────────────────────────────────────────────
+
+  /** List slots for own establishment */
+  getOwnerSlots(
+    establishmentId: string,
+    dateFrom?: string,
+    dateTo?: string
+  ): Promise<SlotResponse> {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+    const qs = params.toString();
+    return apiClient.get<SlotResponse>(
+      `/api/mobile/owner/establishments/${establishmentId}/slots${qs ? `?${qs}` : ''}`
+    );
+  },
+
+  /** Create a slot */
+  createSlot(
+    establishmentId: string,
+    data: { startAt: string; endAt: string; capacity: number; isActive?: boolean; resourceId?: string | null }
+  ): Promise<{ slot: unknown }> {
+    return apiClient.post<{ slot: unknown }>(
+      `/api/mobile/owner/establishments/${establishmentId}/slots`,
+      data
+    );
+  },
+
+  /** Generate slots from weekly schedule */
+  generateSlots(establishmentId: string, days?: number): Promise<GenerateSlotsResponse> {
+    return apiClient.post<GenerateSlotsResponse>(
+      `/api/mobile/owner/establishments/${establishmentId}/slots`,
+      { action: 'generate', days: days ?? 30 }
+    );
+  },
+
+  /** Toggle slot active status */
+  updateSlot(
+    establishmentId: string,
+    slotId: string,
+    data: { isActive?: boolean; capacity?: number }
+  ): Promise<{ slot: unknown }> {
+    return apiClient.patch<{ slot: unknown }>(
+      `/api/mobile/owner/establishments/${establishmentId}/slots/${slotId}`,
+      data
+    );
+  },
+
+  /** Delete a slot */
+  deleteSlot(establishmentId: string, slotId: string): Promise<{ success: boolean }> {
+    return apiClient.delete<{ success: boolean }>(
+      `/api/mobile/owner/establishments/${establishmentId}/slots/${slotId}`
     );
   },
 };

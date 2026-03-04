@@ -10,10 +10,19 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { establishmentApi } from '../../api/establishment';
 import { Establishment } from '../../types';
+
+const ACCESSIBILITY_FIELDS = [
+  { key: 'accessWheelchair' as const, label: 'Accessible PMR (fauteuil roulant)', icon: '♿' },
+  { key: 'accessToilets' as const, label: 'Toilettes accessibles', icon: '🚻' },
+  { key: 'accessParking' as const, label: 'Parking PMR', icon: '🅿️' },
+  { key: 'accessElevator' as const, label: 'Ascenseur', icon: '🛗' },
+  { key: 'accessLevelEntry' as const, label: 'Accès plain-pied', icon: '🚪' },
+];
 
 export const EstablishmentEditScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -32,6 +41,14 @@ export const EstablishmentEditScreen: React.FC = () => {
     zipCode: '',
   });
 
+  const [accessibility, setAccessibility] = useState({
+    accessWheelchair: false,
+    accessToilets: false,
+    accessParking: false,
+    accessElevator: false,
+    accessLevelEntry: false,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -44,6 +61,13 @@ export const EstablishmentEditScreen: React.FC = () => {
           address: establishment.address || '',
           city: establishment.city || '',
           zipCode: establishment.zipCode || '',
+        });
+        setAccessibility({
+          accessWheelchair: !!establishment.accessWheelchair,
+          accessToilets: !!establishment.accessToilets,
+          accessParking: !!establishment.accessParking,
+          accessElevator: !!establishment.accessElevator,
+          accessLevelEntry: !!establishment.accessLevelEntry,
         });
         setError(null);
       } catch (err: any) {
@@ -71,6 +95,7 @@ export const EstablishmentEditScreen: React.FC = () => {
         address: form.address.trim() || null,
         city: form.city.trim() || null,
         zipCode: form.zipCode.trim() || null,
+        ...accessibility,
       });
       Alert.alert('Succès', 'Établissement mis à jour', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -195,6 +220,28 @@ export const EstablishmentEditScreen: React.FC = () => {
               />
             </View>
           </View>
+
+          <View style={styles.separator} />
+
+          <Text style={styles.sectionTitle}>Accessibilité</Text>
+          <Text style={styles.hint}>
+            Indiquez les aménagements d'accessibilité de votre établissement.
+          </Text>
+
+          {ACCESSIBILITY_FIELDS.map((field) => (
+            <View key={field.key} style={styles.accessibilityRow}>
+              <Text style={styles.accessibilityIcon}>{field.icon}</Text>
+              <Text style={styles.accessibilityLabel}>{field.label}</Text>
+              <Switch
+                value={accessibility[field.key]}
+                onValueChange={(val) =>
+                  setAccessibility((prev) => ({ ...prev, [field.key]: val }))
+                }
+                trackColor={{ false: '#ddd', true: '#3498db' }}
+                thumbColor={accessibility[field.key] ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+          ))}
         </View>
       </ScrollView>
 
@@ -259,6 +306,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginTop: 6,
+    marginBottom: 12,
   },
   separator: {
     height: 1,
@@ -269,10 +317,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
+  },
+  accessibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginBottom: 8,
+  },
+  accessibilityIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  accessibilityLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
   },
   footer: {
     backgroundColor: '#fff',

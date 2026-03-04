@@ -18,6 +18,7 @@ type RootStackParamList = {
   ActivityEdit: undefined;
   ActivityCreate: undefined;
   MediaManager: undefined;
+  ReservationManagement: undefined;
 };
 
 export const EstablishmentDashboardScreen: React.FC = () => {
@@ -212,6 +213,18 @@ export const EstablishmentDashboardScreen: React.FC = () => {
               <View style={styles.actionContent}>
                 <Text style={styles.actionTitle}>Gérer les médias</Text>
                 <Text style={styles.actionSubtitle}>Photos et vidéos</Text>
+              </View>
+              <Text style={styles.actionArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('ReservationManagement')}
+            >
+              <Text style={styles.actionIcon}>📅</Text>
+              <View style={styles.actionContent}>
+                <Text style={styles.actionTitle}>Gérer les réservations</Text>
+                <Text style={styles.actionSubtitle}>Paramètres, ressources, créneaux</Text>
               </View>
               <Text style={styles.actionArrow}>›</Text>
             </TouchableOpacity>

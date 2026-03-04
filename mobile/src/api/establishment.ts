@@ -21,6 +21,12 @@ interface UpdateEstablishmentData {
   address?: string | null;
   city?: string | null;
   zipCode?: string | null;
+  // Accessibility
+  accessWheelchair?: boolean;
+  accessToilets?: boolean;
+  accessParking?: boolean;
+  accessElevator?: boolean;
+  accessLevelEntry?: boolean;
 }
 
 interface UpdateActivityData {

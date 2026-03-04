@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   Linking, Dimensions, RefreshControl, ActivityIndicator, Modal,
+  Alert,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -65,20 +66,19 @@ export const ActivityDetailScreen: React.FC = () => {
     if (!activity?.establishment?.id) return;
     const estId = activity.establishment.id;
 
-    // Try loading reservation settings (may fail with 403 if not owner)
+    // Load reservation settings via public mobile endpoint
     reservationsApi.getSettings(estId)
       .then(({ settings }) => {
         if (settings?.enabled) setBookingSettings(settings);
       })
       .catch(() => {
-        // Not the owner — try to detect booking via availability for tomorrow
+        // Endpoint not available yet — fallback to availability probe
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const dateStr = tomorrow.toISOString().split('T')[0];
         reservationsApi.getAvailability(estId, dateStr)
           .then(({ slots }) => {
             if (slots && slots.length > 0) {
-              // Booking is enabled — create a minimal settings object with defaults
               setBookingSettings({
                 id: '',
                 establishmentId: estId,
@@ -103,9 +103,8 @@ export const ActivityDetailScreen: React.FC = () => {
           .catch(() => {});
       });
 
-    // The activity detail response may include accessibility fields on the establishment
-    // They come through as (activity as any).establishment.accessXxx
-    const est = activity.establishment as any;
+    // Read accessibility fields from the establishment object
+    const est = activity.establishment;
     if (est.accessWheelchair !== undefined) {
       setAccessibility({
         accessWheelchair: !!est.accessWheelchair,
@@ -129,6 +128,25 @@ export const ActivityDetailScreen: React.FC = () => {
   };
 
   const openLink = (url: string) => Linking.openURL(url).catch(() => {});
+
+  const openExternalBooking = (url: string) => {
+    // Validate URL starts with https:// or http://
+    if (!url.match(/^https?:\/\//i)) {
+      Alert.alert('Erreur', 'Le lien de réservation est invalide.');
+      return;
+    }
+    Linking.canOpenURL(url)
+      .then(supported => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Alert.alert('Erreur', 'Impossible d\'ouvrir ce lien de réservation.');
+        }
+      })
+      .catch(() => {
+        Alert.alert('Erreur', 'Impossible d\'ouvrir ce lien de réservation.');
+      });
+  };
 
   if (isLoading) {
     return <View style={styles.centered}><ActivityIndicator size="large" color="#18181B" /></View>;
@@ -201,10 +219,10 @@ export const ActivityDetailScreen: React.FC = () => {
         {activity.establishment.bookingUrl && (!bookingSettings?.enabled || bookingSettings?.showExternalLinkAlso) && (
           <TouchableOpacity
             style={bookingSettings?.enabled ? styles.ctaBtn : styles.ctaPrimary}
-            onPress={() => openLink(activity.establishment.bookingUrl!)}
+            onPress={() => openExternalBooking(activity.establishment.bookingUrl!)}
           >
             <Text style={bookingSettings?.enabled ? styles.ctaBtnText : styles.ctaPrimaryText}>
-              {bookingSettings?.enabled ? '🌐 Réserver en ligne' : '📅 Réserver'}
+              {bookingSettings?.enabled ? '🌐 Réserver sur le site officiel' : '📅 Réserver sur le site officiel'}
             </Text>
           </TouchableOpacity>
         )}

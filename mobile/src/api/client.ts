@@ -19,6 +19,12 @@ export const setOnUnauthorized = (callback: () => void) => {
   onUnauthorized = callback;
 };
 
+// Auth-check endpoints: only these should trigger global logout on 401
+const AUTH_CHECK_ENDPOINTS = ['/api/mobile/me', '/api/mobile/login'];
+
+const isAuthCheckEndpoint = (endpoint: string): boolean =>
+  AUTH_CHECK_ENDPOINTS.some(e => endpoint === e || endpoint.startsWith(e + '?'));
+
 export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { method = 'GET', body, headers = {}, skipAuth = false } = options;
@@ -52,7 +58,9 @@ export const apiClient = {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
-        if (onUnauthorized) {
+        // Only trigger global logout for auth-check endpoints (token validation)
+        // For data endpoints, just throw the error so screens can handle it gracefully
+        if (isAuthCheckEndpoint(endpoint) && onUnauthorized) {
           onUnauthorized();
         }
         const error: ApiError = {

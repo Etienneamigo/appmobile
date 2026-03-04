@@ -107,14 +107,19 @@ export const MyReservationsScreen: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchReservations = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
+    setFetchError(null);
     try {
       const { reservations: data } = await reservationsApi.getMyReservations(activeTab);
       setReservations(data);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[Reservations] fetch error:', err);
+      if (!silent) {
+        setFetchError(err.message || 'Impossible de charger les réservations');
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -192,6 +197,18 @@ export const MyReservationsScreen: React.FC = () => {
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary.main} />
+        </View>
+      ) : fetchError ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Text style={styles.emptyTitle}>Erreur</Text>
+          <Text style={styles.emptyText}>{fetchError}</Text>
+          <TouchableOpacity
+            style={{ marginTop: 16, backgroundColor: colors.primary.main, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
+            onPress={() => fetchReservations()}
+          >
+            <Text style={{ color: '#FFF', fontWeight: '600' }}>Réessayer</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList

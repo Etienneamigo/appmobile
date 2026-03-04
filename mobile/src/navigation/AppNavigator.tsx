@@ -19,6 +19,7 @@ import { EstablishmentEditScreen } from '../screens/establishment/EstablishmentE
 import { ActivityEditScreen } from '../screens/establishment/ActivityEditScreen';
 import { ActivityCreateScreen } from '../screens/establishment/ActivityCreateScreen';
 import { MediaManagerScreen } from '../screens/establishment/MediaManagerScreen';
+import { ReservationManagementScreen } from '../screens/establishment/ReservationManagementScreen';
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
 import { AccountScreen } from '../screens/common/AccountScreen';
 import { MyReservationsScreen } from '../screens/user/MyReservationsScreen';
@@ -51,6 +52,7 @@ export type EstablishmentStackParamList = {
   ActivityEdit: undefined;
   ActivityCreate: undefined;
   MediaManager: undefined;
+  ReservationManagement: undefined;
 };
 
 export type AccountStackParamList = {
@@ -187,6 +189,10 @@ const EstablishmentStack: React.FC = () => (
     <EstablishmentStackNav.Screen
       name="MediaManager"
       component={MediaManagerScreen}
+    />
+    <EstablishmentStackNav.Screen
+      name="ReservationManagement"
+      component={ReservationManagementScreen}
     />
   </EstablishmentStackNav.Navigator>
 );

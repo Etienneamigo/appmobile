@@ -151,6 +151,12 @@ export interface ActivityDetail {
     website: string | null;
     bookingUrl: string | null;
     verifiedAt?: string | null;
+    // Accessibility fields
+    accessWheelchair?: boolean;
+    accessToilets?: boolean;
+    accessParking?: boolean;
+    accessElevator?: boolean;
+    accessLevelEntry?: boolean;
   };
   isFavorite: boolean;
   adminPick?: boolean;
@@ -171,6 +177,12 @@ export interface Establishment {
   lat: number | null;
   lng: number | null;
   createdAt: string;
+  // Accessibility
+  accessWheelchair?: boolean;
+  accessToilets?: boolean;
+  accessParking?: boolean;
+  accessElevator?: boolean;
+  accessLevelEntry?: boolean;
   subscription: {
     status: SubscriptionStatus | null;
     isTrialing: boolean;
