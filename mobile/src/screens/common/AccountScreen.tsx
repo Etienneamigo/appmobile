@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { Icon } from '../../components/Icon';
 
 const ROLE_LABELS: Record<string, string> = {
   USER: 'Utilisateur',
@@ -109,7 +110,7 @@ export const AccountScreen: React.FC = () => {
             onPress={() => navigation.navigate('MyReservations')}
             activeOpacity={0.7}
           >
-            <Text style={styles.actionIcon}>📋</Text>
+            <Icon name="clipboard" size={22} color={colors.text.primary} />
             <View style={{ flex: 1 }}>
               <Text style={styles.actionLabel}>Mes réservations</Text>
               <Text style={styles.actionDesc}>Voir et gérer vos réservations</Text>

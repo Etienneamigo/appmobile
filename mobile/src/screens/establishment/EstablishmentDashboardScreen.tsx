@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { establishmentApi } from '../../api/establishment';
 import { Establishment } from '../../types';
+import { Icon } from '../../components/Icon';
 
 type RootStackParamList = {
   EstablishmentEdit: undefined;
@@ -76,7 +77,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
   if (error || !establishment) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorIcon}>⚠️</Text>
+        <Icon name="alert-circle" size={40} color="#71717A" />
         <Text style={styles.errorText}>{error || 'Établissement non trouvé'}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
           <Text style={styles.retryButtonText}>Réessayer</Text>
@@ -183,7 +184,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
           style={styles.actionButton}
           onPress={() => navigation.navigate('EstablishmentEdit')}
         >
-          <Text style={styles.actionIcon}>🏢</Text>
+          <Icon name="building" size={22} color="#18181B" />
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>Modifier mon établissement</Text>
             <Text style={styles.actionSubtitle}>Nom, contact, liens...</Text>
@@ -197,7 +198,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
               style={styles.actionButton}
               onPress={() => navigation.navigate('ActivityEdit')}
             >
-              <Text style={styles.actionIcon}>🎯</Text>
+              <Icon name="edit" size={22} color="#18181B" />
               <View style={styles.actionContent}>
                 <Text style={styles.actionTitle}>Modifier mon activité</Text>
                 <Text style={styles.actionSubtitle}>Description, tarifs, horaires...</Text>
@@ -209,7 +210,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
               style={styles.actionButton}
               onPress={() => navigation.navigate('MediaManager')}
             >
-              <Text style={styles.actionIcon}>📸</Text>
+              <Icon name="grid" size={22} color="#18181B" />
               <View style={styles.actionContent}>
                 <Text style={styles.actionTitle}>Gérer les médias</Text>
                 <Text style={styles.actionSubtitle}>Photos et vidéos</Text>
@@ -221,7 +222,7 @@ export const EstablishmentDashboardScreen: React.FC = () => {
               style={styles.actionButton}
               onPress={() => navigation.navigate('ReservationManagement')}
             >
-              <Text style={styles.actionIcon}>📅</Text>
+              <Icon name="calendar" size={22} color="#18181B" />
               <View style={styles.actionContent}>
                 <Text style={styles.actionTitle}>Gérer les réservations</Text>
                 <Text style={styles.actionSubtitle}>Paramètres, ressources, créneaux</Text>

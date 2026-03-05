@@ -31,16 +31,20 @@ const getEffectiveRules = (
   settings: ReservationSettings
 ) => {
   if (!resource || !resource.useCustomRules) {
+    // Use capacity as the effective max when a resource is selected (no custom rules)
+    const maxFromCapacity = resource ? resource.capacity : settings.capacityPerSlot;
     return {
       minPartySize: settings.minPartySize,
-      maxPartySize: settings.maxPartySize,
+      maxPartySize: Math.min(settings.maxPartySize, maxFromCapacity),
       slotDurationMinutes: settings.slotDurationMinutes,
       bookingWindowDays: settings.bookingWindowDays,
     };
   }
+  // Custom rules: capacity is the hard ceiling
+  const effectiveMax = resource.maxPartySizeOverride ?? settings.maxPartySize;
   return {
     minPartySize: resource.minPartySizeOverride ?? settings.minPartySize,
-    maxPartySize: resource.maxPartySizeOverride ?? settings.maxPartySize,
+    maxPartySize: Math.min(effectiveMax, resource.capacity),
     slotDurationMinutes: resource.slotDurationMinutesOverride ?? settings.slotDurationMinutes,
     bookingWindowDays: resource.bookingWindowDaysOverride ?? settings.bookingWindowDays,
   };

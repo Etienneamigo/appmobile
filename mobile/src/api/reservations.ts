@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { buildSettingsPayload, buildGenerateSlotsPayload, buildResourcePayload } from '../utils/payload';
 import type {
   ReservationSettings,
   ReservationResource,
@@ -54,7 +55,8 @@ interface SlotResponse {
 }
 
 interface GenerateSlotsResponse {
-  created: number;
+  count: number;
+  created?: number;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -131,11 +133,12 @@ export const reservationsApi = {
     );
   },
 
-  /** Save reservation settings (owner) */
+  /** Save reservation settings (owner) - sanitizes payload to match backend Zod schema */
   saveOwnerSettings(establishmentId: string, data: unknown): Promise<{ success: boolean }> {
+    const cleanPayload = buildSettingsPayload(data as Record<string, unknown>);
     return apiClient.put<{ success: boolean }>(
       `/api/mobile/owner/establishments/${establishmentId}/reservations/settings`,
-      data
+      cleanPayload
     );
   },
 
@@ -170,19 +173,21 @@ export const reservationsApi = {
     );
   },
 
-  /** Create a resource */
+  /** Create a resource - sanitizes payload to match backend Zod schema */
   createResource(establishmentId: string, data: Partial<ReservationResource>): Promise<{ resource: ReservationResource }> {
+    const cleanPayload = buildResourcePayload(data as Record<string, unknown>);
     return apiClient.post<{ resource: ReservationResource }>(
       `/api/mobile/owner/establishments/${establishmentId}/resources`,
-      data
+      cleanPayload
     );
   },
 
-  /** Update a resource */
+  /** Update a resource - sanitizes payload to match backend Zod schema */
   updateResource(establishmentId: string, resourceId: string, data: Partial<ReservationResource>): Promise<{ resource: ReservationResource }> {
+    const cleanPayload = buildResourcePayload(data as Record<string, unknown>);
     return apiClient.patch<{ resource: ReservationResource }>(
       `/api/mobile/owner/establishments/${establishmentId}/resources/${resourceId}`,
-      data
+      cleanPayload
     );
   },
 
@@ -221,11 +226,12 @@ export const reservationsApi = {
     );
   },
 
-  /** Generate slots from weekly schedule */
+  /** Generate slots from weekly schedule - uses dateFrom/dateTo as required by backend */
   generateSlots(establishmentId: string, days?: number): Promise<GenerateSlotsResponse> {
+    const payload = buildGenerateSlotsPayload(days ?? 30);
     return apiClient.post<GenerateSlotsResponse>(
       `/api/mobile/owner/establishments/${establishmentId}/slots`,
-      { action: 'generate', days: days ?? 30 }
+      payload
     );
   },
 

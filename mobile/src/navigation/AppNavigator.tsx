@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography } from '../theme';
+import { Icon, IconName } from '../components/Icon';
 
 // Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -86,10 +87,15 @@ const defaultScreenOptions = {
   headerTintColor: colors.text.primary,
 };
 
-// Tab Icon component with increased touch area
-const TabIcon: React.FC<{ icon: string; focused: boolean }> = ({ icon, focused }) => (
+// Tab Icon component with increased touch area - monochrome iOS-style
+const TabIcon: React.FC<{ name: IconName; focused: boolean }> = ({ name, focused }) => (
   <View style={{ padding: 4, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.4 }}>{icon}</Text>
+    <Icon
+      name={name}
+      size={22}
+      color={focused ? colors.primary.main : colors.neutral[400]}
+      strokeWidth={focused ? 2 : 1.5}
+    />
   </View>
 );
 
@@ -250,7 +256,7 @@ const MainTabs: React.FC = () => {
         component={HomeStack}
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} />,
         }}
       />
 
@@ -261,7 +267,7 @@ const MainTabs: React.FC = () => {
           component={AdminDashboardScreen}
           options={{
             title: 'Admin',
-            tabBarIcon: ({ focused }) => <TabIcon icon="🛡️" focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon name="shield" focused={focused} />,
             headerShown: true,
             headerTitle: 'Administration',
           }}
@@ -274,7 +280,7 @@ const MainTabs: React.FC = () => {
         component={FeedStack}
         options={{
           title: 'Feed',
-          tabBarIcon: ({ focused }) => <TabIcon icon="▶️" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="play" focused={focused} />,
         }}
       />
 
@@ -285,7 +291,7 @@ const MainTabs: React.FC = () => {
           component={EstablishmentStack}
           options={{
             title: 'Activité',
-            tabBarIcon: ({ focused }) => <TabIcon icon="🏢" focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon name="building" focused={focused} />,
           }}
         />
       )}
@@ -296,7 +302,7 @@ const MainTabs: React.FC = () => {
         component={SearchStack}
         options={{
           title: 'Recherche',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔍" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="search" focused={focused} />,
         }}
       />
 
@@ -307,7 +313,7 @@ const MainTabs: React.FC = () => {
           component={FavoritesStack}
           options={{
             title: 'Favoris',
-            tabBarIcon: ({ focused }) => <TabIcon icon="❤️" focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'heart-filled' : 'heart'} focused={focused} />,
           }}
         />
       )}
@@ -318,7 +324,7 @@ const MainTabs: React.FC = () => {
         component={AccountStack}
         options={{
           title: 'Compte',
-          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="user" focused={focused} />,
         }}
       />
     </Tab.Navigator>

@@ -3,6 +3,7 @@ import { ApiError } from '../types';
 import { config } from '../config';
 
 const BASE_URL = config.BASE_URL;
+const __DEV__ = process.env.NODE_ENV !== 'production';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -25,6 +26,28 @@ const AUTH_CHECK_ENDPOINTS = ['/api/mobile/me', '/api/mobile/login'];
 const isAuthCheckEndpoint = (endpoint: string): boolean =>
   AUTH_CHECK_ENDPOINTS.some(e => endpoint === e || endpoint.startsWith(e + '?'));
 
+/**
+ * Map HTTP status to user-friendly French message.
+ */
+const getUserFriendlyMessage = (status: number, serverMessage?: string): string => {
+  // Use backend message if it's not a generic error
+  if (serverMessage && serverMessage !== 'Internal Server Error' && serverMessage !== 'Bad Request') {
+    return serverMessage;
+  }
+  switch (status) {
+    case 400: return 'Données invalides. Vérifiez les champs du formulaire.';
+    case 401: return 'Session expirée. Veuillez vous reconnecter.';
+    case 403: return 'Vous n\'avez pas les droits pour cette action.';
+    case 404: return 'Ressource introuvable.';
+    case 409: return 'Conflit : cette donnée existe déjà ou est en cours d\'utilisation.';
+    case 422: return 'Données incomplètes ou invalides.';
+    case 429: return 'Trop de requêtes. Veuillez patienter quelques instants.';
+    default:
+      if (status >= 500) return 'Erreur serveur. Veuillez réessayer plus tard.';
+      return serverMessage || 'Une erreur est survenue.';
+  }
+};
+
 export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { method = 'GET', body, headers = {}, skipAuth = false } = options;
@@ -43,19 +66,24 @@ export const apiClient = {
       }
     }
 
-    const config: RequestInit = {
+    const fetchConfig: RequestInit = {
       method,
       headers: requestHeaders,
     };
 
     if (body && method !== 'GET') {
-      config.body = JSON.stringify(body);
+      fetchConfig.body = JSON.stringify(body);
     }
 
     const url = `${BASE_URL}${endpoint}`;
 
+    // Dev logging: request
+    if (__DEV__) {
+      console.log(`[API] ${method} ${endpoint}`, body ? JSON.stringify(body).slice(0, 500) : '');
+    }
+
     try {
-      const response = await fetch(url, config);
+      const response = await fetch(url, fetchConfig);
 
       if (response.status === 401) {
         // Only trigger global logout for auth-check endpoints (token validation)
@@ -71,16 +99,25 @@ export const apiClient = {
       }
 
       if (!response.ok) {
-        let errorMessage = 'Une erreur est survenue';
+        let serverMessage = '';
+        let details: Record<string, string[]> | undefined;
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
+          serverMessage = errorData.message || errorData.error || '';
+          details = errorData.details;
         } catch {
           // Response not JSON
         }
+
+        // Dev logging: error details
+        if (__DEV__) {
+          console.warn(`[API ERROR] ${response.status} ${method} ${endpoint}`, serverMessage);
+        }
+
         const error: ApiError = {
-          message: errorMessage,
+          message: getUserFriendlyMessage(response.status, serverMessage),
           status: response.status,
+          details,
         };
         throw error;
       }
@@ -96,6 +133,12 @@ export const apiClient = {
       if ((error as ApiError).status) {
         throw error;
       }
+
+      // Dev logging: network error
+      if (__DEV__) {
+        console.warn(`[API NETWORK ERROR] ${method} ${endpoint}`, (error as Error).message);
+      }
+
       const networkError: ApiError = {
         message: 'Erreur de connexion. Vérifiez votre connexion internet.',
         status: 0,

@@ -19,6 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { reservationsApi } from '../../api/reservations';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { filterOrphanSlots } from '../../utils/payload';
 import type {
   ReservationSettings,
   ReservationResource,
@@ -174,14 +175,17 @@ export const ReservationManagementScreen: React.FC = () => {
       const dateFrom = toISODate(now);
       const dateTo = toISODate(addDays(now, 14));
       const res = await reservationsApi.getOwnerSlots(establishmentId, dateFrom, dateTo);
-      setSlots(res.slots);
+      // Filter orphan slots (resourceId=null) when establishment has resources
+      const hasResources = resources.length > 0;
+      const filteredSlots = filterOrphanSlots(res.slots, hasResources);
+      setSlots(filteredSlots);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement des créneaux');
     } finally {
       setIsLoadingSlots(false);
     }
-  }, [establishmentId]);
+  }, [establishmentId, resources.length]);
 
   const getDateFilters = useCallback((): { dateFrom?: string; dateTo?: string } => {
     const now = new Date();
@@ -374,7 +378,8 @@ export const ReservationManagementScreen: React.FC = () => {
             setIsGeneratingSlots(true);
             try {
               const res = await reservationsApi.generateSlots(establishmentId, 30);
-              Alert.alert('Succès', `${res.created} créneaux générés.`);
+              const count = res.count ?? res.created ?? 0;
+              Alert.alert('Succès', `${count} créneaux générés.`);
               await fetchSlots();
             } catch (err: any) {
               Alert.alert('Erreur', err.message || 'Impossible de générer les créneaux.');
@@ -871,17 +876,6 @@ export const ReservationManagementScreen: React.FC = () => {
                       onChangeText={(val) => setResourceForm(prev => ({ ...prev, minPartySizeOverride: val ? parseInt(val, 10) : null }))}
                       keyboardType="numeric"
                       placeholder={String(settings?.minPartySize ?? '-')}
-                      placeholderTextColor={colors.text.disabled}
-                    />
-                  </View>
-                  <View style={styles.formRow}>
-                    <Text style={styles.fieldLabel}>Taille max. du groupe</Text>
-                    <TextInput
-                      style={styles.numericInput}
-                      value={resourceForm.maxPartySizeOverride != null ? String(resourceForm.maxPartySizeOverride) : ''}
-                      onChangeText={(val) => setResourceForm(prev => ({ ...prev, maxPartySizeOverride: val ? parseInt(val, 10) : null }))}
-                      keyboardType="numeric"
-                      placeholder={String(settings?.maxPartySize ?? '-')}
                       placeholderTextColor={colors.text.disabled}
                     />
                   </View>

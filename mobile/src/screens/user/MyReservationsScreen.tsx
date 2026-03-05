@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { reservationsApi } from '../../api/reservations';
 import { Reservation } from '../../types';
 import { colors, typography, spacing, borderRadius } from '../../theme';
+import { Icon } from '../../components/Icon';
 
 type Tab = 'upcoming' | 'past';
 
@@ -63,24 +64,24 @@ const ReservationCard: React.FC<{
 
       <View style={styles.cardBody}>
         <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📅</Text>
+          <Icon name="calendar" size={15} color={colors.text.tertiary} />
           <Text style={styles.infoText}>{formatDate(reservation.startAt)}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>🕐</Text>
+          <Icon name="clock" size={15} color={colors.text.tertiary} />
           <Text style={styles.infoText}>
             {formatTime(reservation.startAt)} — {formatTime(reservation.endAt)}
           </Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>👥</Text>
+          <Icon name="users" size={15} color={colors.text.tertiary} />
           <Text style={styles.infoText}>
             {reservation.partySize} personne{reservation.partySize > 1 ? 's' : ''}
           </Text>
         </View>
         {reservation.resource && (
           <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>🚪</Text>
+            <Icon name="door" size={15} color={colors.text.tertiary} />
             <Text style={styles.infoText}>{reservation.resource.name}</Text>
           </View>
         )}
@@ -200,7 +201,7 @@ export const MyReservationsScreen: React.FC = () => {
         </View>
       ) : fetchError ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Icon name="alert-circle" size={40} color={colors.text.tertiary} />
           <Text style={styles.emptyTitle}>Erreur</Text>
           <Text style={styles.emptyText}>{fetchError}</Text>
           <TouchableOpacity
@@ -225,7 +226,7 @@ export const MyReservationsScreen: React.FC = () => {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📋</Text>
+              <Icon name="clipboard" size={40} color={colors.text.tertiary} />
               <Text style={styles.emptyTitle}>
                 {activeTab === 'upcoming' ? 'Aucune réservation à venir' : 'Aucune réservation passée'}
               </Text>
