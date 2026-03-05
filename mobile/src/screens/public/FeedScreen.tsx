@@ -60,8 +60,16 @@ function createStatusQueue() {
   return (video: Video, status: Record<string, unknown>) => {
     chain = chain.then(() =>
       video.setStatusAsync(status as Parameters<Video['setStatusAsync']>[0]).then(
-        () => {},
-        () => {},
+        (result) => {
+          if (__DEV__ && result && 'isLoaded' in result && result.isLoaded) {
+            console.log(
+              `[Feed] after update: isPlaying=${result.isPlaying}, volume=${result.volume}, isMuted=${result.isMuted}, pos=${result.positionMillis}`,
+            );
+          }
+        },
+        (err) => {
+          if (__DEV__) console.warn('[Feed] setStatusAsync error:', err);
+        },
       ),
     );
     return chain;
@@ -97,16 +105,17 @@ const FeedVideoItem: React.FC<{
     videoUrl.includes('customer-')
   );
 
-  // Play/stop based on visibility — single atomic setStatusAsync with current mute state
+  // Play/stop based on visibility — volume-only approach (no isMuted toggle).
+  // On iOS, toggling isMuted mid-playback is unreliable; volume 0/1 works immediately.
   useEffect(() => {
     if (!videoRef.current || !isPlayable) return;
     if (isVisible) {
       if (__DEV__) {
-        console.log(`[Feed] Visibility ON: isMuted=${mutedRef.current}, video=${item.id}`);
+        console.log(`[Feed] Visibility ON: muted=${mutedRef.current}, video=${item.id}`);
       }
       queueStatusUpdate(videoRef.current, {
         shouldPlay: true,
-        isMuted: mutedRef.current,
+        isMuted: false,
         volume: mutedRef.current ? 0 : 1.0,
       });
     } else {
@@ -122,21 +131,26 @@ const FeedVideoItem: React.FC<{
   // No separate "mute sync" effect — the toggle handler applies the mute state
   // atomically through the queue, eliminating the race condition.
 
-  // Imperative toggle: applies mute/unmute atomically at tap time via the queue
+  // Imperative toggle: applies volume change FIRST via the queue, then updates parent state.
+  // Volume-only approach avoids the iOS bug where isMuted toggle doesn't take effect mid-playback.
+  // Order: local ref -> setStatusAsync -> parent setState (prevents rerender race).
   const handleLocalToggle = useCallback(() => {
     const nextMuted = !mutedRef.current;
     if (__DEV__) {
       console.log(`[Feed] Toggle: ${mutedRef.current ? 'MUTED->UNMUTED' : 'UNMUTED->MUTED'}, isVisible=${isVisible}, video=${item.id}`);
     }
-    // Update parent state first so mutedRef.current is fresh for any subsequent queue calls
-    onToggleMute();
+    // 1. Update local ref immediately (so any queued call sees the right value)
+    mutedRef.current = nextMuted;
+    // 2. Apply volume change to the running video BEFORE parent rerender
     if (isVisible && videoRef.current && isPlayable) {
       queueStatusUpdate(videoRef.current, {
         shouldPlay: true,
-        isMuted: nextMuted,
+        isMuted: false,
         volume: nextMuted ? 0 : 1.0,
       });
     }
+    // 3. Now update parent state for UI (icon, other items)
+    onToggleMute();
   }, [isVisible, isPlayable, onToggleMute, queueStatusUpdate, item.id]);
 
   return (
