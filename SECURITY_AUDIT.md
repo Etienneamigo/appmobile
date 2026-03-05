@@ -157,13 +157,108 @@ npx expo start  # Verifier que l'app demarre
 
 ---
 
-## Recommandations serveur (hors scope - a appliquer dans le repo SaaS)
+## Findings serveur (hors scope mobile - a appliquer dans le repo SaaS)
 
-Ces findings concernent les fichiers `saas-patches/` qui sont des references pour le backend :
+Ces findings concernent les fichiers `saas-patches/` qui sont des references pour le backend.
+**Ils ne sont PAS corriges dans cette PR** car ils vivent dans le repo SaaS.
 
-1. **Endpoint public sans auth** : `GET /api/mobile/establishments/[id]/reservations/settings` n'a pas d'authentification. Ajouter au moins `optionalMobileAuth` pour logger les acces.
-2. **PATCH establishment** : Utiliser un schema Zod au lieu de la validation manuelle. Valider les URLs (`bookingUrl`, `website`).
-3. **Parametres date non valides** : Les GET query params `dateFrom`/`dateTo` dans les routes owner doivent etre valides avant `new Date()`.
+### P1 - IDOR sur custom field definitions (URGENT)
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `saas-patches/mobile-owner/establishments/[id]/reservations/settings/route.ts:178-189` |
+| **Severite** | P1 - HIGH |
+| **Impact** | Un owner peut modifier les custom fields d'un AUTRE etablissement en fournissant un `field.id` etranger dans le PUT |
+
+Le `update` Prisma sur `reservationCustomFieldDef` filtre par `id` seul, sans verifier `settingsId`.
+
+**Fix** : Ajouter `settingsId: settings.id` au `where` :
+```ts
+await prisma.reservationCustomFieldDef.update({
+  where: { id: field.id, settingsId: settings.id },
+  data: { ... },
+})
+```
+
+### P1 - PATCH establishment sans validation Zod
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `saas-patches/mobile-establishment-route.ts:37-58` |
+| **Severite** | P1 - HIGH |
+| **Impact** | Pas de Zod, parse error silencieux (`body = {}`), pas de validation type/longueur sur phone/website/bookingUrl/address, pas de bornes lat/lng |
+
+**Fix** : Remplacer la validation manuelle par un schema Zod :
+```ts
+const schema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  phone: z.string().max(50).optional().nullable(),
+  website: z.string().url().max(2048).optional().nullable(),
+  bookingUrl: z.string().url().max(2048).optional().nullable(),
+  lat: z.number().min(-90).max(90).optional().nullable(),
+  lng: z.number().min(-180).max(180).optional().nullable(),
+  // ...
+})
+```
+
+### P1 - Parametres date/status non valides
+
+| Champ | Detail |
+|-------|--------|
+| **Fichiers** | `mobile-owner/.../reservations/route.ts:28-37`, `mobile-owner/.../slots/route.ts:40-45` |
+| **Severite** | P1 |
+| **Impact** | `status` passe directement au `where` Prisma sans validation enum. `dateFrom`/`dateTo` passes a `new Date()` sans format check -> erreurs 500 non gerees |
+
+**Fix** :
+```ts
+const validStatuses = ["CONFIRMED", "CANCELLED", "NO_SHOW", "COMPLETED"]
+if (status && !validStatuses.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 })
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+if (dateFrom && !dateRegex.test(dateFrom)) return NextResponse.json({ error: "Invalid dateFrom" }, { status: 400 })
+```
+
+### P1 - weeklySchedule keys non validees (0-6)
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `saas-patches/mobile-owner/.../settings/route.ts:64,152-153` |
+| **Severite** | P1 |
+| **Impact** | Les cles du record `weeklySchedule` acceptent n'importe quelle string. `parseInt("foo")` = `NaN` stocke en DB. |
+
+**Fix** : `z.record(z.string().regex(/^[0-6]$/), z.array(timeRangeSchema))`
+
+### P2 - Rate limiting manquant sur /api/mobile/me
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `saas-patches/mobile-me/route.ts` |
+| **Severite** | P2 |
+| **Impact** | Seul endpoint sans `enforceApiRateLimit`. Permet le probing JWT illimite. |
+
+**Fix** : Ajouter `const limited = await enforceApiRateLimit(request, "api"); if (limited) return limited;`
+
+### P2 - Pas de try/catch global sur 12/13 routes
+
+Toutes les routes sauf `mobile-me/route.ts` n'ont pas de try/catch. Les erreurs Prisma non gerees peuvent leaker des details internes en dev.
+
+**Fix** : Wrapper function `withErrorHandling()` ou try/catch sur chaque handler.
+
+### P2 - Pas de pagination sur owner reservations et slots
+
+| Champ | Detail |
+|-------|--------|
+| **Fichiers** | `mobile-owner/.../reservations/route.ts`, `mobile-owner/.../slots/route.ts` |
+| **Severite** | P2 |
+| **Impact** | Pas de `take`/`skip` -> un etablissement avec des milliers de lignes retourne tout en une requete (DoS possible) |
+
+### P2 - Strings illimitees (confirmationMessage, cancellationPolicyText)
+
+`z.string().optional()` sans `.max()` -> un attaquant peut envoyer des strings de plusieurs Mo.
+
+### P2 - imageUrl accepte les schemes non-HTTPS
+
+`z.string().url()` sur les resources accepte `data:` URLs. Restreindre a `https://` uniquement.
 
 ---
 
