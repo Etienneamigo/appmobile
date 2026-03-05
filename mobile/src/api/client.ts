@@ -26,6 +26,9 @@ const AUTH_CHECK_ENDPOINTS = ['/api/mobile/me', '/api/mobile/login'];
 const isAuthCheckEndpoint = (endpoint: string): boolean =>
   AUTH_CHECK_ENDPOINTS.some(e => endpoint === e || endpoint.startsWith(e + '?'));
 
+// Endpoints whose request body should never appear in logs (contains credentials)
+const SENSITIVE_ENDPOINTS = ['/api/mobile/login', '/api/auth/register'];
+
 /**
  * Map HTTP status to user-friendly French message.
  */
@@ -77,9 +80,10 @@ export const apiClient = {
 
     const url = `${BASE_URL}${endpoint}`;
 
-    // Dev logging: request
+    // Dev logging: request (redact sensitive endpoints like login/register)
     if (__DEV__) {
-      console.log(`[API] ${method} ${endpoint}`, body ? JSON.stringify(body).slice(0, 500) : '');
+      const isSensitive = SENSITIVE_ENDPOINTS.some(e => endpoint.startsWith(e));
+      console.log(`[API] ${method} ${endpoint}`, body && !isSensitive ? JSON.stringify(body).slice(0, 500) : '');
     }
 
     try {
@@ -205,9 +209,7 @@ export const apiClient = {
       });
 
       if (response.status === 401) {
-        if (onUnauthorized) {
-          onUnauthorized();
-        }
+        // Don't trigger global logout for upload -- let the screen handle it
         const error: ApiError = {
           message: 'Session expirée. Veuillez vous reconnecter.',
           status: 401,

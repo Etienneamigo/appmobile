@@ -15,7 +15,7 @@ L'application mobile Wadelo presente une **bonne posture securite de base** :
 - Pas de SQL injection cote client (tout passe par API REST + Prisma cote serveur)
 - Les routes owner dans `saas-patches/` verifient bien le role + ownership
 
-**Vulnerabilites identifiees** : 2 high (deps), 1 medium (info leak prod), plusieurs low.
+**Vulnerabilites identifiees** : 2 high (deps), 3 medium (info leak, credentials log, JWT), plusieurs low.
 
 ---
 
@@ -84,7 +84,37 @@ npx expo start  # Verifier que l'app demarre
 
 **Fix applique** : La section Debug est conditionnee par `__DEV__` pour n'apparaitre qu'en developpement.
 
-#### M2. `console.warn` non gate par `__DEV__` dans FeedScreen
+#### M2. Credentials (email/password) loguees en dev via console.log
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `mobile/src/api/client.ts:82` |
+| **Severite** | MEDIUM |
+| **Impact** | Le body de CHAQUE requete est logue en dev, y compris `/api/mobile/login` qui contient email+password en clair. Si un build dev fuit ou si les logs sont captures par un outil de crash reporting, les credentials sont exposees. |
+
+**Fix applique** : Les endpoints sensibles (`/api/mobile/login`, `/api/auth/register`) sont redactes dans les logs dev.
+
+#### M3. Pas de verification client-side de l'expiration JWT
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `mobile/src/storage/secureStore.ts`, `mobile/src/context/AuthContext.tsx` |
+| **Severite** | MEDIUM |
+| **Impact** | Le token est stocke comme string opaque. Si le serveur est injoignable (avion, timeout), un token expire reste en memoire et sera renvoye au retour de la connexion. |
+
+**Fix applique** : `secureStore.getToken()` decode maintenant le payload JWT et verifie `exp` localement (avec 60s de marge). Un token expire est automatiquement supprime du SecureStore.
+
+#### M4. `uploadFile` declenche un logout global sur 401
+
+| Champ | Detail |
+|-------|--------|
+| **Fichier** | `mobile/src/api/client.ts:207-209` |
+| **Severite** | LOW-MEDIUM |
+| **Impact** | Contrairement a `request()` qui scope le logout aux endpoints auth-check, `uploadFile()` appelait `onUnauthorized()` sur tout 401, causant des deconnexions intempestives pendant les uploads. |
+
+**Fix applique** : `uploadFile` ne declenche plus le logout global, il throw simplement l'erreur 401 pour que l'ecran la gere.
+
+#### M5. `console.warn` non gate par `__DEV__` dans FeedScreen
 
 | Champ | Detail |
 |-------|--------|
