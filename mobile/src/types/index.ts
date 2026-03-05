@@ -275,6 +275,14 @@ export type ResourceSelectionMode = 'HIDDEN' | 'PICK_RESOURCE_FIRST' | 'PICK_TIM
 
 export type CustomFieldType = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'SELECT' | 'PHONE' | 'EMAIL' | 'CHECKBOX';
 
+export interface WeeklyScheduleEntry {
+  id?: string;
+  settingsId?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
 export interface ReservationSettings {
   id: string;
   establishmentId: string;
@@ -292,6 +300,7 @@ export interface ReservationSettings {
   confirmationMessage: string | null;
   cancellationPolicyText: string | null;
   resourceSelectionMode: ResourceSelectionMode;
+  weeklySchedule?: WeeklyScheduleEntry[];
   customFieldDefs: ReservationCustomFieldDef[];
 }
 

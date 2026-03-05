@@ -93,8 +93,16 @@ export async function PUT(
 
   const parsed = settingsSchema.safeParse(body)
   if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0]
     return NextResponse.json(
-      { error: parsed.error.issues[0].message },
+      {
+        error: firstIssue.message,
+        issues: parsed.error.issues.map((i) => ({
+          path: i.path.map(String),
+          message: i.message,
+          code: i.code,
+        })),
+      },
       { status: 400 }
     )
   }

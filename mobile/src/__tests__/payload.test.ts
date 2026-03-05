@@ -132,7 +132,8 @@ describe('buildSettingsPayload', () => {
     expect(payload.slotDurationMinutes).toBe(60);
     expect(payload.capacityPerSlot).toBe(10);
     expect(payload.minPartySize).toBe(1);
-    expect(payload.maxPartySize).toBe(8);
+    // maxPartySize should equal capacityPerSlot (unified field)
+    expect(payload.maxPartySize).toBe(10);
     expect(payload.minNoticeMinutes).toBe(30);
     expect(payload.bookingWindowDays).toBe(14);
     expect(payload.cancellationDeadlineHours).toBe(24);
@@ -167,6 +168,58 @@ describe('buildSettingsPayload', () => {
     expect(Number.isFinite(payload.slotDurationMinutes)).toBe(true);
     expect(Number.isFinite(payload.capacityPerSlot as number)).toBe(true);
     expect(Number.isFinite(payload.minPartySize as number)).toBe(true);
+  });
+
+  it('converts Prisma weeklySchedule array to record format', () => {
+    const form = {
+      enabled: true,
+      weeklySchedule: [
+        { dayOfWeek: 0, startTime: '09:00', endTime: '12:00' },
+        { dayOfWeek: 0, startTime: '14:00', endTime: '18:00' },
+        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+        { dayOfWeek: 3, startTime: '10:00', endTime: '16:00' },
+      ],
+    };
+
+    const payload = buildSettingsPayload(form as any);
+    const ws = payload.weeklySchedule as Record<string, Array<{ start: string; end: string }>>;
+
+    // Should be a record keyed by day number
+    expect(ws['0']).toEqual([
+      { start: '09:00', end: '12:00' },
+      { start: '14:00', end: '18:00' },
+    ]);
+    expect(ws['1']).toEqual([{ start: '09:00', end: '17:00' }]);
+    expect(ws['3']).toEqual([{ start: '10:00', end: '16:00' }]);
+    // Days not present should be absent
+    expect(ws['2']).toBeUndefined();
+  });
+
+  it('passes through already-record weeklySchedule format', () => {
+    const form = {
+      enabled: true,
+      weeklySchedule: {
+        '1': [{ start: '08:00', end: '12:00' }],
+        '5': [{ start: '10:00', end: '22:00' }],
+      },
+    };
+
+    const payload = buildSettingsPayload(form as any);
+    const ws = payload.weeklySchedule as Record<string, Array<{ start: string; end: string }>>;
+
+    expect(ws['1']).toEqual([{ start: '08:00', end: '12:00' }]);
+    expect(ws['5']).toEqual([{ start: '10:00', end: '22:00' }]);
+  });
+
+  it('sets maxPartySize = capacityPerSlot (unified field)', () => {
+    const form = {
+      capacityPerSlot: 20,
+      maxPartySize: 5, // should be ignored, capacityPerSlot wins
+    };
+
+    const payload = buildSettingsPayload(form as any);
+    expect(payload.capacityPerSlot).toBe(20);
+    expect(payload.maxPartySize).toBe(20);
   });
 });
 

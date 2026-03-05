@@ -20,6 +20,9 @@ import { reservationsApi } from '../../api/reservations';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { filterOrphanSlots } from '../../utils/payload';
+
+const __DEV__ = process.env.NODE_ENV !== 'production';
+
 import type {
   ReservationSettings,
   ReservationResource,
@@ -284,7 +287,11 @@ export const ReservationManagementScreen: React.FC = () => {
       await fetchSettings();
       Alert.alert('Succès', 'Les paramètres ont été enregistrés.');
     } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Impossible d\'enregistrer les paramètres.');
+      const msg = err.message || 'Impossible d\'enregistrer les paramètres.';
+      if (__DEV__) {
+        console.warn('[Settings] Save error:', JSON.stringify(err, null, 2));
+      }
+      Alert.alert('Erreur', msg);
     } finally {
       setIsSavingSettings(false);
     }
@@ -382,7 +389,11 @@ export const ReservationManagementScreen: React.FC = () => {
               Alert.alert('Succès', `${count} créneaux générés.`);
               await fetchSlots();
             } catch (err: any) {
-              Alert.alert('Erreur', err.message || 'Impossible de générer les créneaux.');
+              const msg = err.message || 'Impossible de générer les créneaux.';
+              if (__DEV__) {
+                console.warn('[Slots] Generate error:', JSON.stringify(err, null, 2));
+              }
+              Alert.alert('Erreur', msg);
             } finally {
               setIsGeneratingSlots(false);
             }
@@ -578,7 +589,7 @@ export const ReservationManagementScreen: React.FC = () => {
         </View>
 
         <View style={styles.formRow}>
-          <Text style={styles.fieldLabel}>Capacité par créneau</Text>
+          <Text style={styles.fieldLabel}>Capacité (max personnes par créneau)</Text>
           <TextInput
             style={styles.numericInput}
             value={String(settingsForm.capacityPerSlot ?? '')}
@@ -597,18 +608,6 @@ export const ReservationManagementScreen: React.FC = () => {
             onChangeText={(val) => setSettingsForm(prev => ({ ...prev, minPartySize: parseInt(val, 10) || 0 }))}
             keyboardType="numeric"
             placeholder="1"
-            placeholderTextColor={colors.text.disabled}
-          />
-        </View>
-
-        <View style={styles.formRow}>
-          <Text style={styles.fieldLabel}>Taille max. du groupe</Text>
-          <TextInput
-            style={styles.numericInput}
-            value={String(settingsForm.maxPartySize ?? '')}
-            onChangeText={(val) => setSettingsForm(prev => ({ ...prev, maxPartySize: parseInt(val, 10) || 0 }))}
-            keyboardType="numeric"
-            placeholder="10"
             placeholderTextColor={colors.text.disabled}
           />
         </View>

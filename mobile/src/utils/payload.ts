@@ -54,6 +54,43 @@ export function removeEmpty<T extends Record<string, unknown>>(obj: T): Partial<
 }
 
 /**
+ * Convert weeklySchedule from Prisma array format to backend Record format.
+ * Prisma GET returns: [{dayOfWeek: 0, startTime: "09:00", endTime: "17:00"}, ...]
+ * Backend PUT expects: {"0": [{start: "09:00", end: "17:00"}], ...}
+ */
+function normalizeWeeklySchedule(raw: unknown): Record<string, { start: string; end: string }[]> {
+  if (!raw || typeof raw !== 'object') return {};
+
+  // Already in record format (keys are day numbers as strings)
+  if (!Array.isArray(raw)) {
+    const result: Record<string, { start: string; end: string }[]> = {};
+    for (const [key, ranges] of Object.entries(raw as Record<string, unknown>)) {
+      if (Array.isArray(ranges)) {
+        result[key] = ranges.map((r: any) => ({
+          start: String(r.start || r.startTime || '00:00'),
+          end: String(r.end || r.endTime || '00:00'),
+        }));
+      }
+    }
+    return result;
+  }
+
+  // Prisma array format: [{dayOfWeek, startTime, endTime}, ...]
+  const result: Record<string, { start: string; end: string }[]> = {};
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const day = String(entry.dayOfWeek ?? entry.day ?? '');
+    if (day === '' || day === 'undefined') continue;
+    if (!result[day]) result[day] = [];
+    result[day].push({
+      start: String(entry.start || entry.startTime || '00:00'),
+      end: String(entry.end || entry.endTime || '00:00'),
+    });
+  }
+  return result;
+}
+
+/**
  * Build a clean settings payload matching the backend Zod schema:
  *   enabled: boolean
  *   showExternalLinkAlso: boolean
@@ -73,6 +110,8 @@ export function removeEmpty<T extends Record<string, unknown>>(obj: T): Partial<
  *   customFieldDefs: array
  */
 export function buildSettingsPayload(form: Record<string, unknown>): Record<string, unknown> {
+  const capacityPerSlot = safePositiveInt(form.capacityPerSlot, 1);
+
   return {
     enabled: Boolean(form.enabled),
     showExternalLinkAlso: Boolean(form.showExternalLinkAlso),
@@ -80,9 +119,10 @@ export function buildSettingsPayload(form: Record<string, unknown>): Record<stri
       ? form.timezone
       : 'Europe/Paris',
     slotDurationMinutes: safePositiveInt(form.slotDurationMinutes, 60),
-    capacityPerSlot: safePositiveInt(form.capacityPerSlot, 1),
+    capacityPerSlot,
     minPartySize: safePositiveInt(form.minPartySize, 1),
-    maxPartySize: safePositiveInt(form.maxPartySize, 1),
+    // maxPartySize = capacityPerSlot (single source of truth on mobile)
+    maxPartySize: capacityPerSlot,
     minNoticeMinutes: safeNonNegativeInt(form.minNoticeMinutes, 0),
     bookingWindowDays: safePositiveInt(form.bookingWindowDays, 30),
     cancellationEnabled: Boolean(form.cancellationEnabled),
@@ -94,10 +134,8 @@ export function buildSettingsPayload(form: Record<string, unknown>): Record<stri
     )
       ? form.resourceSelectionMode
       : 'HIDDEN',
-    // Preserve weeklySchedule and customFieldDefs if present
-    weeklySchedule: form.weeklySchedule && typeof form.weeklySchedule === 'object'
-      ? form.weeklySchedule
-      : {},
+    // Convert Prisma array format to Record<string, {start, end}[]>
+    weeklySchedule: normalizeWeeklySchedule(form.weeklySchedule),
     customFieldDefs: Array.isArray(form.customFieldDefs)
       ? form.customFieldDefs.map((f: any) => ({
           ...(f.id ? { id: f.id } : {}),

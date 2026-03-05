@@ -1,5 +1,7 @@
 import { apiClient } from './client';
 import { buildSettingsPayload, buildGenerateSlotsPayload, buildResourcePayload } from '../utils/payload';
+
+const __DEV__ = process.env.NODE_ENV !== 'production';
 import type {
   ReservationSettings,
   ReservationResource,
@@ -136,6 +138,9 @@ export const reservationsApi = {
   /** Save reservation settings (owner) - sanitizes payload to match backend Zod schema */
   saveOwnerSettings(establishmentId: string, data: unknown): Promise<{ success: boolean }> {
     const cleanPayload = buildSettingsPayload(data as Record<string, unknown>);
+    if (__DEV__) {
+      console.log('[Reservations] saveOwnerSettings payload:', JSON.stringify(cleanPayload, null, 2));
+    }
     return apiClient.put<{ success: boolean }>(
       `/api/mobile/owner/establishments/${establishmentId}/reservations/settings`,
       cleanPayload
@@ -229,6 +234,9 @@ export const reservationsApi = {
   /** Generate slots from weekly schedule - uses dateFrom/dateTo as required by backend */
   generateSlots(establishmentId: string, days?: number): Promise<GenerateSlotsResponse> {
     const payload = buildGenerateSlotsPayload(days ?? 30);
+    if (__DEV__) {
+      console.log('[Reservations] generateSlots payload:', JSON.stringify(payload));
+    }
     return apiClient.post<GenerateSlotsResponse>(
       `/api/mobile/owner/establishments/${establishmentId}/slots`,
       payload

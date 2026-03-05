@@ -101,10 +101,12 @@ export const apiClient = {
       if (!response.ok) {
         let serverMessage = '';
         let details: Record<string, string[]> | undefined;
+        let zodIssues: Array<{ path: string[]; message: string }> | undefined;
         try {
           const errorData = await response.json();
           serverMessage = errorData.message || errorData.error || '';
           details = errorData.details;
+          zodIssues = errorData.issues;
         } catch {
           // Response not JSON
         }
@@ -112,6 +114,18 @@ export const apiClient = {
         // Dev logging: error details
         if (__DEV__) {
           console.warn(`[API ERROR] ${response.status} ${method} ${endpoint}`, serverMessage);
+          if (zodIssues) {
+            console.warn('[API ERROR] Zod issues:', JSON.stringify(zodIssues, null, 2));
+          }
+        }
+
+        // Build a human-readable message from Zod issues if available
+        if (zodIssues && Array.isArray(zodIssues) && zodIssues.length > 0) {
+          const firstIssue = zodIssues[0];
+          const path = Array.isArray(firstIssue.path) ? firstIssue.path.join('.') : '';
+          serverMessage = path
+            ? `${serverMessage}\n(${path}: ${firstIssue.message})`
+            : serverMessage || firstIssue.message;
         }
 
         const error: ApiError = {
