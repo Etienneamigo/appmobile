@@ -120,30 +120,32 @@ export const AccountScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Debug Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Debug</Text>
-        <View style={styles.card}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>API URL</Text>
-            <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{config.BASE_URL}</Text>
+      {/* Debug Section - only visible in development */}
+      {__DEV__ && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Debug</Text>
+          <View style={styles.card}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>API URL</Text>
+              <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{config.BASE_URL}</Text>
+            </View>
+            <View style={styles.separator} />
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>User ID</Text>
+              <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{user.id}</Text>
+            </View>
+            {user.establishmentId && (
+              <>
+                <View style={styles.separator} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Establishment</Text>
+                  <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{user.establishmentId}</Text>
+                </View>
+              </>
+            )}
           </View>
-          <View style={styles.separator} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>User ID</Text>
-            <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{user.id}</Text>
-          </View>
-          {user.establishmentId && (
-            <>
-              <View style={styles.separator} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Establishment</Text>
-                <Text style={[styles.infoValue, { fontSize: 11 }]} selectable>{user.establishmentId}</Text>
-              </View>
-            </>
-          )}
         </View>
-      </View>
+      )}
 
       {/* Logout Button */}
       <View style={styles.section}>

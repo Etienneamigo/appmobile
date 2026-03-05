@@ -304,7 +304,7 @@ export const FeedScreen: React.FC = () => {
       setSeed(data.seed);
       setHasMore(data.hasMore);
     } catch (err) {
-      console.warn('[Feed] fetchVideos error:', err);
+      if (__DEV__) console.warn('[Feed] fetchVideos error:', err);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);

@@ -49,8 +49,10 @@ export const RegisterScreen: React.FC<Props> = ({ onSwitchToLogin }) => {
 
     if (!password) {
       newErrors.password = 'Mot de passe requis';
-    } else if (password.length < 6) {
-      newErrors.password = 'Minimum 6 caracteres';
+    } else if (password.length < 8) {
+      newErrors.password = 'Minimum 8 caracteres';
+    } else if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      newErrors.password = 'Doit contenir au moins une lettre et un chiffre';
     }
 
     if (!confirmPassword) {
@@ -148,7 +150,7 @@ export const RegisterScreen: React.FC<Props> = ({ onSwitchToLogin }) => {
                   setPassword(text);
                   if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                 }}
-                placeholder="Minimum 6 caracteres"
+                placeholder="Minimum 8 caracteres (lettre + chiffre)"
                 placeholderTextColor={colors.text.disabled}
                 secureTextEntry
                 editable={!isLoading}
