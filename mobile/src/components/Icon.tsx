@@ -35,7 +35,9 @@ export type IconName =
   | 'refresh'
   | 'sliders'
   | 'grid'
-  | 'list';
+  | 'list'
+  | 'volume-on'
+  | 'volume-off';
 
 /**
  * Minimal iOS-style monochrome icon component.
@@ -248,6 +250,22 @@ export const Icon: React.FC<IconProps> = ({
           <Line x1="3" y1="6" x2="3.01" y2="6" {...sp} strokeWidth={strokeWidth + 1} />
           <Line x1="3" y1="12" x2="3.01" y2="12" {...sp} strokeWidth={strokeWidth + 1} />
           <Line x1="3" y1="18" x2="3.01" y2="18" {...sp} strokeWidth={strokeWidth + 1} />
+        </Svg>
+      );
+    case 'volume-on':
+      return (
+        <Svg {...props}>
+          <Path d="M11 5L6 9H2v6h4l5 4V5z" {...sp} />
+          <Path d="M19.07 4.93a10 10 0 0 1 0 14.14" {...sp} />
+          <Path d="M15.54 8.46a5 5 0 0 1 0 7.07" {...sp} />
+        </Svg>
+      );
+    case 'volume-off':
+      return (
+        <Svg {...props}>
+          <Path d="M11 5L6 9H2v6h4l5 4V5z" {...sp} />
+          <Line x1="23" y1="9" x2="17" y2="15" {...sp} />
+          <Line x1="17" y1="9" x2="23" y2="15" {...sp} />
         </Svg>
       );
     default:

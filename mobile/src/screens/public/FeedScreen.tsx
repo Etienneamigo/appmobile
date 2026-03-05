@@ -12,9 +12,10 @@ import { apiClient } from '../../api/client';
 import { favoritesApi } from '../../api/favorites';
 import { useAuth } from '../../context/AuthContext';
 import { normalizeMediaUrl } from '../../utils/url';
+import { Icon } from '../../components/Icon';
+import { FavoriteIconButton } from '../../components/FavoriteIconButton';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const TAB_BAR_CONTENT_HEIGHT = 64; // matches tabBarStyle.height in AppNavigator
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const DISTANCE_OPTIONS = [
   { value: 5, label: '5 km' },
@@ -65,6 +66,10 @@ const FeedVideoItem: React.FC<{
   onToggleFavorite: (activityId: string) => void;
 }> = React.memo(({ item, isVisible, isMuted, itemHeight, isFavorite, isAuthenticated, onToggleMute, onViewActivity, onToggleFavorite }) => {
   const videoRef = useRef<Video>(null);
+  // Keep a ref in sync with the latest isMuted prop to avoid stale closures
+  const mutedRef = useRef(isMuted);
+  mutedRef.current = isMuted;
+
   const videoUrl = normalizeMediaUrl(item.url);
   const thumbUrl = normalizeMediaUrl(item.thumbnailUrl);
   const isPlayable = videoUrl && (
@@ -74,40 +79,47 @@ const FeedVideoItem: React.FC<{
     videoUrl.includes('customer-')
   );
 
+  // Play/stop based on visibility — always apply current mute state when starting
   useEffect(() => {
     if (!videoRef.current || !isPlayable) return;
     if (isVisible) {
-      videoRef.current.playAsync().catch(() => {});
+      videoRef.current.setStatusAsync({
+        shouldPlay: true,
+        isMuted: mutedRef.current,
+        volume: mutedRef.current ? 0 : 1.0,
+      }).catch(() => {});
     } else {
       videoRef.current.stopAsync().catch(() => {});
     }
   }, [isVisible, isPlayable]);
 
-  // Sync mute state when prop changes (e.g. new visible item picks up current mute)
+  // Sync mute state when prop changes (user toggled globally or scrolled to this item)
   useEffect(() => {
-    if (!videoRef.current || !isPlayable) return;
-    const status: Record<string, any> = { isMuted };
-    if (!isMuted) status.volume = 1.0;
-    videoRef.current.setStatusAsync(status).catch(() => {});
-  }, [isMuted, isPlayable]);
+    if (!videoRef.current || !isPlayable || !isVisible) return;
+    videoRef.current.setStatusAsync({
+      isMuted,
+      volume: isMuted ? 0 : 1.0,
+    }).catch(() => {});
+    if (__DEV__) {
+      console.log(`[Feed] Sync mute: isMuted=${isMuted}, video=${item.id}`);
+    }
+  }, [isMuted]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Imperative toggle: applies mute/unmute in a single atomic setStatusAsync
-  // call at tap time, without waiting for the React re-render cycle.
-  // Also forces shouldPlay: true to avoid race conditions with play/stop.
+  // Imperative toggle: applies mute/unmute atomically at tap time
   const handleLocalToggle = useCallback(() => {
     if (isVisible && videoRef.current && isPlayable) {
-      const newMuted = !isMuted;
-      const status: Record<string, any> = { isMuted: newMuted, shouldPlay: true };
-      if (!newMuted) status.volume = 1.0;
-      videoRef.current.setStatusAsync(status).catch(() => {});
+      const newMuted = !mutedRef.current;
+      videoRef.current.setStatusAsync({
+        isMuted: newMuted,
+        volume: newMuted ? 0 : 1.0,
+        shouldPlay: true,
+      }).catch(() => {});
       if (__DEV__) {
-        console.log(`[Feed] Toggle sound: ${isMuted ? 'OFF->ON' : 'ON->OFF'}, videoRef: ${!!videoRef.current}`);
+        console.log(`[Feed] Toggle sound: ${mutedRef.current ? 'OFF->ON' : 'ON->OFF'}, video=${item.id}`);
       }
-    } else if (__DEV__) {
-      console.log(`[Feed] Toggle skipped: visible=${isVisible}, ref=${!!videoRef.current}, playable=${isPlayable}`);
     }
     onToggleMute();
-  }, [isMuted, isVisible, isPlayable, onToggleMute]);
+  }, [isVisible, isPlayable, onToggleMute, item.id]);
 
   return (
     <View style={[styles.videoItem, { height: itemHeight }]}>
@@ -142,21 +154,20 @@ const FeedVideoItem: React.FC<{
         activeOpacity={1}
       />
 
-      {/* Mute/Unmute button - top right */}
+      {/* Mute/Unmute button - top right (monochrome icon) */}
       <TouchableOpacity style={styles.muteBtn} onPress={handleLocalToggle} activeOpacity={0.7}>
-        <Text style={styles.muteBtnText}>{isMuted ? 'Son OFF' : 'Son ON'}</Text>
+        <Icon name={isMuted ? 'volume-off' : 'volume-on'} size={18} color="#FFFFFF" strokeWidth={1.8} />
       </TouchableOpacity>
 
       {/* Right side action buttons (heart) */}
       {isAuthenticated && (
         <View style={styles.rightActions}>
-          <TouchableOpacity
-            style={styles.heartBtn}
-            onPress={() => onToggleFavorite(item.activity.id)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.heartIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
-          </TouchableOpacity>
+          <FavoriteIconButton
+            isFavorited={isFavorite}
+            onToggle={() => onToggleFavorite(item.activity.id)}
+            size={24}
+            variant="overlay"
+          />
         </View>
       )}
 
@@ -211,16 +222,21 @@ export const FeedScreen: React.FC = () => {
   // Track favorited activity IDs for heart state
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
-
-
   // Calculate exact item height: full window minus the tab bar (content + bottom safe area)
   // The header and filter bar are absolutely positioned (overlaid on top)
   // so the FlatList fills the full container
   const ITEM_HEIGHT = viewportHeight || Dimensions.get("window").height;
 
-
-  // Audio mode is configured at the app root level (App.tsx).
-  // No per-screen setup needed.
+  // Ensure audio mode is properly set for iOS silent switch
+  // Run once on mount (supplements the app-level init in App.tsx)
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    }).catch(() => {});
+  }, []);
 
   const fetchVideos = useCallback(async (reset = false) => {
     if (reset) {
@@ -289,9 +305,14 @@ export const FeedScreen: React.FC = () => {
   const handleToggleMute = useCallback(() => {
     setIsMuted(prev => {
       const newMuted = !prev;
+      if (__DEV__) {
+        console.log(`[Feed] Global mute toggle: ${prev} -> ${newMuted}`);
+      }
+      // Re-init audio mode when unmuting to handle iOS silent switch
       if (!newMuted) {
         Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
           staysActiveInBackground: false,
           shouldDuckAndroid: true,
         }).catch(() => {});
@@ -503,14 +524,11 @@ const styles = StyleSheet.create({
   videoPlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#1A1A1A' },
   videoPlaceholderText: { fontSize: 18, color: '#4B5563', fontWeight: '600' },
 
-  // Mute button
-  muteBtn: { position: 'absolute', right: 16, top: 80, zIndex: 10, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)' },
-  muteBtnText: { fontSize: 13, color: '#FFFFFF', fontWeight: '600' },
+  // Mute button (icon-based, monochrome)
+  muteBtn: { position: 'absolute', right: 16, top: 80, zIndex: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
 
   // Right side action buttons (heart, etc.)
   rightActions: { position: 'absolute', right: 12, bottom: 180, zIndex: 10, alignItems: 'center', gap: 16 },
-  heartBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  heartIcon: { fontSize: 24 },
 
   // Video info
   videoInfo: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 24 },

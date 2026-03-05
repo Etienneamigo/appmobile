@@ -18,6 +18,7 @@ import {
   getActivityEmoji,
 } from '../theme';
 import { normalizeMediaUrl } from '../utils/url';
+import { FavoriteIconButton } from './FavoriteIconButton';
 
 const { width } = Dimensions.get('window');
 
@@ -37,7 +38,6 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   variant = 'horizontal',
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const heartAnim = useRef(new Animated.Value(1)).current;
 
   const imageUri = normalizeMediaUrl(activity.imageUrl);
 
@@ -57,28 +57,6 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       speed: 50,
       bounciness: 4,
     }).start();
-  };
-
-  const handleFavoritePress = () => {
-    if (!onFavoriteToggle) return;
-
-    // Heart bounce animation
-    Animated.sequence([
-      Animated.spring(heartAnim, {
-        toValue: 1.3,
-        useNativeDriver: true,
-        speed: 50,
-        bounciness: 12,
-      }),
-      Animated.spring(heartAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        speed: 50,
-        bounciness: 8,
-      }),
-    ]).start();
-
-    onFavoriteToggle();
   };
 
   const emoji = getActivityEmoji(activity.type);
@@ -115,20 +93,14 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
             {/* Favorite button */}
             {showFavorite && onFavoriteToggle && (
-              <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={handleFavoritePress}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Animated.Text
-                  style={[
-                    styles.favoriteIcon,
-                    { transform: [{ scale: heartAnim }] },
-                  ]}
-                >
-                  {activity.isFavorite ? '❤️' : '🤍'}
-                </Animated.Text>
-              </TouchableOpacity>
+              <View style={styles.favoriteButton}>
+                <FavoriteIconButton
+                  isFavorited={activity.isFavorite}
+                  onToggle={onFavoriteToggle}
+                  size={18}
+                  variant="inline"
+                />
+              </View>
             )}
           </View>
 
@@ -234,20 +206,14 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
         {/* Favorite button */}
         {showFavorite && onFavoriteToggle && (
-          <TouchableOpacity
-            style={styles.favoriteButtonHorizontal}
-            onPress={handleFavoritePress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Animated.Text
-              style={[
-                styles.favoriteIcon,
-                { transform: [{ scale: heartAnim }] },
-              ]}
-            >
-              {activity.isFavorite ? '❤️' : '🤍'}
-            </Animated.Text>
-          </TouchableOpacity>
+          <View style={styles.favoriteButtonHorizontal}>
+            <FavoriteIconButton
+              isFavorited={activity.isFavorite}
+              onToggle={onFavoriteToggle}
+              size={18}
+              variant="inline"
+            />
+          </View>
         )}
       </Animated.View>
     </TouchableOpacity>
@@ -363,16 +329,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background.elevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.md,
-  },
-  favoriteIcon: {
-    fontSize: 18,
   },
 
   // Vertical card styles
@@ -420,13 +376,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.sm,
   },
   verticalContent: {
     padding: spacing.lg,

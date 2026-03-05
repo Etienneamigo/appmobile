@@ -13,6 +13,8 @@ import { ActivityDetail, ACTIVITY_TYPE_LABELS, ActivityType, ReservationSettings
 import { useAuth } from '../../context/AuthContext';
 import { getActivityEmoji } from '../../theme';
 import { normalizeMediaUrl } from '../../utils/url';
+import { FavoriteIconButton } from '../../components/FavoriteIconButton';
+import { Icon } from '../../components/Icon';
 import { BookingModal } from '../../components/BookingModal';
 
 const { width } = Dimensions.get('window');
@@ -201,9 +203,14 @@ export const ActivityDetailScreen: React.FC = () => {
           <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>Coup de coeur</Text></View>
         )}
         {isAuthenticated && (
-          <TouchableOpacity style={styles.favButton} onPress={handleFavoriteToggle}>
-            <Text style={{ fontSize: 22 }}>{activity.isFavorite ? '❤️' : '🤍'}</Text>
-          </TouchableOpacity>
+          <View style={styles.favButton}>
+            <FavoriteIconButton
+              isFavorited={activity.isFavorite}
+              onToggle={handleFavoriteToggle}
+              size={22}
+              variant="overlay"
+            />
+          </View>
         )}
       </View>
 
@@ -230,8 +237,9 @@ export const ActivityDetailScreen: React.FC = () => {
           <Text style={styles.ctaBtnText}>🧭 Itinéraire</Text>
         </TouchableOpacity>
         {isAuthenticated && (
-          <TouchableOpacity style={styles.ctaBtn} onPress={handleFavoriteToggle}>
-            <Text style={styles.ctaBtnText}>{activity.isFavorite ? '❤️ Favori' : '🤍 Favoris'}</Text>
+          <TouchableOpacity style={[styles.ctaBtn, { flexDirection: 'row', alignItems: 'center', gap: 6 }]} onPress={handleFavoriteToggle}>
+            <Icon name={activity.isFavorite ? 'heart-filled' : 'heart'} size={16} color="#18181B" strokeWidth={1.8} />
+            <Text style={styles.ctaBtnText}>{activity.isFavorite ? 'Favori' : 'Favoris'}</Text>
           </TouchableOpacity>
         )}
         {activity.establishment.website && (
@@ -415,7 +423,7 @@ const styles = StyleSheet.create({
   verifiedBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
   adminBadge: { position: 'absolute', top: 12, left: (12 + 80 + 8), backgroundColor: '#F59E0B', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   adminBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '600' },
-  favButton: { position: 'absolute', top: 12, right: 12, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center' },
+  favButton: { position: 'absolute', top: 12, right: 12 },
 
   ctaRow: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   ctaPrimary: { backgroundColor: '#18181B', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },

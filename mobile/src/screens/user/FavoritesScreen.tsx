@@ -13,6 +13,7 @@ import { favoritesApi } from '../../api/favorites';
 import { FavoriteItem } from '../../types';
 import { ActivityCard } from '../../components/ActivityCard';
 import { colors, typography, spacing } from '../../theme';
+import { Icon } from '../../components/Icon';
 
 type RootStackParamList = {
   ActivityDetail: { activityId: string };
@@ -65,7 +66,9 @@ export const FavoritesScreen: React.FC = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyStateIcon}>❤️</Text>
+      <View style={styles.emptyStateIconWrapper}>
+        <Icon name="heart" size={48} color="#9CA3AF" strokeWidth={1.5} />
+      </View>
       <Text style={styles.emptyStateTitle}>Pas encore de favoris</Text>
       <Text style={styles.emptyStateText}>
         Parcourez les activités et ajoutez-les à vos favoris pour les retrouver
@@ -157,8 +160,7 @@ const styles = StyleSheet.create({
     padding: spacing['3xl'],
     marginTop: spacing['5xl'],
   },
-  emptyStateIcon: {
-    fontSize: 64,
+  emptyStateIconWrapper: {
     marginBottom: spacing.lg,
   },
   emptyStateTitle: {
