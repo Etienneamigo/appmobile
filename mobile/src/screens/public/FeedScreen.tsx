@@ -53,6 +53,21 @@ interface FeedResponse {
   hasMore: boolean;
 }
 
+// Helper: serializes setStatusAsync calls on a Video ref via a promise chain.
+// This prevents race conditions where concurrent async calls resolve out of order.
+function createStatusQueue() {
+  let chain = Promise.resolve();
+  return (video: Video, status: Record<string, unknown>) => {
+    chain = chain.then(() =>
+      video.setStatusAsync(status as Parameters<Video['setStatusAsync']>[0]).then(
+        () => {},
+        () => {},
+      ),
+    );
+    return chain;
+  };
+}
+
 // Individual video item component with its own Video ref
 const FeedVideoItem: React.FC<{
   item: FeedVideo;
@@ -70,6 +85,9 @@ const FeedVideoItem: React.FC<{
   const mutedRef = useRef(isMuted);
   mutedRef.current = isMuted;
 
+  // Serialized status update queue — all setStatusAsync calls go through this
+  const queueStatusUpdate = useRef(createStatusQueue()).current;
+
   const videoUrl = normalizeMediaUrl(item.url);
   const thumbUrl = normalizeMediaUrl(item.thumbnailUrl);
   const isPlayable = videoUrl && (
@@ -79,47 +97,47 @@ const FeedVideoItem: React.FC<{
     videoUrl.includes('customer-')
   );
 
-  // Play/stop based on visibility — always apply current mute state when starting
+  // Play/stop based on visibility — single atomic setStatusAsync with current mute state
   useEffect(() => {
     if (!videoRef.current || !isPlayable) return;
     if (isVisible) {
-      videoRef.current.setStatusAsync({
+      if (__DEV__) {
+        console.log(`[Feed] Visibility ON: isMuted=${mutedRef.current}, video=${item.id}`);
+      }
+      queueStatusUpdate(videoRef.current, {
         shouldPlay: true,
         isMuted: mutedRef.current,
         volume: mutedRef.current ? 0 : 1.0,
-      }).catch(() => {});
+      });
     } else {
-      videoRef.current.stopAsync().catch(() => {});
-    }
-  }, [isVisible, isPlayable]);
-
-  // Sync mute state when prop changes (user toggled globally or scrolled to this item)
-  useEffect(() => {
-    if (!videoRef.current || !isPlayable || !isVisible) return;
-    videoRef.current.setStatusAsync({
-      isMuted,
-      volume: isMuted ? 0 : 1.0,
-    }).catch(() => {});
-    if (__DEV__) {
-      console.log(`[Feed] Sync mute: isMuted=${isMuted}, video=${item.id}`);
-    }
-  }, [isMuted]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Imperative toggle: applies mute/unmute atomically at tap time
-  const handleLocalToggle = useCallback(() => {
-    if (isVisible && videoRef.current && isPlayable) {
-      const newMuted = !mutedRef.current;
-      videoRef.current.setStatusAsync({
-        isMuted: newMuted,
-        volume: newMuted ? 0 : 1.0,
-        shouldPlay: true,
-      }).catch(() => {});
       if (__DEV__) {
-        console.log(`[Feed] Toggle sound: ${mutedRef.current ? 'OFF->ON' : 'ON->OFF'}, video=${item.id}`);
+        console.log(`[Feed] Visibility OFF: video=${item.id}`);
       }
+      queueStatusUpdate(videoRef.current, {
+        shouldPlay: false,
+      });
     }
+  }, [isVisible, isPlayable, queueStatusUpdate, item.id]);
+
+  // No separate "mute sync" effect — the toggle handler applies the mute state
+  // atomically through the queue, eliminating the race condition.
+
+  // Imperative toggle: applies mute/unmute atomically at tap time via the queue
+  const handleLocalToggle = useCallback(() => {
+    const nextMuted = !mutedRef.current;
+    if (__DEV__) {
+      console.log(`[Feed] Toggle: ${mutedRef.current ? 'MUTED->UNMUTED' : 'UNMUTED->MUTED'}, isVisible=${isVisible}, video=${item.id}`);
+    }
+    // Update parent state first so mutedRef.current is fresh for any subsequent queue calls
     onToggleMute();
-  }, [isVisible, isPlayable, onToggleMute, item.id]);
+    if (isVisible && videoRef.current && isPlayable) {
+      queueStatusUpdate(videoRef.current, {
+        shouldPlay: true,
+        isMuted: nextMuted,
+        volume: nextMuted ? 0 : 1.0,
+      });
+    }
+  }, [isVisible, isPlayable, onToggleMute, queueStatusUpdate, item.id]);
 
   return (
     <View style={[styles.videoItem, { height: itemHeight }]}>
@@ -131,9 +149,9 @@ const FeedVideoItem: React.FC<{
             source={{ uri: videoUrl! }}
             style={StyleSheet.absoluteFill}
             resizeMode={ResizeMode.COVER}
-            shouldPlay={isVisible}
+            shouldPlay={false}
             isLooping
-            isMuted={isMuted}
+            isMuted
             posterSource={thumbUrl ? { uri: thumbUrl } : undefined}
             usePoster={!!thumbUrl}
             posterStyle={{ resizeMode: 'cover', width: '100%', height: '100%' } as any}
