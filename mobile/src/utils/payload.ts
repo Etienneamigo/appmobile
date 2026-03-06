@@ -58,7 +58,7 @@ export function removeEmpty<T extends Record<string, unknown>>(obj: T): Partial<
  * Prisma GET returns: [{dayOfWeek: 0, startTime: "09:00", endTime: "17:00"}, ...]
  * Backend PUT expects: {"0": [{start: "09:00", end: "17:00"}], ...}
  */
-function normalizeWeeklySchedule(raw: unknown): Record<string, { start: string; end: string }[]> {
+export function normalizeWeeklySchedule(raw: unknown): Record<string, { start: string; end: string }[]> {
   if (!raw || typeof raw !== 'object') return {};
 
   // Already in record format (keys are day numbers as strings)
@@ -134,8 +134,8 @@ export function buildSettingsPayload(form: Record<string, unknown>): Record<stri
     )
       ? form.resourceSelectionMode
       : 'HIDDEN',
-    // Convert Prisma array format to Record<string, {start, end}[]>
-    weeklySchedule: normalizeWeeklySchedule(form.weeklySchedule),
+    // Convert Prisma array format to Record<string, {start, end}[]> and remove invalid ranges
+    weeklySchedule: sanitizeWeeklySchedule(normalizeWeeklySchedule(form.weeklySchedule)),
     customFieldDefs: Array.isArray(form.customFieldDefs)
       ? form.customFieldDefs.map((f: any) => ({
           ...(f.id ? { id: f.id } : {}),
@@ -183,6 +183,42 @@ export function filterOrphanSlots<T extends { resourceId: string | null }>(
 ): T[] {
   if (!hasResources) return slots;
   return slots.filter(slot => slot.resourceId !== null);
+}
+
+/**
+ * Check if a time range is valid (start !== end).
+ * A range where start === end (e.g. 00:00–00:00) is considered invalid/closed.
+ */
+export function isValidTimeRange(start: string, end: string): boolean {
+  return start !== end;
+}
+
+/**
+ * Filter out invalid ranges (start === end) from a weekly schedule record.
+ * Returns only days with at least one valid range; days with no valid ranges are omitted.
+ */
+export function sanitizeWeeklySchedule(
+  schedule: Record<string, { start: string; end: string }[]>
+): Record<string, { start: string; end: string }[]> {
+  const result: Record<string, { start: string; end: string }[]> = {};
+  for (const [day, ranges] of Object.entries(schedule)) {
+    const valid = ranges.filter(r => isValidTimeRange(r.start, r.end));
+    if (valid.length > 0) {
+      result[day] = valid;
+    }
+  }
+  return result;
+}
+
+/**
+ * Check whether a weekly schedule has at least one valid open day.
+ */
+export function hasAnyOpenDay(
+  schedule: Record<string, { start: string; end: string }[]>
+): boolean {
+  return Object.values(schedule).some(
+    ranges => ranges.some(r => isValidTimeRange(r.start, r.end))
+  );
 }
 
 /**

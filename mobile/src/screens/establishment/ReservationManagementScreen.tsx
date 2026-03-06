@@ -19,7 +19,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { reservationsApi } from '../../api/reservations';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
-import { filterOrphanSlots } from '../../utils/payload';
+import { filterOrphanSlots, normalizeWeeklySchedule, hasAnyOpenDay, sanitizeWeeklySchedule } from '../../utils/payload';
+import { WeeklyScheduleEditor } from '../../components/WeeklyScheduleEditor';
+import type { WeeklyScheduleRecord } from '../../components/WeeklyScheduleEditor';
 
 const __DEV__ = process.env.NODE_ENV !== 'production';
 
@@ -110,6 +112,7 @@ export const ReservationManagementScreen: React.FC = () => {
   const [settings, setSettings] = useState<ReservationSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState<Partial<ReservationSettings>>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState<WeeklyScheduleRecord>({});
 
   // Resources state
   const [resources, setResources] = useState<ReservationResource[]>([]);
@@ -149,6 +152,7 @@ export const ReservationManagementScreen: React.FC = () => {
       setSettings(res.settings);
       if (res.settings) {
         setSettingsForm(res.settings);
+        setScheduleForm(normalizeWeeklySchedule(res.settings.weeklySchedule));
       }
       setError(null);
     } catch (err: any) {
@@ -281,9 +285,32 @@ export const ReservationManagementScreen: React.FC = () => {
 
   const handleSaveSettings = async () => {
     if (!establishmentId) return;
+
+    // Sanitize schedule before saving (remove start===end ranges)
+    const cleanSchedule = sanitizeWeeklySchedule(scheduleForm);
+
+    // Warn if no open days
+    if (settingsForm.enabled && !hasAnyOpenDay(cleanSchedule)) {
+      Alert.alert(
+        'Horaires manquants',
+        'Aucun horaire d\'ouverture valide n\'est défini. La génération de créneaux ne sera pas possible. Voulez-vous continuer ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Enregistrer quand même', onPress: () => doSaveSettings(cleanSchedule) },
+        ]
+      );
+      return;
+    }
+
+    await doSaveSettings(cleanSchedule);
+  };
+
+  const doSaveSettings = async (cleanSchedule: WeeklyScheduleRecord) => {
+    if (!establishmentId) return;
     setIsSavingSettings(true);
     try {
-      await reservationsApi.saveOwnerSettings(establishmentId, settingsForm);
+      const payload = { ...settingsForm, weeklySchedule: cleanSchedule };
+      await reservationsApi.saveOwnerSettings(establishmentId, payload);
       await fetchSettings();
       Alert.alert('Succès', 'Les paramètres ont été enregistrés.');
     } catch (err: any) {
@@ -374,6 +401,17 @@ export const ReservationManagementScreen: React.FC = () => {
 
   const handleGenerateSlots = async () => {
     if (!establishmentId) return;
+
+    // Check if weekly schedule has open days
+    const cleanSchedule = sanitizeWeeklySchedule(scheduleForm);
+    if (!hasAnyOpenDay(cleanSchedule)) {
+      Alert.alert(
+        'Horaires manquants',
+        'Aucun horaire d\'ouverture n\'est défini. Veuillez configurer vos horaires dans l\'onglet Paramètres avant de générer des créneaux.'
+      );
+      return;
+    }
+
     Alert.alert(
       'Générer les créneaux',
       'Générer les créneaux pour les 30 prochains jours à partir de votre planning hebdomadaire ?',
@@ -701,6 +739,11 @@ export const ReservationManagementScreen: React.FC = () => {
           />
         </View>
       </View>
+
+      <WeeklyScheduleEditor
+        value={scheduleForm}
+        onChange={setScheduleForm}
+      />
 
       <TouchableOpacity
         style={[styles.primaryButton, isSavingSettings && styles.buttonDisabled]}

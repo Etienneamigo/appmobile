@@ -8,6 +8,10 @@ import {
   buildGenerateSlotsPayload,
   filterOrphanSlots,
   buildResourcePayload,
+  normalizeWeeklySchedule,
+  isValidTimeRange,
+  sanitizeWeeklySchedule,
+  hasAnyOpenDay,
 } from '../utils/payload';
 
 // ─── safeParseInt ─────────────────────────────────────────────────────────────
@@ -323,5 +327,138 @@ describe('buildResourcePayload', () => {
 
     expect(payload.minPartySizeOverride).toBeNull();
     expect(payload.slotDurationMinutesOverride).toBeNull();
+  });
+});
+
+// ─── isValidTimeRange ────────────────────────────────────────────────────────
+
+describe('isValidTimeRange', () => {
+  it('returns true when start !== end', () => {
+    expect(isValidTimeRange('09:00', '18:00')).toBe(true);
+    expect(isValidTimeRange('00:00', '23:59')).toBe(true);
+  });
+
+  it('returns false when start === end (e.g. 00:00–00:00)', () => {
+    expect(isValidTimeRange('00:00', '00:00')).toBe(false);
+    expect(isValidTimeRange('12:00', '12:00')).toBe(false);
+  });
+});
+
+// ─── sanitizeWeeklySchedule ──────────────────────────────────────────────────
+
+describe('sanitizeWeeklySchedule', () => {
+  it('removes ranges where start === end', () => {
+    const schedule = {
+      '1': [{ start: '09:00', end: '18:00' }, { start: '00:00', end: '00:00' }],
+      '2': [{ start: '00:00', end: '00:00' }],
+      '3': [{ start: '10:00', end: '17:00' }],
+    };
+    const result = sanitizeWeeklySchedule(schedule);
+
+    expect(result['1']).toEqual([{ start: '09:00', end: '18:00' }]);
+    expect(result['2']).toBeUndefined(); // day removed entirely
+    expect(result['3']).toEqual([{ start: '10:00', end: '17:00' }]);
+  });
+
+  it('returns empty object for all-closed schedule', () => {
+    const schedule = {
+      '0': [{ start: '00:00', end: '00:00' }],
+      '1': [{ start: '12:00', end: '12:00' }],
+    };
+    expect(sanitizeWeeklySchedule(schedule)).toEqual({});
+  });
+
+  it('keeps valid ranges untouched', () => {
+    const schedule = {
+      '5': [{ start: '08:00', end: '12:00' }, { start: '14:00', end: '22:00' }],
+    };
+    expect(sanitizeWeeklySchedule(schedule)).toEqual(schedule);
+  });
+});
+
+// ─── hasAnyOpenDay ───────────────────────────────────────────────────────────
+
+describe('hasAnyOpenDay', () => {
+  it('returns true when at least one valid range exists', () => {
+    expect(hasAnyOpenDay({ '1': [{ start: '09:00', end: '18:00' }] })).toBe(true);
+  });
+
+  it('returns false for empty schedule', () => {
+    expect(hasAnyOpenDay({})).toBe(false);
+  });
+
+  it('returns false when all ranges are invalid (start === end)', () => {
+    expect(hasAnyOpenDay({
+      '0': [{ start: '00:00', end: '00:00' }],
+      '3': [{ start: '12:00', end: '12:00' }],
+    })).toBe(false);
+  });
+});
+
+// ─── normalizeWeeklySchedule ─────────────────────────────────────────────────
+
+describe('normalizeWeeklySchedule', () => {
+  it('converts Prisma array format to record format', () => {
+    const prismaFormat = [
+      { dayOfWeek: 1, startTime: '09:00', endTime: '12:00' },
+      { dayOfWeek: 1, startTime: '14:00', endTime: '18:00' },
+      { dayOfWeek: 5, startTime: '10:00', endTime: '22:00' },
+    ];
+    const result = normalizeWeeklySchedule(prismaFormat);
+
+    expect(result['1']).toEqual([
+      { start: '09:00', end: '12:00' },
+      { start: '14:00', end: '18:00' },
+    ]);
+    expect(result['5']).toEqual([{ start: '10:00', end: '22:00' }]);
+  });
+
+  it('passes through already-record format', () => {
+    const record = {
+      '2': [{ start: '08:00', end: '16:00' }],
+    };
+    const result = normalizeWeeklySchedule(record);
+    expect(result['2']).toEqual([{ start: '08:00', end: '16:00' }]);
+  });
+
+  it('returns empty object for null/undefined', () => {
+    expect(normalizeWeeklySchedule(null)).toEqual({});
+    expect(normalizeWeeklySchedule(undefined)).toEqual({});
+  });
+
+  it('returns empty object for empty array', () => {
+    expect(normalizeWeeklySchedule([])).toEqual({});
+  });
+});
+
+// ─── buildSettingsPayload sanitizes schedule ─────────────────────────────────
+
+describe('buildSettingsPayload schedule sanitization', () => {
+  it('removes 00:00-00:00 ranges from weeklySchedule', () => {
+    const form = {
+      enabled: true,
+      weeklySchedule: {
+        '1': [{ start: '09:00', end: '18:00' }],
+        '2': [{ start: '00:00', end: '00:00' }],
+      },
+    };
+    const payload = buildSettingsPayload(form as any);
+    const ws = payload.weeklySchedule as Record<string, Array<{ start: string; end: string }>>;
+
+    expect(ws['1']).toEqual([{ start: '09:00', end: '18:00' }]);
+    expect(ws['2']).toBeUndefined();
+  });
+
+  it('treats a day with only start===end as closed (removed)', () => {
+    const form = {
+      enabled: true,
+      weeklySchedule: [
+        { dayOfWeek: 0, startTime: '10:00', endTime: '10:00' },
+      ],
+    };
+    const payload = buildSettingsPayload(form as any);
+    const ws = payload.weeklySchedule as Record<string, Array<{ start: string; end: string }>>;
+
+    expect(ws['0']).toBeUndefined();
   });
 });
