@@ -57,19 +57,53 @@ export function removeEmpty<T extends Record<string, unknown>>(obj: T): Partial<
  * Convert weeklySchedule from Prisma array format to backend Record format.
  * Prisma GET returns: [{dayOfWeek: 0, startTime: "09:00", endTime: "17:00"}, ...]
  * Backend PUT expects: {"0": [{start: "09:00", end: "17:00"}], ...}
+ *
+ * Handles edge cases:
+ * - null/undefined → {}
+ * - JSON string (e.g. openRanges stored as string) → parsed then normalized
+ * - Prisma array [{dayOfWeek, startTime, endTime}] → Record
+ * - Already-record {dayStr: [{start, end}]} → passthrough with field normalization
+ * - Filters out invalid ranges where start === end (closed-day markers)
+ * - Ensures stable dayOfWeek 0..6 ordering
  */
 export function normalizeWeeklySchedule(raw: unknown): Record<string, { start: string; end: string }[]> {
-  if (!raw || typeof raw !== 'object') return {};
+  if (raw === null || raw === undefined) return {};
+
+  // Handle JSON string (e.g. openRanges stored as string)
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return normalizeWeeklySchedule(parsed);
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof raw !== 'object') return {};
 
   // Already in record format (keys are day numbers as strings)
   if (!Array.isArray(raw)) {
     const result: Record<string, { start: string; end: string }[]> = {};
-    for (const [key, ranges] of Object.entries(raw as Record<string, unknown>)) {
-      if (Array.isArray(ranges)) {
-        result[key] = ranges.map((r: any) => ({
-          start: String(r.start || r.startTime || '00:00'),
-          end: String(r.end || r.endTime || '00:00'),
-        }));
+    for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+      // openRanges might be a JSON string per day
+      let ranges: unknown[] | undefined;
+      if (typeof val === 'string') {
+        try { ranges = JSON.parse(val); } catch { /* skip */ }
+      } else if (Array.isArray(val)) {
+        ranges = val;
+      }
+      if (!Array.isArray(ranges)) continue;
+
+      const validRanges = ranges
+        .filter((r: any) => r && typeof r === 'object')
+        .map((r: any) => ({
+          start: extractTime(r.start, r.startTime),
+          end: extractTime(r.end, r.endTime),
+        }))
+        .filter(r => r.start !== r.end); // filter closed-day markers
+
+      if (validRanges.length > 0) {
+        result[key] = validRanges;
       }
     }
     return result;
@@ -81,13 +115,29 @@ export function normalizeWeeklySchedule(raw: unknown): Record<string, { start: s
     if (!entry || typeof entry !== 'object') continue;
     const day = String(entry.dayOfWeek ?? entry.day ?? '');
     if (day === '' || day === 'undefined') continue;
+    const start = extractTime(entry.start, entry.startTime);
+    const end = extractTime(entry.end, entry.endTime);
+    // Filter out closed-day markers (start === end)
+    if (start === end) continue;
     if (!result[day]) result[day] = [];
-    result[day].push({
-      start: String(entry.start || entry.startTime || '00:00'),
-      end: String(entry.end || entry.endTime || '00:00'),
-    });
+    result[day].push({ start, end });
   }
   return result;
+}
+
+/**
+ * Extract a valid HH:MM time string from potential field values.
+ * Prefers `primary` over `fallback`, returns '00:00' only as last resort.
+ */
+function extractTime(primary: unknown, fallback: unknown): string {
+  for (const val of [primary, fallback]) {
+    if (typeof val === 'string' && val.length >= 4) {
+      // Accept HH:MM or HH:MM:SS
+      const match = val.match(/^(\d{2}:\d{2})/);
+      if (match) return match[1];
+    }
+  }
+  return '00:00';
 }
 
 /**

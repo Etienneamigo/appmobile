@@ -151,8 +151,12 @@ export const ReservationManagementScreen: React.FC = () => {
       const res = await reservationsApi.getOwnerSettings(establishmentId);
       setSettings(res.settings);
       if (res.settings) {
+        const apiSchedule = normalizeWeeklySchedule(res.settings.weeklySchedule);
         setSettingsForm(res.settings);
-        setScheduleForm(normalizeWeeklySchedule(res.settings.weeklySchedule));
+        setScheduleForm(apiSchedule);
+        if (__DEV__) {
+          console.log('[Settings] Hydrated weeklySchedule from API:', JSON.stringify(apiSchedule));
+        }
       }
       setError(null);
     } catch (err: any) {
@@ -311,7 +315,22 @@ export const ReservationManagementScreen: React.FC = () => {
     try {
       const payload = { ...settingsForm, weeklySchedule: cleanSchedule };
       await reservationsApi.saveOwnerSettings(establishmentId, payload);
-      await fetchSettings();
+
+      // Optimistic update: keep the cleanSchedule locally so UI stays consistent
+      // even if the refetch fails or returns settings without weeklySchedule.
+      const savedSchedule = { ...cleanSchedule };
+      setScheduleForm(savedSchedule);
+
+      // Refetch to sync all other settings fields from the server
+      try {
+        await fetchSettings();
+      } catch {
+        // If refetch fails, we still have the locally saved schedule
+        if (__DEV__) {
+          console.warn('[Settings] Post-save refetch failed, keeping optimistic schedule');
+        }
+      }
+
       Alert.alert('Succès', 'Les paramètres ont été enregistrés.');
     } catch (err: any) {
       const msg = err.message || 'Impossible d\'enregistrer les paramètres.';
