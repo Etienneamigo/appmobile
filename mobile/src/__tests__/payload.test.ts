@@ -174,14 +174,13 @@ describe('buildSettingsPayload', () => {
     expect(Number.isFinite(payload.minPartySize as number)).toBe(true);
   });
 
-  it('converts Prisma weeklySchedule array to record format', () => {
+  it('converts Prisma weeklySchedule array (openRanges) to record format', () => {
     const form = {
       enabled: true,
       weeklySchedule: [
-        { dayOfWeek: 0, startTime: '09:00', endTime: '12:00' },
-        { dayOfWeek: 0, startTime: '14:00', endTime: '18:00' },
-        { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
-        { dayOfWeek: 3, startTime: '10:00', endTime: '16:00' },
+        { dayOfWeek: 0, openRanges: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }] },
+        { dayOfWeek: 1, openRanges: [{ start: '09:00', end: '17:00' }] },
+        { dayOfWeek: 3, openRanges: [{ start: '10:00', end: '16:00' }] },
       ],
     };
 
@@ -398,7 +397,23 @@ describe('hasAnyOpenDay', () => {
 // ─── normalizeWeeklySchedule ─────────────────────────────────────────────────
 
 describe('normalizeWeeklySchedule', () => {
-  it('converts Prisma array format to record format', () => {
+  it('converts Prisma openRanges format to record format', () => {
+    // Real Prisma schema: each row has dayOfWeek + openRanges (Json array)
+    const prismaFormat = [
+      { dayOfWeek: 1, openRanges: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '18:00' }] },
+      { dayOfWeek: 5, openRanges: [{ start: '10:00', end: '22:00' }] },
+    ];
+    const result = normalizeWeeklySchedule(prismaFormat);
+
+    expect(result['1']).toEqual([
+      { start: '09:00', end: '12:00' },
+      { start: '14:00', end: '18:00' },
+    ]);
+    expect(result['5']).toEqual([{ start: '10:00', end: '22:00' }]);
+  });
+
+  it('converts legacy Prisma startTime/endTime format to record format', () => {
+    // Legacy format with separate startTime/endTime columns
     const prismaFormat = [
       { dayOfWeek: 1, startTime: '09:00', endTime: '12:00' },
       { dayOfWeek: 1, startTime: '14:00', endTime: '18:00' },
@@ -430,10 +445,10 @@ describe('normalizeWeeklySchedule', () => {
     expect(normalizeWeeklySchedule([])).toEqual({});
   });
 
-  it('handles JSON string input (openRanges as string)', () => {
+  it('handles JSON string input with openRanges format', () => {
     const jsonStr = JSON.stringify([
-      { dayOfWeek: 1, startTime: '10:00', endTime: '19:00' },
-      { dayOfWeek: 3, startTime: '08:00', endTime: '17:00' },
+      { dayOfWeek: 1, openRanges: [{ start: '10:00', end: '19:00' }] },
+      { dayOfWeek: 3, openRanges: [{ start: '08:00', end: '17:00' }] },
     ]);
     const result = normalizeWeeklySchedule(jsonStr);
     expect(result['1']).toEqual([{ start: '10:00', end: '19:00' }]);
@@ -452,11 +467,11 @@ describe('normalizeWeeklySchedule', () => {
     expect(normalizeWeeklySchedule('not-json')).toEqual({});
   });
 
-  it('filters out start===end ranges (closed-day markers) from Prisma array', () => {
+  it('filters out start===end ranges (closed-day markers) from Prisma openRanges', () => {
     const prismaFormat = [
-      { dayOfWeek: 1, startTime: '10:00', endTime: '19:00' },
-      { dayOfWeek: 2, startTime: '00:00', endTime: '00:00' },
-      { dayOfWeek: 3, startTime: '12:00', endTime: '12:00' },
+      { dayOfWeek: 1, openRanges: [{ start: '10:00', end: '19:00' }] },
+      { dayOfWeek: 2, openRanges: [{ start: '00:00', end: '00:00' }] },
+      { dayOfWeek: 3, openRanges: [{ start: '12:00', end: '12:00' }] },
     ];
     const result = normalizeWeeklySchedule(prismaFormat);
     expect(result['1']).toEqual([{ start: '10:00', end: '19:00' }]);
@@ -487,17 +502,25 @@ describe('normalizeWeeklySchedule', () => {
     ]);
   });
 
-  it('handles Prisma entries with id and settingsId fields', () => {
+  it('handles Prisma entries with id, settingsId, and openRanges', () => {
     const prismaFormat = [
-      { id: 'abc', settingsId: 'xyz', dayOfWeek: 1, startTime: '10:00', endTime: '19:00' },
+      { id: 'abc', settingsId: 'xyz', dayOfWeek: 1, openRanges: [{ start: '10:00', end: '19:00' }] },
     ];
     const result = normalizeWeeklySchedule(prismaFormat);
     expect(result['1']).toEqual([{ start: '10:00', end: '19:00' }]);
   });
 
+  it('handles openRanges as JSON string in Prisma entry', () => {
+    const prismaFormat = [
+      { dayOfWeek: 2, openRanges: JSON.stringify([{ start: '08:00', end: '17:00' }]) },
+    ];
+    const result = normalizeWeeklySchedule(prismaFormat);
+    expect(result['2']).toEqual([{ start: '08:00', end: '17:00' }]);
+  });
+
   it('closed day with no valid ranges produces empty result for that day', () => {
     const prismaFormat = [
-      { dayOfWeek: 0, startTime: '00:00', endTime: '00:00' },
+      { dayOfWeek: 0, openRanges: [{ start: '00:00', end: '00:00' }] },
     ];
     const result = normalizeWeeklySchedule(prismaFormat);
     expect(result).toEqual({});
@@ -507,19 +530,19 @@ describe('normalizeWeeklySchedule', () => {
 // ─── normalizeWeeklySchedule integration scenario ────────────────────────────
 
 describe('normalizeWeeklySchedule integration', () => {
-  it('builds correct form values from realistic API response (not 00:00)', () => {
-    // Simulate a realistic API response from GET owner settings
+  it('builds correct form values from realistic API response with openRanges (not 00:00)', () => {
+    // Simulate the REAL API response: WeeklySchedule rows have openRanges Json field
     const apiResponse = {
       settings: {
         id: 'settings-123',
         establishmentId: 'est-456',
         enabled: true,
         weeklySchedule: [
-          { id: 'ws-1', settingsId: 'settings-123', dayOfWeek: 1, startTime: '10:00', endTime: '19:00' },
-          { id: 'ws-2', settingsId: 'settings-123', dayOfWeek: 2, startTime: '10:00', endTime: '19:00' },
-          { id: 'ws-3', settingsId: 'settings-123', dayOfWeek: 3, startTime: '10:00', endTime: '19:00' },
-          { id: 'ws-4', settingsId: 'settings-123', dayOfWeek: 4, startTime: '10:00', endTime: '19:00' },
-          { id: 'ws-5', settingsId: 'settings-123', dayOfWeek: 5, startTime: '10:00', endTime: '19:00' },
+          { id: 'ws-1', settingsId: 'settings-123', dayOfWeek: 1, openRanges: [{ start: '10:00', end: '19:00' }] },
+          { id: 'ws-2', settingsId: 'settings-123', dayOfWeek: 2, openRanges: [{ start: '10:00', end: '19:00' }] },
+          { id: 'ws-3', settingsId: 'settings-123', dayOfWeek: 3, openRanges: [{ start: '10:00', end: '19:00' }] },
+          { id: 'ws-4', settingsId: 'settings-123', dayOfWeek: 4, openRanges: [{ start: '10:00', end: '19:00' }] },
+          { id: 'ws-5', settingsId: 'settings-123', dayOfWeek: 5, openRanges: [{ start: '10:00', end: '19:00' }] },
         ],
       },
     };
@@ -542,6 +565,21 @@ describe('normalizeWeeklySchedule integration', () => {
     expect(schedule['5']).toBeDefined();
     expect(schedule['0']).toBeUndefined(); // Sunday not set
     expect(schedule['6']).toBeUndefined(); // Saturday not set
+  });
+
+  it('also works with legacy startTime/endTime API response', () => {
+    const apiResponse = {
+      settings: {
+        weeklySchedule: [
+          { dayOfWeek: 1, startTime: '10:00', endTime: '19:00' },
+          { dayOfWeek: 2, startTime: '10:00', endTime: '19:00' },
+        ],
+      },
+    };
+
+    const schedule = normalizeWeeklySchedule(apiResponse.settings.weeklySchedule);
+    expect(schedule['1']).toEqual([{ start: '10:00', end: '19:00' }]);
+    expect(schedule['2']).toEqual([{ start: '10:00', end: '19:00' }]);
   });
 });
 

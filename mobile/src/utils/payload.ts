@@ -55,16 +55,21 @@ export function removeEmpty<T extends Record<string, unknown>>(obj: T): Partial<
 
 /**
  * Convert weeklySchedule from Prisma array format to backend Record format.
- * Prisma GET returns: [{dayOfWeek: 0, startTime: "09:00", endTime: "17:00"}, ...]
- * Backend PUT expects: {"0": [{start: "09:00", end: "17:00"}], ...}
  *
- * Handles edge cases:
+ * Real Prisma schema: WeeklySchedule { dayOfWeek: Int, openRanges: Json }
+ * where openRanges = [{start:"HH:mm", end:"HH:mm"}, ...]
+ *
+ * Prisma GET returns: [{dayOfWeek: 1, openRanges: [{start:"09:00",end:"17:00"}]}, ...]
+ * Backend PUT expects: {"1": [{start: "09:00", end: "17:00"}], ...}
+ *
+ * Handles:
  * - null/undefined → {}
- * - JSON string (e.g. openRanges stored as string) → parsed then normalized
- * - Prisma array [{dayOfWeek, startTime, endTime}] → Record
- * - Already-record {dayStr: [{start, end}]} → passthrough with field normalization
- * - Filters out invalid ranges where start === end (closed-day markers)
- * - Ensures stable dayOfWeek 0..6 ordering
+ * - JSON string → parsed then normalized
+ * - Prisma array [{dayOfWeek, openRanges: [{start,end}]}] → Record
+ * - Legacy Prisma array [{dayOfWeek, startTime, endTime}] → Record
+ * - Already-record {dayStr: [{start, end}]} → passthrough with normalization
+ * - openRanges as JSON string per entry → parsed
+ * - Filters out ranges where start === end (closed-day markers)
  */
 export function normalizeWeeklySchedule(raw: unknown): Record<string, { start: string; end: string }[]> {
   if (raw === null || raw === undefined) return {};
@@ -109,15 +114,40 @@ export function normalizeWeeklySchedule(raw: unknown): Record<string, { start: s
     return result;
   }
 
-  // Prisma array format: [{dayOfWeek, startTime, endTime}, ...]
+  // Prisma array format: [{dayOfWeek, openRanges: [{start,end}]}, ...]
+  // Also supports legacy format: [{dayOfWeek, startTime, endTime}, ...]
   const result: Record<string, { start: string; end: string }[]> = {};
   for (const entry of raw) {
     if (!entry || typeof entry !== 'object') continue;
     const day = String(entry.dayOfWeek ?? entry.day ?? '');
     if (day === '' || day === 'undefined') continue;
+
+    // Real Prisma schema: openRanges is a Json field containing [{start, end}]
+    const openRanges = entry.openRanges;
+    if (openRanges != null) {
+      // openRanges can be a JSON array or a JSON string
+      let ranges: unknown[];
+      if (typeof openRanges === 'string') {
+        try { ranges = JSON.parse(openRanges); } catch { continue; }
+      } else if (Array.isArray(openRanges)) {
+        ranges = openRanges;
+      } else {
+        continue;
+      }
+      for (const r of ranges) {
+        if (!r || typeof r !== 'object') continue;
+        const start = extractTime((r as any).start, (r as any).startTime);
+        const end = extractTime((r as any).end, (r as any).endTime);
+        if (start === end) continue;
+        if (!result[day]) result[day] = [];
+        result[day].push({ start, end });
+      }
+      continue;
+    }
+
+    // Legacy fallback: startTime/endTime as direct fields
     const start = extractTime(entry.start, entry.startTime);
     const end = extractTime(entry.end, entry.endTime);
-    // Filter out closed-day markers (start === end)
     if (start === end) continue;
     if (!result[day]) result[day] = [];
     result[day].push({ start, end });

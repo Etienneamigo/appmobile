@@ -3,7 +3,55 @@ import { prisma } from "@/lib/db"
 import { requireMobileAuth } from "@/lib/mobile-auth"
 import { enforceApiRateLimit } from "@/app/api/mobile/_helpers/rl"
 import { UserRole } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
+
+/**
+ * Real Prisma schema for WeeklySchedule:
+ *   model WeeklySchedule {
+ *     id         String   @id @default(cuid())
+ *     settingsId String
+ *     dayOfWeek  Int      // 0=Dimanche … 6=Samedi
+ *     openRanges Json     // [{start:"HH:mm", end:"HH:mm"}]
+ *     settings   ReservationSettings @relation(...)
+ *     @@unique([settingsId, dayOfWeek])
+ *   }
+ */
+
+const timeRangeSchema = z.object({
+  start: z.string().regex(/^\d{2}:\d{2}$/),
+  end: z.string().regex(/^\d{2}:\d{2}$/),
+})
+
+const weeklyScheduleSchema = z.record(z.string(), z.array(timeRangeSchema))
+
+const customFieldDefSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().min(1),
+  type: z.enum(["TEXT", "TEXTAREA", "NUMBER", "SELECT", "PHONE", "EMAIL", "CHECKBOX"]),
+  required: z.boolean().default(false),
+  optionsJson: z.array(z.string()).optional(),
+  order: z.number().int().default(0),
+})
+
+const settingsSchema = z.object({
+  enabled: z.boolean(),
+  showExternalLinkAlso: z.boolean().default(false),
+  timezone: z.string().default("Europe/Paris"),
+  slotDurationMinutes: z.number().int().min(15).max(480),
+  capacityPerSlot: z.number().int().min(1).max(10000),
+  minPartySize: z.number().int().min(1),
+  maxPartySize: z.number().int().min(1),
+  minNoticeMinutes: z.number().int().min(0),
+  bookingWindowDays: z.number().int().min(1).max(365),
+  cancellationEnabled: z.boolean().default(true),
+  cancellationDeadlineHours: z.number().int().min(0),
+  confirmationMessage: z.string().optional(),
+  cancellationPolicyText: z.string().optional(),
+  resourceSelectionMode: z.enum(["HIDDEN", "PICK_RESOURCE_FIRST", "PICK_TIME_FIRST"]).default("HIDDEN"),
+  weeklySchedule: weeklyScheduleSchema.default({}),
+  customFieldDefs: z.array(customFieldDefSchema).default([]),
+})
 
 export async function GET(
   request: NextRequest,
@@ -56,41 +104,6 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  const timeRangeSchema = z.object({
-    start: z.string().regex(/^\d{2}:\d{2}$/),
-    end: z.string().regex(/^\d{2}:\d{2}$/),
-  })
-
-  const weeklyScheduleSchema = z.record(z.string(), z.array(timeRangeSchema))
-
-  const customFieldDefSchema = z.object({
-    id: z.string().optional(),
-    label: z.string().min(1),
-    type: z.enum(["TEXT", "TEXTAREA", "NUMBER", "SELECT", "PHONE", "EMAIL", "CHECKBOX"]),
-    required: z.boolean().default(false),
-    optionsJson: z.array(z.string()).optional(),
-    order: z.number().int().default(0),
-  })
-
-  const settingsSchema = z.object({
-    enabled: z.boolean(),
-    showExternalLinkAlso: z.boolean().default(false),
-    timezone: z.string().default("Europe/Paris"),
-    slotDurationMinutes: z.number().int().min(15).max(480),
-    capacityPerSlot: z.number().int().min(1).max(10000),
-    minPartySize: z.number().int().min(1),
-    maxPartySize: z.number().int().min(1),
-    minNoticeMinutes: z.number().int().min(0),
-    bookingWindowDays: z.number().int().min(1).max(365),
-    cancellationEnabled: z.boolean().default(true),
-    cancellationDeadlineHours: z.number().int().min(0),
-    confirmationMessage: z.string().optional(),
-    cancellationPolicyText: z.string().optional(),
-    resourceSelectionMode: z.enum(["HIDDEN", "PICK_RESOURCE_FIRST", "PICK_TIME_FIRST"]).default("HIDDEN"),
-    weeklySchedule: weeklyScheduleSchema.default({}),
-    customFieldDefs: z.array(customFieldDefSchema).default([]),
-  })
-
   const parsed = settingsSchema.safeParse(body)
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0]
@@ -107,99 +120,61 @@ export async function PUT(
     )
   }
 
-  const data = parsed.data
+  const { weeklySchedule, customFieldDefs, ...settingsData } = parsed.data
 
-  // Upsert settings
-  const settings = await prisma.reservationSettings.upsert({
+  await prisma.$transaction(async (tx) => {
+    const settings = await tx.reservationSettings.upsert({
+      where: { establishmentId: id },
+      create: { establishmentId: id, ...settingsData },
+      update: settingsData,
+    })
+
+    // Sync weekly schedule using openRanges Json field (real Prisma schema)
+    await tx.weeklySchedule.deleteMany({ where: { settingsId: settings.id } })
+    const scheduleEntries = Object.entries(weeklySchedule)
+      .filter(([, ranges]) => ranges.length > 0)
+      .map(([day, ranges]) => ({
+        settingsId: settings.id,
+        dayOfWeek: parseInt(day, 10),
+        openRanges: ranges as unknown as Prisma.InputJsonValue,
+      }))
+    if (scheduleEntries.length > 0) {
+      await tx.weeklySchedule.createMany({ data: scheduleEntries })
+    }
+
+    // Sync custom field defs
+    const existingIds = customFieldDefs.filter((f) => f.id).map((f) => f.id as string)
+    await tx.reservationCustomFieldDef.deleteMany({
+      where: { settingsId: settings.id, id: { notIn: existingIds } },
+    })
+    for (const field of customFieldDefs) {
+      const optionsJson = field.optionsJson?.length
+        ? (field.optionsJson as Prisma.InputJsonValue)
+        : Prisma.JsonNull
+      const fieldData = {
+        settingsId: settings.id,
+        label: field.label,
+        type: field.type,
+        required: field.required,
+        optionsJson,
+        order: field.order,
+      }
+      if (field.id) {
+        await tx.reservationCustomFieldDef.update({ where: { id: field.id }, data: fieldData })
+      } else {
+        await tx.reservationCustomFieldDef.create({ data: fieldData })
+      }
+    }
+  })
+
+  // Return fresh settings with weeklySchedule included
+  const updated = await prisma.reservationSettings.findUnique({
     where: { establishmentId: id },
-    update: {
-      enabled: data.enabled,
-      showExternalLinkAlso: data.showExternalLinkAlso,
-      timezone: data.timezone,
-      slotDurationMinutes: data.slotDurationMinutes,
-      capacityPerSlot: data.capacityPerSlot,
-      minPartySize: data.minPartySize,
-      maxPartySize: data.maxPartySize,
-      minNoticeMinutes: data.minNoticeMinutes,
-      bookingWindowDays: data.bookingWindowDays,
-      cancellationEnabled: data.cancellationEnabled,
-      cancellationDeadlineHours: data.cancellationDeadlineHours,
-      confirmationMessage: data.confirmationMessage ?? null,
-      cancellationPolicyText: data.cancellationPolicyText ?? null,
-      resourceSelectionMode: data.resourceSelectionMode,
-    },
-    create: {
-      establishmentId: id,
-      enabled: data.enabled,
-      showExternalLinkAlso: data.showExternalLinkAlso,
-      timezone: data.timezone,
-      slotDurationMinutes: data.slotDurationMinutes,
-      capacityPerSlot: data.capacityPerSlot,
-      minPartySize: data.minPartySize,
-      maxPartySize: data.maxPartySize,
-      minNoticeMinutes: data.minNoticeMinutes,
-      bookingWindowDays: data.bookingWindowDays,
-      cancellationEnabled: data.cancellationEnabled,
-      cancellationDeadlineHours: data.cancellationDeadlineHours,
-      confirmationMessage: data.confirmationMessage ?? null,
-      cancellationPolicyText: data.cancellationPolicyText ?? null,
-      resourceSelectionMode: data.resourceSelectionMode,
+    include: {
+      weeklySchedule: { orderBy: { dayOfWeek: "asc" } },
+      customFieldDefs: { orderBy: { order: "asc" } },
     },
   })
 
-  // Sync weekly schedule
-  await prisma.weeklySchedule.deleteMany({ where: { settingsId: settings.id } })
-  for (const [dayStr, ranges] of Object.entries(data.weeklySchedule)) {
-    const dayOfWeek = parseInt(dayStr, 10)
-    for (const range of ranges) {
-      await prisma.weeklySchedule.create({
-        data: {
-          settingsId: settings.id,
-          dayOfWeek,
-          startTime: range.start,
-          endTime: range.end,
-        },
-      })
-    }
-  }
-
-  // Sync custom field defs
-  const existingFieldIds = data.customFieldDefs
-    .map((f) => f.id)
-    .filter(Boolean) as string[]
-
-  await prisma.reservationCustomFieldDef.deleteMany({
-    where: {
-      settingsId: settings.id,
-      id: { notIn: existingFieldIds },
-    },
-  })
-
-  for (const field of data.customFieldDefs) {
-    if (field.id) {
-      await prisma.reservationCustomFieldDef.update({
-        where: { id: field.id },
-        data: {
-          label: field.label,
-          type: field.type,
-          required: field.required,
-          optionsJson: field.optionsJson ?? [],
-          order: field.order,
-        },
-      })
-    } else {
-      await prisma.reservationCustomFieldDef.create({
-        data: {
-          settingsId: settings.id,
-          label: field.label,
-          type: field.type,
-          required: field.required,
-          optionsJson: field.optionsJson ?? [],
-          order: field.order,
-        },
-      })
-    }
-  }
-
-  return NextResponse.json({ success: true, settings })
+  return NextResponse.json({ settings: updated })
 }
